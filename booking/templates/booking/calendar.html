@@ -172,9 +172,6 @@
                 <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#bookingModal">
                     <i class="bi bi-plus-circle me-1"></i>New Booking
                 </button>
-                <button type="button" class="btn btn-info" id="help-btn" title="Keyboard shortcuts">
-                    <i class="bi bi-question-circle"></i>
-                </button>
             </div>
         </div>
     </div>
@@ -686,7 +683,7 @@ document.addEventListener('DOMContentLoaded', function() {
     calendarTimezone = new CalendarTimezone(calendar, userSettings);
     
     // Initialize mini calendar widget
-    const miniCalendarWidget = new MiniCalendarWidget(calendar);
+    // const miniCalendarWidget = new MiniCalendarWidget(calendar);
     
     // Initialize calendar sharing
     calendarSharing = new CalendarSharing(calendar);
@@ -717,10 +714,6 @@ document.addEventListener('DOMContentLoaded', function() {
         calendar.changeView('timeGridDay');
     });
     
-    // Help button
-    document.getElementById('help-btn').addEventListener('click', function() {
-        shortcuts.toggleHelp();
-    });
     
     // Resource filter
     document.getElementById('resource-filter').addEventListener('change', function() {
