@@ -1,0 +1,314 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Branding Configuration - Site Administration{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-palette me-2"></i>
+                    Branding Configuration
+                </h1>
+                <div>
+                    <a href="{% url 'booking:site_admin_license_management' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>
+                        Back to License Management
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if messages %}
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+
+    {% if not enabled_features.custom_branding %}
+    <div class="alert alert-warning">
+        <h6><i class="fas fa-exclamation-triangle me-2"></i>Custom Branding Not Available</h6>
+        <p class="mb-0">
+            Custom branding features require a commercial license. Please activate a commercial license to access these features.
+        </p>
+    </div>
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" data-progress="true">
+        {% csrf_token %}
+        
+        <div class="row">
+            <!-- Basic Branding -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Basic Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="id_app_title" class="form-label">Application Title</label>
+                            <input type="text" class="form-control" id="id_app_title" name="app_title" 
+                                   value="{{ form.app_title.value|default:'Labitory' }}"
+                                   {% if not enabled_features.custom_branding %}disabled{% endif %}>
+                            <div class="form-text">The main title displayed in the browser and navigation.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_company_name" class="form-label">Company Name</label>
+                            <input type="text" class="form-control" id="id_company_name" name="company_name" 
+                                   value="{{ form.company_name.value|default:'' }}"
+                                   {% if not enabled_features.custom_branding %}disabled{% endif %}>
+                            <div class="form-text">Your organization's name displayed throughout the application.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_welcome_message" class="form-label">Welcome Message</label>
+                            <textarea class="form-control" id="id_welcome_message" name="welcome_message" rows="3"
+                                      {% if not enabled_features.custom_branding %}disabled{% endif %}>{{ form.welcome_message.value|default:'' }}</textarea>
+                            <div class="form-text">Message displayed on the home page.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_footer_text" class="form-label">Footer Text</label>
+                            <textarea class="form-control" id="id_footer_text" name="footer_text" rows="2"
+                                      {% if not enabled_features.custom_branding %}disabled{% endif %}>{{ form.footer_text.value|default:'' }}</textarea>
+                            <div class="form-text">Text displayed in the application footer.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Visual Branding -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-image me-2"></i>
+                            Visual Branding
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="id_logo_primary" class="form-label">Primary Logo</label>
+                            <input type="file" class="form-control" id="id_logo_primary" name="logo_primary" accept="image/*"
+                                   {% if not enabled_features.custom_branding %}disabled{% endif %}>
+                            <div class="form-text">Logo displayed in the header (recommended: 200x50px, PNG or SVG).</div>
+                            {% if branding_config.logo_primary %}
+                                <div class="mt-2">
+                                    <img src="{{ branding_config.logo_primary.url }}" alt="Current logo" class="img-thumbnail" style="max-height: 50px;">
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_logo_favicon" class="form-label">Favicon</label>
+                            <input type="file" class="form-control" id="id_logo_favicon" name="logo_favicon" accept="image/*"
+                                   {% if not enabled_features.custom_branding %}disabled{% endif %}>
+                            <div class="form-text">Small icon displayed in browser tabs (recommended: 32x32px, ICO or PNG).</div>
+                            {% if branding_config.logo_favicon %}
+                                <div class="mt-2">
+                                    <img src="{{ branding_config.logo_favicon.url }}" alt="Current favicon" class="img-thumbnail" style="max-height: 32px;">
+                                </div>
+                            {% endif %}
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="id_color_primary" class="form-label">Primary Color</label>
+                                <input type="color" class="form-control form-control-color" id="id_color_primary" name="color_primary" 
+                                       value="{{ form.color_primary.value|default:'#007bff' }}"
+                                       {% if not enabled_features.custom_branding %}disabled{% endif %}>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="id_color_secondary" class="form-label">Secondary Color</label>
+                                <input type="color" class="form-control form-control-color" id="id_color_secondary" name="color_secondary" 
+                                       value="{{ form.color_secondary.value|default:'#6c757d' }}"
+                                       {% if not enabled_features.custom_branding %}disabled{% endif %}>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="id_color_accent" class="form-label">Accent Color</label>
+                                <input type="color" class="form-control form-control-color" id="id_color_accent" name="color_accent" 
+                                       value="{{ form.color_accent.value|default:'#28a745' }}"
+                                       {% if not enabled_features.custom_branding %}disabled{% endif %}>
+                            </div>
+                        </div>
+                        
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="id_show_powered_by" name="show_powered_by" 
+                                   {% if form.show_powered_by.value %}checked{% endif %}
+                                   {% if not enabled_features.custom_branding %}disabled{% endif %}>
+                            <label class="form-check-label" for="id_show_powered_by">
+                                Show "Powered by Labitory"
+                            </label>
+                            <div class="form-text">Display attribution in the footer.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <!-- Contact Information -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-address-book me-2"></i>
+                            Contact Information
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="id_support_email" class="form-label">Support Email</label>
+                            <input type="email" class="form-control" id="id_support_email" name="support_email" 
+                                   value="{{ form.support_email.value|default:'' }}"
+                                   {% if not enabled_features.custom_branding %}disabled{% endif %}>
+                            <div class="form-text">Email for user support requests.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_support_phone" class="form-label">Support Phone</label>
+                            <input type="text" class="form-control" id="id_support_phone" name="support_phone" 
+                                   value="{{ form.support_phone.value|default:'' }}"
+                                   {% if not enabled_features.custom_branding %}disabled{% endif %}>
+                            <div class="form-text">Phone number for support (optional).</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_website_url" class="form-label">Website URL</label>
+                            <input type="url" class="form-control" id="id_website_url" name="website_url" 
+                                   value="{{ form.website_url.value|default:'' }}"
+                                   {% if not enabled_features.custom_branding %}disabled{% endif %}>
+                            <div class="form-text">Your organization's website (optional).</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Email Configuration -->
+            <div class="col-lg-6 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-envelope me-2"></i>
+                            Email Configuration
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="id_email_from_name" class="form-label">Email From Name</label>
+                            <input type="text" class="form-control" id="id_email_from_name" name="email_from_name" 
+                                   value="{{ form.email_from_name.value|default:'' }}"
+                                   {% if not enabled_features.custom_branding %}disabled{% endif %}>
+                            <div class="form-text">Name used in "From" field of emails.</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="id_email_signature" class="form-label">Email Signature</label>
+                            <textarea class="form-control" id="id_email_signature" name="email_signature" rows="3"
+                                      {% if not enabled_features.custom_branding %}disabled{% endif %}>{{ form.email_signature.value|default:'' }}</textarea>
+                            <div class="form-text">Signature appended to all emails.</div>
+                        </div>
+                        
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="id_enable_public_registration" name="enable_public_registration" 
+                                   {% if form.enable_public_registration.value %}checked{% endif %}
+                                   {% if not enabled_features.custom_branding %}disabled{% endif %}>
+                            <label class="form-check-label" for="id_enable_public_registration">
+                                Enable Public Registration
+                            </label>
+                        </div>
+                        
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="id_enable_guest_booking" name="enable_guest_booking" 
+                                   {% if form.enable_guest_booking.value %}checked{% endif %}
+                                   {% if not enabled_features.custom_branding %}disabled{% endif %}>
+                            <label class="form-check-label" for="id_enable_guest_booking">
+                                Enable Guest Booking
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Custom CSS -->
+        <div class="row">
+            <div class="col-12 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-code me-2"></i>
+                            Custom CSS
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="id_custom_css" class="form-label">Custom CSS</label>
+                            <textarea class="form-control" id="id_custom_css" name="custom_css" rows="10"
+                                      {% if not enabled_features.custom_branding %}disabled{% endif %}>{{ form.custom_css.value|default:'' }}</textarea>
+                            <div class="form-text">
+                                Advanced: Add custom CSS to override default styles. Use with caution.
+                            </div>
+                        </div>
+                        
+                        {% if enabled_features.custom_branding %}
+                        <div class="alert alert-info">
+                            <h6><i class="fas fa-lightbulb me-2"></i>CSS Tips</h6>
+                            <ul class="mb-0">
+                                <li>Use <code>:root</code> variables to override colors: <code>--bs-primary: #your-color;</code></li>
+                                <li>Target specific elements: <code>.navbar-brand</code>, <code>.btn-primary</code>, etc.</li>
+                                <li>Test changes thoroughly before applying to production</li>
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="row">
+            <div class="col-12">
+                <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                    {% if enabled_features.custom_branding %}
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>
+                        Save Configuration
+                    </button>
+                    {% endif %}
+                    <a href="{% url 'booking:site_admin_license_management' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-2"></i>
+                        Cancel
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Color preview functionality
+    const colorInputs = ['id_color_primary', 'id_color_secondary', 'id_color_accent'];
+    
+    colorInputs.forEach(inputId => {
+        const input = document.getElementById(inputId);
+        if (input) {
+            input.addEventListener('change', function() {
+                // You could add live preview functionality here
+                console.log(`${inputId} changed to: ${this.value}`);
+            });
+        }
+    });
+});
+</script>
+{% endblock %}

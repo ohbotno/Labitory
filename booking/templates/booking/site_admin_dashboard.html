@@ -1,0 +1,870 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Site Administration - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-cogs me-2"></i>
+                    Site Administration
+                </h1>
+                <div class="text-muted">
+                    <i class="fas fa-clock me-1"></i>
+                    {{ system_info.server_time|date:"Y-m-d H:i:s T" }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Information Card -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-server me-2"></i>
+                        System Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>Python Version:</strong><br>
+                            <code>{{ system_info.python_version|slice:":10" }}</code>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Django Version:</strong><br>
+                            <code>{{ system_info.django_version }}</code>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Platform:</strong><br>
+                            <code>{{ system_info.platform }}</code>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Server Time:</strong><br>
+                            <code>{{ system_info.server_time|date:"Y-m-d H:i:s T" }}</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Overview -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ stats.total_users }}</h4>
+                            <p class="mb-0">Total Users</p>
+                            <small>+{{ stats.recent_users }} this month</small>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ stats.total_resources }}</h4>
+                            <p class="mb-0">Total Resources</p>
+                            <small>{{ stats.active_resources }} active</small>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-tools fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ stats.total_bookings }}</h4>
+                            <p class="mb-0">Total Bookings</p>
+                            <small>+{{ stats.recent_bookings }} this month</small>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-calendar-check fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ stats.pending_access_requests }}</h4>
+                            <p class="mb-0">Pending Requests</p>
+                            <small>{{ stats.pending_training_requests }} training</small>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-clock fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Quick Actions -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bolt me-2"></i>
+                        Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'booking:site_admin_users' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-users me-2"></i>
+                            Manage Users
+                        </a>
+                        <a href="{% url 'booking:lab_admin_resources' %}" class="btn btn-outline-success">
+                            <i class="fas fa-tools me-2"></i>
+                            Manage Resources
+                        </a>
+                        <a href="{% url 'booking:lab_admin_access_requests' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-key me-2"></i>
+                            Review Access Requests
+                            {% if stats.pending_access_requests > 0 %}
+                                <span class="badge bg-warning">{{ stats.pending_access_requests }}</span>
+                            {% endif %}
+                        </a>
+                        <a href="{% url 'booking:site_admin_config' %}" class="btn btn-outline-info">
+                            <i class="fas fa-cog me-2"></i>
+                            System Configuration
+                        </a>
+                        <a href="{% url 'booking:site_admin_academic_hierarchy' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-sitemap me-2"></i>
+                            Academic Hierarchy
+                        </a>
+                        <a href="{% url 'booking:site_admin_audit' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-list-alt me-2"></i>
+                            Audit Logs
+                        </a>
+                        <a href="{% url 'booking:site_admin_email_config' %}" class="btn btn-outline-success">
+                            <i class="fas fa-envelope-open-text me-2"></i>
+                            Email Configuration
+                        </a>
+                        <a href="{% url 'booking:site_admin_backup_management' %}" class="btn btn-outline-primary">
+                            <i class="fas fa-database me-2"></i>
+                            Backup Management
+                        </a>
+                        <a href="{% url 'booking:site_admin_updates' %}" class="btn btn-outline-info">
+                            <i class="fas fa-download me-2"></i>
+                            Application Updates
+                        </a>
+                        <a href="{% url 'booking:site_admin_license_management' %}" class="btn btn-outline-purple">
+                            <i class="fas fa-certificate me-2"></i>
+                            License Management
+                            {% if license_stats.license_type != 'open_source' %}
+                                {% if license_stats.is_valid %}
+                                    <span class="badge bg-success">Valid</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Invalid</span>
+                                {% endif %}
+                            {% endif %}
+                        </a>
+                        <button id="healthCheckBtn" class="btn btn-outline-danger">
+                            <i class="fas fa-heartbeat me-2"></i>
+                            System Health Check
+                            <span id="healthCheckSpinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- User Role Distribution -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        User Role Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% for role in user_roles %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <strong>{{ role.role|title }}</strong>
+                        </div>
+                        <div>
+                            <span class="badge bg-primary">{{ role.count }}</span>
+                        </div>
+                    </div>
+                    <div class="progress mb-3" style="height: 8px;">
+                        <div class="progress-bar" role="progressbar" 
+                             style="width: {% widthratio role.count stats.total_users 100 %}%;">
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- License Information -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-certificate me-2"></i>
+                        License Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center p-3">
+                                <div class="mb-2">
+                                    {% if license_stats.license_type == 'open_source' %}
+                                        <i class="fas fa-code fa-3x text-success"></i>
+                                    {% elif license_stats.is_valid %}
+                                        <i class="fas fa-certificate fa-3x text-primary"></i>
+                                    {% else %}
+                                        <i class="fas fa-exclamation-triangle fa-3x text-danger"></i>
+                                    {% endif %}
+                                </div>
+                                <h5 class="mb-1">
+                                    {% if license_stats.license_type == 'open_source' %}
+                                        Open Source
+                                    {% elif license_stats.license_type == 'basic_commercial' %}
+                                        Basic Commercial
+                                    {% elif license_stats.license_type == 'premium_commercial' %}
+                                        Premium Commercial
+                                    {% elif license_stats.license_type == 'enterprise' %}
+                                        Enterprise
+                                    {% else %}
+                                        {{ license_stats.license_type|title }}
+                                    {% endif %}
+                                </h5>
+                                <p class="text-muted mb-0">License Type</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3">
+                                <div class="mb-2">
+                                    {% if license_stats.is_valid %}
+                                        <i class="fas fa-check-circle fa-3x text-success"></i>
+                                    {% else %}
+                                        <i class="fas fa-times-circle fa-3x text-danger"></i>
+                                    {% endif %}
+                                </div>
+                                <h5 class="mb-1">
+                                    {% if license_stats.is_valid %}
+                                        Valid
+                                    {% else %}
+                                        Invalid
+                                    {% endif %}
+                                </h5>
+                                <p class="text-muted mb-0">Status</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3">
+                                <div class="mb-2">
+                                    <i class="fas fa-building fa-3x text-info"></i>
+                                </div>
+                                <h5 class="mb-1">{{ license_stats.organization|truncatechars:20 }}</h5>
+                                <p class="text-muted mb-0">Organization</p>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3">
+                                <div class="mb-2">
+                                    <i class="fas fa-calendar-alt fa-3x text-warning"></i>
+                                </div>
+                                <h5 class="mb-1">
+                                    {% if license_stats.expires_at %}
+                                        {{ license_stats.expires_at|date:"M Y" }}
+                                    {% else %}
+                                        Never
+                                    {% endif %}
+                                </h5>
+                                <p class="text-muted mb-0">Expires</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row mt-3">
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-between">
+                                <span>Recent Validations (30 days):</span>
+                                <span class="fw-bold">{{ license_stats.recent_validations }}</span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-between">
+                                <span>Validation Failures:</span>
+                                <span class="fw-bold {% if license_stats.validation_failures > 0 %}text-danger{% else %}text-success{% endif %}">
+                                    {{ license_stats.validation_failures }}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    {% if license_stats.enabled_features %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6 class="mb-2">Enabled Features:</h6>
+                            <div class="d-flex flex-wrap gap-1">
+                                {% for feature, enabled in license_stats.enabled_features.items %}
+                                    {% if enabled %}
+                                        <span class="badge bg-success">
+                                            {% if feature == 'basic_booking' %}Basic Booking
+                                            {% elif feature == 'user_management' %}User Management
+                                            {% elif feature == 'resource_management' %}Resource Management
+                                            {% elif feature == 'email_notifications' %}Email Notifications
+                                            {% elif feature == 'custom_branding' %}Custom Branding
+                                            {% elif feature == 'white_label' %}White Label
+                                            {% elif feature == 'advanced_reports' %}Advanced Reports
+                                            {% elif feature == 'api_access' %}API Access
+                                            {% elif feature == 'premium_support' %}Premium Support
+                                            {% elif feature == 'usage_analytics' %}Usage Analytics
+                                            {% elif feature == 'priority_updates' %}Priority Updates
+                                            {% else %}{{ feature|title }}{% endif %}
+                                        </span>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="d-flex gap-2">
+                                <a href="{% url 'booking:site_admin_license_management' %}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-cogs me-1"></i>
+                                    Manage License
+                                </a>
+                                {% if license_stats.license_type != 'open_source' and license_stats.enabled_features.custom_branding %}
+                                <a href="{% url 'booking:site_admin_branding_config' %}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-palette me-1"></i>
+                                    Configure Branding
+                                </a>
+                                {% endif %}
+                                {% if license_stats.license_type != 'open_source' %}
+                                <a href="{% url 'booking:site_admin_license_logs' %}" class="btn btn-outline-secondary btn-sm">
+                                    <i class="fas fa-list-alt me-1"></i>
+                                    View Logs
+                                </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Application Updates -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-download me-2"></i>
+                        Application Updates
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center p-3">
+                                <div class="text-primary mb-2">
+                                    <i class="fas fa-tag fa-2x"></i>
+                                </div>
+                                <h6>Current Version</h6>
+                                <strong class="h5 text-primary" id="currentVersion">{{ update_info.current_version|default:"Loading..." }}</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3">
+                                {% if update_info.is_update_available %}
+                                    <div class="text-warning mb-2">
+                                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                                    </div>
+                                    <h6>Latest Version</h6>
+                                    <strong class="h5 text-warning" id="latestVersion">{{ update_info.latest_version }}</strong>
+                                {% else %}
+                                    <div class="text-success mb-2">
+                                        <i class="fas fa-check-circle fa-2x"></i>
+                                    </div>
+                                    <h6>Status</h6>
+                                    <small class="text-success">Up to Date</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3">
+                                <div class="text-info mb-2">
+                                    <i class="fas fa-clock fa-2x"></i>
+                                </div>
+                                <h6>Last Check</h6>
+                                <small class="text-muted" id="lastCheck">
+                                    {% if update_info.last_check %}
+                                        {{ update_info.last_check|date:"M d, H:i" }}
+                                    {% else %}
+                                        Never
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3">
+                                <div class="d-grid gap-2">
+                                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="checkForUpdates()">
+                                        <i class="fas fa-sync me-1" id="checkIcon"></i>
+                                        Check Now
+                                    </button>
+                                    <a href="{% url 'booking:site_admin_updates' %}" class="btn btn-outline-info btn-sm">
+                                        <i class="fas fa-cog me-1"></i>
+                                        Manage Updates
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if update_info.is_update_available %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="alert alert-warning" role="alert">
+                                <h6 class="alert-heading">
+                                    <i class="fas fa-download me-2"></i>
+                                    Update Available!
+                                </h6>
+                                <p class="mb-2">
+                                    A new version ({{ update_info.latest_version }}) is available for download.
+                                </p>
+                                <hr>
+                                <div class="d-flex gap-2">
+                                    <a href="{% url 'booking:site_admin_updates' %}" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-download me-1"></i>
+                                        Download Update
+                                    </a>
+                                    {% if update_info.release_notes %}
+                                    <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#releaseNotesModal">
+                                        <i class="fas fa-file-alt me-1"></i>
+                                        View Release Notes
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if update_info.error_message %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <div class="alert alert-danger" role="alert">
+                                <h6 class="alert-heading">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    Update Check Failed
+                                </h6>
+                                <p class="mb-0">{{ update_info.error_message }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Status -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-heartbeat me-2"></i>
+                        System Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="text-center p-3">
+                                <div class="text-success mb-2">
+                                    <i class="fas fa-check-circle fa-2x"></i>
+                                </div>
+                                <h6>Database</h6>
+                                <small class="text-muted">Online</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3">
+                                {% if stats.active_maintenance > 0 %}
+                                    <div class="text-warning mb-2">
+                                        <i class="fas fa-exclamation-triangle fa-2x"></i>
+                                    </div>
+                                    <h6>Maintenance</h6>
+                                    <small class="text-muted">{{ stats.active_maintenance }} active</small>
+                                {% else %}
+                                    <div class="text-success mb-2">
+                                        <i class="fas fa-wrench fa-2x"></i>
+                                    </div>
+                                    <h6>Maintenance</h6>
+                                    <small class="text-muted">None active</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3">
+                                <div class="text-info mb-2">
+                                    <i class="fas fa-calendar-alt fa-2x"></i>
+                                </div>
+                                <h6>Upcoming Maintenance</h6>
+                                <small class="text-muted">{{ stats.upcoming_maintenance }} this week</small>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="text-center p-3">
+                                {% if stats.inactive_resources > 0 %}
+                                    <div class="text-warning mb-2">
+                                        <i class="fas fa-pause-circle fa-2x"></i>
+                                    </div>
+                                    <h6>Inactive Resources</h6>
+                                    <small class="text-muted">{{ stats.inactive_resources }} offline</small>
+                                {% else %}
+                                    <div class="text-success mb-2">
+                                        <i class="fas fa-play-circle fa-2x"></i>
+                                    </div>
+                                    <h6>All Resources</h6>
+                                    <small class="text-muted">Active</small>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% csrf_token %}
+
+<!-- Health Check Results Modal -->
+<div class="modal fade" id="healthCheckModal" tabindex="-1" aria-labelledby="healthCheckModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="healthCheckModalLabel">
+                    <i class="fas fa-heartbeat me-2"></i>
+                    System Health Check Results
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="healthCheckResults">
+                <!-- Results will be populated here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="refreshHealthCheck">
+                    <i class="fas fa-sync me-2"></i>
+                    Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Release Notes Modal -->
+{% if update_info.release_notes %}
+<div class="modal fade" id="releaseNotesModal" tabindex="-1" aria-labelledby="releaseNotesModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="releaseNotesModalLabel">
+                    <i class="fas fa-file-alt me-2"></i>
+                    Release Notes - {{ update_info.latest_version }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="release-notes">
+                    {{ update_info.release_notes|linebreaks }}
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="{% url 'booking:site_admin_updates' %}" class="btn btn-primary">
+                    <i class="fas fa-download me-1"></i>
+                    Go to Updates
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const healthCheckBtn = document.getElementById('healthCheckBtn');
+    const healthCheckSpinner = document.getElementById('healthCheckSpinner');
+    const healthCheckModal = document.getElementById('healthCheckModal');
+    const healthCheckResults = document.getElementById('healthCheckResults');
+    const refreshHealthCheck = document.getElementById('refreshHealthCheck');
+    
+    function performHealthCheck() {
+        // Show spinner
+        healthCheckSpinner.classList.remove('d-none');
+        healthCheckBtn.disabled = true;
+        
+        // Make AJAX request to health check endpoint
+        fetch('{% url "booking:site_admin_health_check" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            displayHealthCheckResults(data);
+            
+            // Show modal
+            const modal = new bootstrap.Modal(healthCheckModal);
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Health check failed:', error);
+            healthCheckResults.innerHTML = `
+                <div class="alert alert-danger">
+                    <h6><i class="fas fa-exclamation-triangle me-2"></i>Health Check Failed</h6>
+                    <p>Unable to perform health check. Error: ${error.message}</p>
+                </div>
+            `;
+            
+            // Show modal with error
+            const modal = new bootstrap.Modal(healthCheckModal);
+            modal.show();
+        })
+        .finally(() => {
+            // Hide spinner
+            healthCheckSpinner.classList.add('d-none');
+            healthCheckBtn.disabled = false;
+        });
+    }
+    
+    function displayHealthCheckResults(data) {
+        const overallStatusClass = data.overall_status === 'healthy' ? 'success' : 
+                                  data.overall_status === 'warning' ? 'warning' : 'danger';
+        
+        const overallStatusIcon = data.overall_status === 'healthy' ? 'fa-check-circle' : 
+                                 data.overall_status === 'warning' ? 'fa-exclamation-triangle' : 'fa-times-circle';
+        
+        let html = `
+            <div class="alert alert-${overallStatusClass}">
+                <h6><i class="fas ${overallStatusIcon} me-2"></i>Overall Status: ${data.overall_status.toUpperCase()}</h6>
+                <p class="mb-0">
+                    <strong>Summary:</strong> ${data.summary.healthy} healthy, ${data.summary.warnings} warnings, ${data.summary.unhealthy} issues
+                    <br><small>Checked at: ${new Date(data.timestamp).toLocaleString()}</small>
+                </p>
+            </div>
+        `;
+        
+        // Add individual check results
+        html += '<div class="row">';
+        
+        Object.entries(data.checks).forEach(([checkName, result]) => {
+            const statusClass = result.status === 'healthy' ? 'success' : 
+                               result.status === 'warning' ? 'warning' : 'danger';
+            
+            const statusIcon = result.status === 'healthy' ? 'fa-check-circle' : 
+                              result.status === 'warning' ? 'fa-exclamation-triangle' : 'fa-times-circle';
+            
+            html += `
+                <div class="col-md-6 mb-3">
+                    <div class="card border-${statusClass}">
+                        <div class="card-header bg-${statusClass} text-white">
+                            <h6 class="mb-0">
+                                <i class="fas ${statusIcon} me-2"></i>
+                                ${checkName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <p class="mb-1">${result.message}</p>
+                            
+                            ${result.response_time_ms ? `<small class="text-muted">Response time: ${result.response_time_ms}ms</small>` : ''}
+                            
+                            ${result.cpu_percent ? `
+                                <small class="d-block">CPU: ${result.cpu_percent}%</small>
+                                <small class="d-block">Memory: ${result.memory_percent}%</small>
+                                <small class="d-block">Disk: ${result.disk_percent}%</small>
+                            ` : ''}
+                            
+                            ${result.counts ? `
+                                <small class="d-block">${result.counts.join(', ')}</small>
+                            ` : ''}
+                            
+                            ${result.warnings && result.warnings.length > 0 ? `
+                                <div class="mt-2">
+                                    <strong>Warnings:</strong>
+                                    <ul class="mb-0">
+                                        ${result.warnings.map(warning => `<li>${warning}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                            
+                            ${result.issues && result.issues.length > 0 ? `
+                                <div class="mt-2">
+                                    <strong>Issues:</strong>
+                                    <ul class="mb-0">
+                                        ${result.issues.map(issue => `<li>${issue}</li>`).join('')}
+                                    </ul>
+                                </div>
+                            ` : ''}
+                            
+                            ${result.error ? `
+                                <div class="mt-2 text-danger">
+                                    <strong>Error:</strong> ${result.error}
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        
+        healthCheckResults.innerHTML = html;
+    }
+    
+    // Event listeners
+    healthCheckBtn.addEventListener('click', performHealthCheck);
+    refreshHealthCheck.addEventListener('click', performHealthCheck);
+});
+
+// Update checking functionality
+function checkForUpdates() {
+    const checkIcon = document.getElementById('checkIcon');
+    const currentVersionEl = document.getElementById('currentVersion');
+    const lastCheckEl = document.getElementById('lastCheck');
+    
+    // Show loading state
+    checkIcon.classList.add('fa-spin');
+    checkIcon.parentElement.disabled = true;
+    
+    // Make AJAX request to check for updates
+    fetch('{% url "booking:site_admin_updates_ajax" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: 'check_updates'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Update the display with new information
+            if (data.update_available) {
+                showUpdateAlert(data.current_version, data.latest_version, data.release_notes);
+            } else {
+                showUpToDateMessage(data.current_version);
+            }
+            
+            // Update last check time
+            const now = new Date();
+            lastCheckEl.textContent = now.toLocaleDateString('en-GB', {
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } else {
+            showErrorAlert(data.error || 'Failed to check for updates');
+        }
+    })
+    .catch(error => {
+        console.error('Update check failed:', error);
+        showErrorAlert('Failed to check for updates: ' + error.message);
+    })
+    .finally(() => {
+        // Remove loading state
+        checkIcon.classList.remove('fa-spin');
+        checkIcon.parentElement.disabled = false;
+    });
+}
+
+function showUpdateAlert(currentVersion, latestVersion, releaseNotes) {
+    // Find the update section and reload the page to show the update alert
+    // For simplicity, we'll just reload the page to get the updated status
+    setTimeout(() => {
+        window.location.reload();
+    }, 1000);
+}
+
+function showUpToDateMessage(currentVersion) {
+    // Show a temporary success message
+    const alertContainer = document.createElement('div');
+    alertContainer.className = 'alert alert-success alert-dismissible fade show position-fixed';
+    alertContainer.style.cssText = 'top: 20px; right: 20px; z-index: 1050; max-width: 300px;';
+    alertContainer.innerHTML = `
+        <i class="fas fa-check-circle me-2"></i>
+        Up to date! Version ${currentVersion}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertContainer);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        if (alertContainer && alertContainer.parentNode) {
+            alertContainer.remove();
+        }
+    }, 3000);
+}
+
+function showErrorAlert(message) {
+    // Show a temporary error message
+    const alertContainer = document.createElement('div');
+    alertContainer.className = 'alert alert-danger alert-dismissible fade show position-fixed';
+    alertContainer.style.cssText = 'top: 20px; right: 20px; z-index: 1050; max-width: 300px;';
+    alertContainer.innerHTML = `
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(alertContainer);
+    
+    // Auto-remove after 5 seconds
+    setTimeout(() => {
+        if (alertContainer && alertContainer.parentNode) {
+            alertContainer.remove();
+        }
+    }, 5000);
+}
+</script>
+
+{% endblock %}

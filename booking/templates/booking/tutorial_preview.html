@@ -1,0 +1,250 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Preview Tutorial: {{ tutorial.name }} - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-eye me-2"></i>Preview Tutorial</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:tutorial_management' %}">Tutorial Management</a></li>
+                            <li class="breadcrumb-item active">Preview: {{ tutorial.name }}</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{% url 'booking:tutorial_edit' tutorial.id %}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-edit me-1"></i> Edit Tutorial
+                    </a>
+                    <a href="{% url 'booking:tutorial_management' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Management
+                    </a>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="{{ tutorial.category.icon }} me-2"></i>{{ tutorial.name }}
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <strong>Category:</strong> {{ tutorial.category.name }}
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Duration:</strong> ~{{ tutorial.estimated_duration }} minutes
+                                </div>
+                            </div>
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <strong>Difficulty:</strong> 
+                                    <span class="badge bg-{% if tutorial.difficulty_level == 'beginner' %}success{% elif tutorial.difficulty_level == 'intermediate' %}warning{% else %}danger{% endif %}">
+                                        {{ tutorial.get_difficulty_level_display }}
+                                    </span>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Status:</strong>
+                                    <span class="badge bg-{% if tutorial.is_active %}success{% else %}secondary{% endif %}">
+                                        {% if tutorial.is_active %}Active{% else %}Inactive{% endif %}
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Description:</strong>
+                                <p class="text-muted mb-0">{{ tutorial.description }}</p>
+                            </div>
+                            <div class="mb-3">
+                                <strong>Target Roles:</strong>
+                                {% if tutorial.target_roles %}
+                                    {% for role in tutorial.target_roles %}
+                                        <span class="badge bg-primary me-1">{{ role|title }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted">All roles</span>
+                                {% endif %}
+                            </div>
+                            <div class="mb-3">
+                                <strong>Target Pages:</strong>
+                                {% if tutorial.target_pages %}
+                                    {% for page in tutorial.target_pages %}
+                                        <span class="badge bg-info me-1">{{ page }}</span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="text-muted">All pages</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mt-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Tutorial Steps ({{ tutorial.steps|length }})</h5>
+                        </div>
+                        <div class="card-body">
+                            {% for step in tutorial.steps %}
+                            <div class="step-preview mb-3 p-3 border rounded">
+                                <div class="d-flex align-items-start">
+                                    <div class="step-number bg-primary text-white rounded-circle d-flex align-items-center justify-content-center me-3" style="width: 30px; height: 30px; min-width: 30px;">
+                                        {{ forloop.counter }}
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">{{ step.title }}</h6>
+                                        {% if step.subtitle %}
+                                        <p class="text-muted small mb-2">{{ step.subtitle }}</p>
+                                        {% endif %}
+                                        <p class="mb-1">{{ step.description }}</p>
+                                        {% if step.target %}
+                                        <small class="text-muted">
+                                            <i class="fas fa-crosshairs me-1"></i>Target: <code>{{ step.target }}</code>
+                                        </small>
+                                        {% endif %}
+                                        {% if step.image %}
+                                        <div class="mt-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-image me-1"></i>Image: {{ step.image }}
+                                            </small>
+                                        </div>
+                                        {% endif %}
+                                        {% if step.code %}
+                                        <div class="mt-2">
+                                            <small class="text-muted">
+                                                <i class="fas fa-code me-1"></i>Code example included
+                                            </small>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="text-center text-muted py-4">
+                                <i class="fas fa-info-circle fa-2x mb-3"></i>
+                                <p>No steps defined for this tutorial yet.</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Preview Actions</h5>
+                        </div>
+                        <div class="card-body">
+                            <button id="start-preview" class="btn btn-primary w-100 mb-3" {% if not tutorial.steps %}disabled{% endif %}>
+                                <i class="fas fa-play me-1"></i> Start Tutorial Preview
+                            </button>
+                            <p class="text-muted small">
+                                This will start the tutorial in preview mode, allowing you to see how it appears to users.
+                            </p>
+                        </div>
+                    </div>
+
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5 class="mb-0">Tutorial Settings</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-2">
+                                <strong>Trigger Type:</strong>
+                                <span class="badge bg-secondary">{{ tutorial.get_trigger_type_display }}</span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>Mandatory:</strong>
+                                <span class="badge bg-{% if tutorial.is_mandatory %}warning{% else %}secondary{% endif %}">
+                                    {% if tutorial.is_mandatory %}Yes{% else %}No{% endif %}
+                                </span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>Auto-start:</strong>
+                                <span class="badge bg-{% if tutorial.auto_start %}info{% else %}secondary{% endif %}">
+                                    {% if tutorial.auto_start %}Yes{% else %}No{% endif %}
+                                </span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>Show Progress:</strong>
+                                <span class="badge bg-{% if tutorial.show_progress %}success{% else %}secondary{% endif %}">
+                                    {% if tutorial.show_progress %}Yes{% else %}No{% endif %}
+                                </span>
+                            </div>
+                            <div class="mb-2">
+                                <strong>Allow Skip:</strong>
+                                <span class="badge bg-{% if tutorial.allow_skip %}primary{% else %}secondary{% endif %}">
+                                    {% if tutorial.allow_skip %}Yes{% else %}No{% endif %}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5 class="mb-0">Tutorial Stats</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row text-center">
+                                <div class="col-6">
+                                    <div class="border-end">
+                                        <div class="h4 mb-0">{{ tutorial.analytics.total_starts|default:0 }}</div>
+                                        <small class="text-muted">Total Starts</small>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="h4 mb-0">{{ tutorial.analytics.total_completions|default:0 }}</div>
+                                    <small class="text-muted">Completions</small>
+                                </div>
+                            </div>
+                            <hr>
+                            <div class="text-center">
+                                <div class="h5 mb-0">
+                                    {% if tutorial.analytics.total_starts %}
+                                        {{ tutorial.analytics.completion_rate|floatformat:1 }}%
+                                    {% else %}
+                                        0%
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted">Completion Rate</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const startPreviewBtn = document.getElementById('start-preview');
+    
+    if (startPreviewBtn) {
+        startPreviewBtn.addEventListener('click', function() {
+            // Start tutorial in preview mode
+            if (window.tutorialSystem) {
+                const tutorialData = {
+                    id: {{ tutorial.id }},
+                    name: "{{ tutorial.name|escapejs }}",
+                    steps: {{ tutorial.steps|safe }},
+                    isPreview: true
+                };
+                
+                window.tutorialSystem.startTutorial(tutorialData);
+            } else {
+                alert('Tutorial system not available. Please check if the tutorial system is properly loaded.');
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

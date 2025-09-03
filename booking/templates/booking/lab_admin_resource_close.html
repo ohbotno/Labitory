@@ -1,0 +1,135 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Close Resource - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="bi bi-lock me-2"></i>Close Resource
+                    </h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_dashboard' %}">Lab Admin</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_resources' %}">Resources</a></li>
+                            <li class="breadcrumb-item active">Close Resource</li>
+                        </ol>
+                    </nav>
+                </div>
+                <a href="{% url 'booking:lab_admin_resources' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-arrow-left"></i> Back to Resources
+                </a>
+            </div>
+
+            <div class="row justify-content-center">
+                <div class="col-md-8">
+                    <div class="card border-warning">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0">
+                                <i class="bi bi-exclamation-triangle me-2"></i>Close Resource for Bookings
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-warning">
+                                <i class="bi bi-info-circle me-2"></i>
+                                <strong>Important:</strong> Closing this resource will prevent users from making new bookings. Existing bookings will not be affected.
+                            </div>
+
+                            <div class="mb-4">
+                                <h6>Resource Details:</h6>
+                                <div class="card bg-light">
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <ul class="list-unstyled mb-0">
+                                                    <li><strong>Name:</strong> {{ resource.name }}</li>
+                                                    <li><strong>Type:</strong> {{ resource.get_resource_type_display }}</li>
+                                                    <li><strong>Location:</strong> {{ resource.location }}</li>
+                                                </ul>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <ul class="list-unstyled mb-0">
+                                                    <li><strong>Status:</strong> 
+                                                        {% if resource.is_closed %}
+                                                            <span class="badge bg-danger">Closed</span>
+                                                        {% elif resource.is_active %}
+                                                            <span class="badge bg-success">Active</span>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">Inactive</span>
+                                                        {% endif %}
+                                                    </li>
+                                                    <li><strong>Capacity:</strong> {{ resource.capacity }}</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {% if resource.is_closed %}
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle me-2"></i>
+                                    This resource is already closed.
+                                    {% if resource.closed_reason %}
+                                        <br><strong>Reason:</strong> {{ resource.closed_reason }}
+                                    {% endif %}
+                                    {% if resource.closed_at %}
+                                        <br><strong>Closed:</strong> {{ resource.closed_at|date:"M d, Y H:i" }}
+                                        {% if resource.closed_by %}by {{ resource.closed_by.get_full_name|default:resource.closed_by.username }}{% endif %}
+                                    {% endif %}
+                                </div>
+                                
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'booking:lab_admin_resources' %}" class="btn btn-secondary">
+                                        <i class="bi bi-arrow-left"></i> Back to Resources
+                                    </a>
+                                    <form method="post" action="{% url 'booking:lab_admin_open_resource' resource.id %}" style="display: inline;">
+                                        {% csrf_token %}
+                                        <button type="submit" class="btn btn-success">
+                                            <i class="bi bi-unlock"></i> Reopen Resource
+                                        </button>
+                                    </form>
+                                </div>
+                            {% else %}
+                                <form method="post">
+                                    {% csrf_token %}
+                                    
+                                    <div class="mb-3">
+                                        <label for="reason" class="form-label">Reason for Closing (Optional)</label>
+                                        <textarea class="form-control" id="reason" name="reason" rows="3" 
+                                                  placeholder="Enter the reason for closing this resource (e.g., 'Under maintenance', 'Equipment malfunction', etc.)"></textarea>
+                                        <div class="form-text">This will be visible to users attempting to book the resource.</div>
+                                    </div>
+
+                                    <div class="mb-4">
+                                        <h6>What happens when you close this resource:</h6>
+                                        <ul class="list-unstyled">
+                                            <li><i class="bi bi-x-circle text-danger me-2"></i>New bookings will be prevented</li>
+                                            <li><i class="bi bi-check-circle text-success me-2"></i>Existing bookings will remain unchanged</li>
+                                            <li><i class="bi bi-eye text-info me-2"></i>Users can still view the resource but cannot book it</li>
+                                            <li><i class="bi bi-unlock text-warning me-2"></i>You can reopen the resource at any time</li>
+                                        </ul>
+                                    </div>
+
+                                    <div class="d-flex justify-content-between">
+                                        <a href="{% url 'booking:lab_admin_resources' %}" class="btn btn-secondary">
+                                            <i class="bi bi-x-circle"></i> Cancel
+                                        </a>
+                                        <button type="submit" class="btn btn-warning">
+                                            <i class="bi bi-lock"></i> Close Resource
+                                        </button>
+                                    </div>
+                                </form>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

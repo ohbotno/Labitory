@@ -1,0 +1,834 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Lab Admin - Training Management - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-graduation-cap me-2"></i>Training Management</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_dashboard' %}">Lab Admin</a></li>
+                            <li class="breadcrumb-item active">Training</li>
+                        </ol>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Navigation Tabs -->
+            <ul class="nav nav-tabs mb-4" id="trainingTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="requests-tab" data-bs-toggle="tab" data-bs-target="#requests" type="button" role="tab">
+                        <i class="fas fa-clock me-2"></i>Requests & Sessions
+                        <span class="badge bg-warning text-dark ms-1">{{ pending_requests.count }}</span>
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="courses-tab" data-bs-toggle="tab" data-bs-target="#courses" type="button" role="tab">
+                        <i class="fas fa-book me-2"></i>Training Courses
+                        <span class="badge bg-info ms-1">{{ training_courses.count }}</span>
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Tab Content -->
+            <div class="tab-content" id="trainingTabContent">
+                <!-- Training Requests & Sessions Tab -->
+                <div class="tab-pane fade show active" id="requests" role="tabpanel">
+                    <div class="row">
+                        <!-- Pending Training Requests -->
+                        <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-clock me-2"></i>Pending Training Requests
+                                <span class="badge bg-warning text-dark ms-2">{{ pending_requests.count }}</span>
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% for request in pending_requests %}
+                            <div class="border rounded p-3 mb-3">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">{{ request.user.get_full_name }}</h6>
+                                        <p class="mb-1 text-muted">{{ request.training_course.name }}</p>
+                                        <small class="text-muted">Requested {{ request.created_at|date:"M j, Y" }}</small>
+                                        {% if request.training_date %}
+                                        <br><small class="text-info">
+                                            <i class="fas fa-calendar"></i> Scheduled for {{ request.training_date|date:"M j, Y g:i A" }}
+                                        </small>
+                                        {% endif %}
+                                    </div>
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal{{ request.id }}" title="Edit Request">
+                                            <i class="fas fa-edit"></i>
+                                        </button>
+                                        <form method="post" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="complete_training">
+                                            <input type="hidden" name="request_id" value="{{ request.id }}">
+                                            <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Mark this training as completed? This will update the user\\'s training level.')" title="Mark Training Complete">
+                                                <i class="fas fa-graduation-cap"></i>
+                                            </button>
+                                        </form>
+                                        <form method="post" style="display: inline;">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="delete_request">
+                                            <input type="hidden" name="request_id" value="{{ request.id }}">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this training request? This action cannot be undone.')" title="Delete Request">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                                {% if request.justification %}
+                                <div class="mt-2">
+                                    <small><strong>Justification:</strong> {{ request.justification }}</small>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <!-- Edit Training Request Modal -->
+                            <div class="modal fade" id="editModal{{ request.id }}" tabindex="-1">
+                                <div class="modal-dialog modal-lg">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Edit Training Request</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form method="post">
+                                            {% csrf_token %}
+                                            <input type="hidden" name="action" value="edit_request">
+                                            <input type="hidden" name="request_id" value="{{ request.id }}">
+                                            <div class="modal-body">
+                                                <div class="row mb-3">
+                                                    <div class="col-md-6">
+                                                        <p><strong>User:</strong> {{ request.user.get_full_name }}</p>
+                                                        <p><strong>Email:</strong> {{ request.user.email }}</p>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <p><strong>Resource:</strong> {{ request.resource.name }}</p>
+                                                        <p><strong>Created:</strong> {{ request.created_at|date:"M j, Y g:i A" }}</p>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Training Date and Time -->
+                                                <div class="mb-4">
+                                                    <h6 class="fw-bold mb-3">Training Schedule</h6>
+                                                    <div class="row">
+                                                        <div class="col-md-6 mb-3">
+                                                            <label for="edit_training_date{{ request.id }}" class="form-label">Training Date</label>
+                                                            <input type="date" class="form-control" id="edit_training_date{{ request.id }}" name="training_date" 
+                                                                   value="{% if request.training_date %}{{ request.training_date|date:'Y-m-d' }}{% endif %}"
+                                                                   min="{{ today|date:'Y-m-d' }}">
+                                                            <div class="form-text">Leave blank for no specific date</div>
+                                                        </div>
+                                                        <div class="col-md-6 mb-3">
+                                                            <label for="edit_training_time{{ request.id }}" class="form-label">Training Time</label>
+                                                            <input type="time" class="form-control" id="edit_training_time{{ request.id }}" name="training_time"
+                                                                   value="{% if request.training_date %}{{ request.training_date|time:'H:i' }}{% endif %}">
+                                                            <div class="form-text">Leave blank for no specific time</div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                
+                                                <!-- Training Details -->
+                                                <div class="mb-3">
+                                                    <label for="edit_training_justification{{ request.id }}" class="form-label">Training Requirements & Notes</label>
+                                                    <textarea class="form-control" id="edit_training_justification{{ request.id }}" name="training_justification" rows="4">{{ request.justification }}</textarea>
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-primary">
+                                                    <i class="fas fa-save me-1"></i>Save Changes
+                                                </button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                                <p class="text-muted mb-0">No pending training requests</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upcoming Training Sessions -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-calendar-check me-2"></i>Upcoming Training Sessions
+                                <span class="badge bg-info ms-2">{{ upcoming_sessions.count }}</span>
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            {% for session in upcoming_sessions %}
+                            <div class="border rounded p-3 mb-3">
+                                <div class="d-flex justify-content-between align-items-start">
+                                    <div>
+                                        <h6 class="mb-1">{{ session.user.get_full_name }}</h6>
+                                        <p class="mb-1 text-muted">{{ session.training_course.name }}</p>
+                                        {% if session.session_date %}
+                                        <small class="text-success">
+                                            <i class="fas fa-calendar"></i> {{ session.session_date|date:"M j, Y" }}
+                                        </small>
+                                        {% endif %}
+                                        {% if session.instructor %}
+                                        <br><small class="text-muted">Instructor: {{ session.instructor.get_full_name }}</small>
+                                        {% endif %}
+                                    </div>
+                                    {% if not session.session_date %}
+                                    <button class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#scheduleModal{{ session.id }}">
+                                        <i class="fas fa-calendar-plus"></i> Schedule
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Schedule Modal -->
+                            {% if not session.session_date %}
+                            <div class="modal fade" id="scheduleModal{{ session.id }}" tabindex="-1">
+                                <div class="modal-dialog">
+                                    <div class="modal-content">
+                                        <div class="modal-header">
+                                            <h5 class="modal-title">Schedule Training Session</h5>
+                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                        </div>
+                                        <form method="post">
+                                            {% csrf_token %}
+                                            <div class="modal-body">
+                                                <input type="hidden" name="action" value="schedule_training">
+                                                <input type="hidden" name="user_training_id" value="{{ session.id }}">
+                                                
+                                                <p><strong>Student:</strong> {{ session.user.get_full_name }}</p>
+                                                <p><strong>Course:</strong> {{ session.training_course.name }}</p>
+                                                
+                                                <div class="mb-3">
+                                                    <label class="form-label">Session Date</label>
+                                                    <input type="date" name="session_date" class="form-control" required min="{{ today|date:'Y-m-d' }}">
+                                                </div>
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                <button type="submit" class="btn btn-primary">Schedule Session</button>
+                                            </div>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {% empty %}
+                            <div class="text-center py-4">
+                                <i class="fas fa-calendar fa-2x text-muted mb-2"></i>
+                                <p class="text-muted mb-0">No upcoming training sessions</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+                        <!-- Quick Actions -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5 class="mb-0">Training Management Tasks</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="row">
+                                            <div class="col-md-4">
+                                                <div class="d-grid">
+                                                    <button class="btn btn-outline-primary" onclick="location.reload()">
+                                                        <i class="fas fa-sync-alt me-2"></i>Refresh Data
+                                                    </button>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="d-grid">
+                                                    <a href="{% url 'booking:lab_admin_dashboard' %}" class="btn btn-outline-secondary">
+                                                        <i class="fas fa-arrow-left me-2"></i>Back to Dashboard
+                                                    </a>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="d-grid">
+                                                    <a href="{% url 'booking:lab_admin_users' %}" class="btn btn-outline-info">
+                                                        <i class="fas fa-users me-2"></i>Manage Users
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Training Courses Tab -->
+                <div class="tab-pane fade" id="courses" role="tabpanel">
+                    <div class="row">
+                        <!-- Add Course Form -->
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-plus me-2"></i>Add Training Course
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <form id="addCourseForm">
+                                        {% csrf_token %}
+                                        <div class="mb-3">
+                                            <label for="courseTitle" class="form-label">Course Title <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="courseTitle" name="title" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="courseCode" class="form-label">Course Code <span class="text-danger">*</span></label>
+                                            <input type="text" class="form-control" id="courseCode" name="code" required placeholder="e.g., SAFE-001">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="courseType" class="form-label">Course Type</label>
+                                            <select class="form-select" id="courseType" name="course_type">
+                                                <option value="safety">Safety Training</option>
+                                                <option value="equipment">Equipment Specific Training</option>
+                                                <option value="software">Software Training</option>
+                                                <option value="advanced">Advanced Certification</option>
+                                                <option value="refresher">Refresher Course</option>
+                                                <option value="induction">General Induction</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="deliveryMethod" class="form-label">Delivery Method</label>
+                                            <select class="form-select" id="deliveryMethod" name="delivery_method">
+                                                <option value="in_person">In-Person Training</option>
+                                                <option value="online">Online Training</option>
+                                                <option value="hybrid">Hybrid Training</option>
+                                                <option value="self_study">Self-Study</option>
+                                                <option value="assessment_only">Assessment Only</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="durationHours" class="form-label">Duration (Hours)</label>
+                                            <input type="number" class="form-control" id="durationHours" name="duration_hours" min="0" step="0.5" value="1">
+                                        </div>
+                                        <div class="mb-3">
+                                            <label for="courseDescription" class="form-label">Description</label>
+                                            <textarea class="form-control" id="courseDescription" name="description" rows="3"></textarea>
+                                        </div>
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="isMandatory" name="is_mandatory">
+                                                <label class="form-check-label" for="isMandatory">
+                                                    Mandatory Course
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="isActive" name="is_active" checked>
+                                                <label class="form-check-label" for="isActive">
+                                                    Active
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="d-grid">
+                                            <button type="submit" class="btn btn-primary" id="addCourseBtn">
+                                                <i class="fas fa-plus me-1"></i>Add Course
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Training Courses List -->
+                        <div class="col-md-8">
+                            <div class="card">
+                                <div class="card-header">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-book me-2"></i>Training Courses
+                                        <span class="badge bg-info ms-2">{{ training_courses.count }}</span>
+                                    </h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive" id="coursesContainer">
+                                        <table class="table table-hover">
+                                            <thead>
+                                                <tr>
+                                                    <th>Course</th>
+                                                    <th>Type</th>
+                                                    <th>Duration</th>
+                                                    <th>Status</th>
+                                                    <th>Actions</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="coursesTableBody">
+                                                {% for course in training_courses %}
+                                                <tr data-course-id="{{ course.id }}">
+                                                    <td>
+                                                        <div>
+                                                            <strong>{{ course.title }}</strong>
+                                                            <br><small class="text-muted">{{ course.code }}</small>
+                                                        </div>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-secondary">{{ course.get_course_type_display }}</span>
+                                                        <br><small class="text-muted">{{ course.get_delivery_method_display }}</small>
+                                                    </td>
+                                                    <td>{{ course.duration_hours }}h</td>
+                                                    <td>
+                                                        {% if course.is_active %}
+                                                            <span class="badge bg-success">Active</span>
+                                                        {% else %}
+                                                            <span class="badge bg-secondary">Inactive</span>
+                                                        {% endif %}
+                                                        {% if course.is_mandatory %}
+                                                            <br><span class="badge bg-danger mt-1">Mandatory</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        <div class="btn-group btn-group-sm">
+                                                            <button class="btn btn-outline-primary edit-course-btn" 
+                                                                    data-course-id="{{ course.id }}"
+                                                                    data-course-title="{{ course.title }}"
+                                                                    data-course-code="{{ course.code }}"
+                                                                    data-course-type="{{ course.course_type }}"
+                                                                    data-delivery-method="{{ course.delivery_method }}"
+                                                                    data-duration="{{ course.duration_hours }}"
+                                                                    data-description="{{ course.description }}"
+                                                                    data-is-mandatory="{{ course.is_mandatory|yesno:'true,false' }}"
+                                                                    data-is-active="{{ course.is_active|yesno:'true,false' }}"
+                                                                    title="Edit Course">
+                                                                <i class="fas fa-edit"></i>
+                                                            </button>
+                                                            <button class="btn btn-outline-danger delete-course-btn" 
+                                                                    data-course-id="{{ course.id }}"
+                                                                    data-course-title="{{ course.title }}"
+                                                                    title="Delete Course">
+                                                                <i class="fas fa-trash"></i>
+                                                            </button>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                                {% empty %}
+                                                <tr id="noCoursesRow">
+                                                    <td colspan="5" class="text-center py-4">
+                                                        <i class="fas fa-book fa-2x text-muted mb-2"></i>
+                                                        <p class="text-muted mb-0">No training courses configured yet</p>
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Course Modal -->
+<div class="modal fade" id="editCourseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Training Course</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editCourseForm">
+                {% csrf_token %}
+                <input type="hidden" id="editCourseId" name="course_id">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editCourseTitle" class="form-label">Course Title <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="editCourseTitle" name="title" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editCourseCode" class="form-label">Course Code <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control" id="editCourseCode" name="code" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editCourseType" class="form-label">Course Type</label>
+                                <select class="form-select" id="editCourseType" name="course_type">
+                                    <option value="safety">Safety Training</option>
+                                    <option value="equipment">Equipment Specific Training</option>
+                                    <option value="software">Software Training</option>
+                                    <option value="advanced">Advanced Certification</option>
+                                    <option value="refresher">Refresher Course</option>
+                                    <option value="induction">General Induction</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="editDeliveryMethod" class="form-label">Delivery Method</label>
+                                <select class="form-select" id="editDeliveryMethod" name="delivery_method">
+                                    <option value="in_person">In-Person Training</option>
+                                    <option value="online">Online Training</option>
+                                    <option value="hybrid">Hybrid Training</option>
+                                    <option value="self_study">Self-Study</option>
+                                    <option value="assessment_only">Assessment Only</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editDurationHours" class="form-label">Duration (Hours)</label>
+                        <input type="number" class="form-control" id="editDurationHours" name="duration_hours" min="0" step="0.5">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editCourseDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="editCourseDescription" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editIsMandatory" name="is_mandatory">
+                                <label class="form-check-label" for="editIsMandatory">
+                                    Mandatory Course
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="editIsActive" name="is_active">
+                                <label class="form-check-label" for="editIsActive">
+                                    Active
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Training Course Management
+    const addCourseForm = document.getElementById('addCourseForm');
+    const editCourseForm = document.getElementById('editCourseForm');
+    
+    // Add training course
+    if (addCourseForm) {
+        addCourseForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const submitBtn = document.getElementById('addCourseBtn');
+            const originalText = submitBtn.innerHTML;
+            
+            // Convert FormData to JSON
+            const data = {};
+            formData.forEach((value, key) => {
+                data[key] = value;
+            });
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Adding...';
+            
+            fetch('/lab-admin/training-courses/add/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Add the new course to the table
+                    addCourseToTable(data.course);
+                    
+                    // Reset form
+                    this.reset();
+                    document.getElementById('isActive').checked = true;
+                    
+                    showToast('Success', 'Training course added successfully', 'success');
+                } else {
+                    showToast('Error', data.error || 'Failed to add course', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error', 'An error occurred while adding the course', 'error');
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            });
+        });
+    }
+    
+    // Edit course button click
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.edit-course-btn')) {
+            const button = e.target.closest('.edit-course-btn');
+            const modal = new bootstrap.Modal(document.getElementById('editCourseModal'));
+            
+            // Populate form with course data
+            document.getElementById('editCourseId').value = button.dataset.courseId;
+            document.getElementById('editCourseTitle').value = button.dataset.courseTitle;
+            document.getElementById('editCourseCode').value = button.dataset.courseCode;
+            document.getElementById('editCourseType').value = button.dataset.courseType;
+            document.getElementById('editDeliveryMethod').value = button.dataset.deliveryMethod;
+            document.getElementById('editDurationHours').value = button.dataset.duration;
+            document.getElementById('editCourseDescription').value = button.dataset.description;
+            document.getElementById('editIsMandatory').checked = button.dataset.isMandatory === 'true';
+            document.getElementById('editIsActive').checked = button.dataset.isActive === 'true';
+            
+            modal.show();
+        }
+    });
+    
+    // Edit course form submission
+    if (editCourseForm) {
+        editCourseForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const courseId = document.getElementById('editCourseId').value;
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalText = submitBtn.innerHTML;
+            
+            // Convert FormData to JSON
+            const data = {};
+            formData.forEach((value, key) => {
+                data[key] = value;
+            });
+            
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Saving...';
+            
+            fetch(`/lab-admin/training-courses/${courseId}/edit/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Update the course in the table
+                    updateCourseInTable(data.course);
+                    
+                    // Close modal
+                    bootstrap.Modal.getInstance(document.getElementById('editCourseModal')).hide();
+                    
+                    showToast('Success', 'Training course updated successfully', 'success');
+                } else {
+                    showToast('Error', data.error || 'Failed to update course', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showToast('Error', 'An error occurred while updating the course', 'error');
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            });
+        });
+    }
+    
+    // Delete course button click
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.delete-course-btn')) {
+            const button = e.target.closest('.delete-course-btn');
+            const courseId = button.dataset.courseId;
+            const courseTitle = button.dataset.courseTitle;
+            
+            if (confirm(`Are you sure you want to delete the course "${courseTitle}"? This action cannot be undone.`)) {
+                fetch(`/lab-admin/training-courses/${courseId}/delete/`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Remove course from table
+                        const row = document.querySelector(`tr[data-course-id="${courseId}"]`);
+                        row.remove();
+                        
+                        // Check if table is empty
+                        const tbody = document.getElementById('coursesTableBody');
+                        if (tbody.children.length === 0) {
+                            tbody.innerHTML = `
+                                <tr id="noCoursesRow">
+                                    <td colspan="5" class="text-center py-4">
+                                        <i class="fas fa-book fa-2x text-muted mb-2"></i>
+                                        <p class="text-muted mb-0">No training courses configured yet</p>
+                                    </td>
+                                </tr>
+                            `;
+                        }
+                        
+                        showToast('Success', data.message || 'Course deleted successfully', 'success');
+                    } else {
+                        showToast('Error', data.error || 'Failed to delete course', 'error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Error', 'An error occurred while deleting the course', 'error');
+                });
+            }
+        }
+    });
+    
+    // Helper functions
+    function addCourseToTable(course) {
+        const tbody = document.getElementById('coursesTableBody');
+        const noCoursesRow = document.getElementById('noCoursesRow');
+        
+        if (noCoursesRow) {
+            noCoursesRow.remove();
+        }
+        
+        const row = document.createElement('tr');
+        row.dataset.courseId = course.id;
+        row.innerHTML = `
+            <td>
+                <div>
+                    <strong>${course.title}</strong>
+                    <br><small class="text-muted">${course.code}</small>
+                </div>
+            </td>
+            <td>
+                <span class="badge bg-secondary">${course.course_type_display}</span>
+                <br><small class="text-muted">${course.delivery_method_display}</small>
+            </td>
+            <td>${course.duration_hours}h</td>
+            <td>
+                ${course.is_active ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>'}
+                ${course.is_mandatory ? '<br><span class="badge bg-danger mt-1">Mandatory</span>' : ''}
+            </td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <button class="btn btn-outline-primary edit-course-btn" 
+                            data-course-id="${course.id}"
+                            data-course-title="${course.title}"
+                            data-course-code="${course.code}"
+                            data-course-type="${course.course_type}"
+                            data-delivery-method="${course.delivery_method}"
+                            data-duration="${course.duration_hours}"
+                            data-description="${course.description || ''}"
+                            data-is-mandatory="${course.is_mandatory}"
+                            data-is-active="${course.is_active}"
+                            title="Edit Course">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn btn-outline-danger delete-course-btn" 
+                            data-course-id="${course.id}"
+                            data-course-title="${course.title}"
+                            title="Delete Course">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </td>
+        `;
+        
+        tbody.insertBefore(row, tbody.firstChild);
+    }
+    
+    function updateCourseInTable(course) {
+        const row = document.querySelector(`tr[data-course-id="${course.id}"]`);
+        if (row) {
+            row.innerHTML = `
+                <td>
+                    <div>
+                        <strong>${course.title}</strong>
+                        <br><small class="text-muted">${course.code}</small>
+                    </div>
+                </td>
+                <td>
+                    <span class="badge bg-secondary">${course.course_type_display}</span>
+                    <br><small class="text-muted">${course.delivery_method_display}</small>
+                </td>
+                <td>${course.duration_hours}h</td>
+                <td>
+                    ${course.is_active ? '<span class="badge bg-success">Active</span>' : '<span class="badge bg-secondary">Inactive</span>'}
+                    ${course.is_mandatory ? '<br><span class="badge bg-danger mt-1">Mandatory</span>' : ''}
+                </td>
+                <td>
+                    <div class="btn-group btn-group-sm">
+                        <button class="btn btn-outline-primary edit-course-btn" 
+                                data-course-id="${course.id}"
+                                data-course-title="${course.title}"
+                                data-course-code="${course.code}"
+                                data-course-type="${course.course_type}"
+                                data-delivery-method="${course.delivery_method}"
+                                data-duration="${course.duration_hours}"
+                                data-description="${course.description || ''}"
+                                data-is-mandatory="${course.is_mandatory}"
+                                data-is-active="${course.is_active}"
+                                title="Edit Course">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-outline-danger delete-course-btn" 
+                                data-course-id="${course.id}"
+                                data-course-title="${course.title}"
+                                title="Delete Course">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            `;
+        }
+    }
+    
+    function showToast(title, message, type) {
+        const alertClass = type === 'error' ? 'alert-danger' : 'alert-success';
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert ${alertClass} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+        alertDiv.style.zIndex = '9999';
+        alertDiv.innerHTML = `
+            <strong>${title}:</strong> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alertDiv);
+        
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 5000);
+    }
+});
+</script>
+{% endblock %}

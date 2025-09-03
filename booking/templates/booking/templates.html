@@ -1,0 +1,224 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Booking Templates - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-file-earmark-text"></i> Booking Templates</h2>
+    <div>
+        <a href="{% url 'booking:template_create' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> Create Template
+        </a>
+        <a href="{% url 'booking:create_from_template' %}" class="btn btn-success">
+            <i class="bi bi-calendar-plus"></i> Book from Template
+        </a>
+    </div>
+</div>
+
+<!-- Description Section -->
+<div class="alert alert-info persistent-alert mb-4">
+    <div class="row align-items-center">
+        <div class="col-md-8">
+            <h5 class="alert-heading mb-2"><i class="bi bi-info-circle"></i> Booking Templates</h5>
+            <p class="mb-1">
+                <strong>Save time on frequent bookings</strong> by creating reusable templates with pre-configured settings. Templates store your commonly used booking details including resource, duration, description, and recurring patterns.
+            </p>
+            <small class="text-muted">
+                Create private templates for personal use, or share public templates with your team to standardize common booking scenarios.
+            </small>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <div class="d-flex flex-column gap-1">
+                <span class="badge bg-primary"><i class="bi bi-person"></i> Personal Templates</span>
+                <span class="badge bg-success"><i class="bi bi-globe"></i> Public Templates</span>
+                <span class="badge bg-info"><i class="bi bi-people"></i> Group Templates</span>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<!-- User's Templates -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-person"></i> My Templates</h5>
+    </div>
+    <div class="card-body">
+        {% if user_templates %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Resource</th>
+                            <th>Duration</th>
+                            <th>Uses</th>
+                            <th>Visibility</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for template in user_templates %}
+                        <tr>
+                            <td>
+                                <strong>{{ template.name }}</strong>
+                                {% if template.description %}
+                                    <br><small class="text-muted">{{ template.description|truncatechars:50 }}</small>
+                                {% endif %}
+                            </td>
+                            <td>{{ template.resource.name }}</td>
+                            <td>{{ template.duration_hours }}h {{ template.duration_minutes }}m</td>
+                            <td>
+                                <span class="badge bg-info">{{ template.use_count }}</span>
+                            </td>
+                            <td>
+                                {% if template.is_public %}
+                                    <span class="badge bg-success">Public</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Private</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'booking:template_edit' template.pk %}" 
+                                       class="btn btn-outline-primary" title="Edit">
+                                        <i class="bi bi-pencil"></i>
+                                    </a>
+                                    <a href="{% url 'booking:template_delete' template.pk %}" 
+                                       class="btn btn-outline-danger" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-4">
+                <i class="bi bi-file-earmark-text display-4 text-muted"></i>
+                <h5 class="mt-3">No templates yet</h5>
+                <p class="text-muted">Create your first template to save time on frequent bookings.</p>
+                <a href="{% url 'booking:template_create' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Create Template
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Public Templates -->
+{% if public_templates %}
+<div class="card mb-4">
+    <div class="card-header bg-success text-white">
+        <h5 class="mb-0"><i class="bi bi-globe"></i> Public Templates</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Created by</th>
+                        <th>Resource</th>
+                        <th>Duration</th>
+                        <th>Uses</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for template in public_templates %}
+                    <tr>
+                        <td>
+                            <strong>{{ template.name }}</strong>
+                            {% if template.description %}
+                                <br><small class="text-muted">{{ template.description|truncatechars:50 }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ template.user.get_full_name|default:template.user.username }}</td>
+                        <td>{{ template.resource.name }}</td>
+                        <td>{{ template.duration_hours }}h {{ template.duration_minutes }}m</td>
+                        <td>
+                            <span class="badge bg-info">{{ template.use_count }}</span>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-success" 
+                                    onclick="useTemplate({{ template.pk }})">
+                                <i class="bi bi-calendar-plus"></i> Use
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Group Templates -->
+{% if group_templates %}
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0"><i class="bi bi-people"></i> Group Templates</h5>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Created by</th>
+                        <th>Resource</th>
+                        <th>Duration</th>
+                        <th>Uses</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for template in group_templates %}
+                    <tr>
+                        <td>
+                            <strong>{{ template.name }}</strong>
+                            {% if template.description %}
+                                <br><small class="text-muted">{{ template.description|truncatechars:50 }}</small>
+                            {% endif %}
+                        </td>
+                        <td>{{ template.user.get_full_name|default:template.user.username }}</td>
+                        <td>{{ template.resource.name }}</td>
+                        <td>{{ template.duration_hours }}h {{ template.duration_minutes }}m</td>
+                        <td>
+                            <span class="badge bg-info">{{ template.use_count }}</span>
+                        </td>
+                        <td>
+                            <button type="button" class="btn btn-sm btn-success" 
+                                    onclick="useTemplate({{ template.pk }})">
+                                <i class="bi bi-calendar-plus"></i> Use
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function useTemplate(templateId) {
+    // Redirect to create booking from template with pre-selected template
+    window.location.href = "{% url 'booking:create_from_template' %}?template=" + templateId;
+}
+</script>
+{% endblock %}

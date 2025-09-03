@@ -1,0 +1,191 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Delete College - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-trash text-danger me-2"></i>
+                    Delete College
+                </h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'booking:site_admin_dashboard' %}">Site Admin</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'booking:site_admin_academic_hierarchy' %}">Academic Hierarchy</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'booking:site_admin_colleges' %}">Colleges</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Delete</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Confirm College Deletion
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-warning me-2"></i>
+                            Warning: This action cannot be undone!
+                        </h6>
+                        <p class="mb-0">
+                            You are about to permanently delete the college and all associated data.
+                        </p>
+                    </div>
+
+                    <!-- College Details -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>College Information</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Name:</strong></td>
+                                    <td>{{ college.name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Code:</strong></td>
+                                    <td><code>{{ college.code }}</code></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Faculty:</strong></td>
+                                    <td>{{ college.faculty.name }} ({{ college.faculty.code }})</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Status:</strong></td>
+                                    <td>
+                                        {% if college.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Created:</strong></td>
+                                    <td>{{ college.created_at|date:"M d, Y H:i" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Impact Assessment</h6>
+                            <div class="mb-2">
+                                <span class="badge bg-danger me-2">{{ departments_count }}</span>
+                                Department(s) will be deleted
+                            </div>
+                            {% if departments_count > 0 %}
+                                <div class="alert alert-warning mt-3">
+                                    <small>
+                                        <i class="fas fa-exclamation-triangle me-1"></i>
+                                        Deleting this college will also remove all associated departments.
+                                        This may affect user profiles and other records that reference these entities.
+                                    </small>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Related Data Warning -->
+                    {% if departments_count > 0 %}
+                        <div class="alert alert-warning">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-users me-2"></i>
+                                Related Departments
+                            </h6>
+                            <p class="mb-1">The following departments will also be deleted:</p>
+                            <ul class="mb-0">
+                                {% for department in college.departments.all %}
+                                    <li>{{ department.name }} ({{ department.code }})</li>
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <!-- Confirmation -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="bg-light p-3 rounded">
+                                <p class="mb-2">
+                                    <strong>To confirm deletion, please type the college name:</strong>
+                                </p>
+                                <p class="mb-0">
+                                    <code>{{ college.name }}</code>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post" id="deleteForm" class="mt-4">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="confirmName" class="form-label">
+                                College Name Confirmation <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   id="confirmName" 
+                                   class="form-control" 
+                                   placeholder="Type college name to confirm deletion"
+                                   required>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'booking:site_admin_colleges' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger" id="deleteButton" disabled>
+                                <i class="fas fa-trash me-2"></i>
+                                Delete College Permanently
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmName = document.getElementById('confirmName');
+    const deleteButton = document.getElementById('deleteButton');
+    const expectedName = "{{ college.name|escapejs }}";
+    
+    confirmName.addEventListener('input', function() {
+        if (this.value === expectedName) {
+            deleteButton.disabled = false;
+            deleteButton.classList.remove('btn-secondary');
+            deleteButton.classList.add('btn-danger');
+        } else {
+            deleteButton.disabled = true;
+            deleteButton.classList.remove('btn-danger');
+            deleteButton.classList.add('btn-secondary');
+        }
+    });
+    
+    document.getElementById('deleteForm').addEventListener('submit', function(e) {
+        if (confirmName.value !== expectedName) {
+            e.preventDefault();
+            alert('College name confirmation does not match.');
+            return false;
+        }
+        
+        if (!confirm('Are you absolutely sure you want to delete this college? This action cannot be undone.')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,186 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Delete Resource - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12 col-lg-8 mx-auto">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-exclamation-triangle text-danger me-2"></i>Delete Resource</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_dashboard' %}">Lab Admin</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_resources' %}">Resources</a></li>
+                            <li class="breadcrumb-item active">Delete</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{% url 'booking:lab_admin_resources' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Resources
+                    </a>
+                </div>
+            </div>
+
+            {% if not can_delete %}
+            <!-- Cannot Delete Warning -->
+            <div class="alert alert-danger" role="alert">
+                <h4 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Cannot Delete Resource</h4>
+                <p>This resource cannot be deleted because it has dependencies:</p>
+                <ul class="mb-0">
+                    {% if booking_count > 0 %}
+                    <li><strong>{{ booking_count }}</strong> existing booking{{ booking_count|pluralize }} depend on this resource</li>
+                    {% endif %}
+                    {% if access_count > 0 %}
+                    <li><strong>{{ access_count }}</strong> user access permission{{ access_count|pluralize }} are configured for this resource</li>
+                    {% endif %}
+                </ul>
+                <hr>
+                <p class="mb-0">
+                    <strong>Recommendation:</strong> Instead of deleting, consider marking this resource as 
+                    <strong>inactive</strong> to prevent new bookings while preserving historical data.
+                </p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Resource Details</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            {% if resource.image %}
+                            <img src="{{ resource.image.url }}" alt="{{ resource.name }}" class="img-fluid rounded mb-3" style="max-height: 200px; width: 100%; object-fit: cover;">
+                            {% else %}
+                            <div class="bg-light d-flex align-items-center justify-content-center rounded mb-3" style="height: 150px;">
+                                <i class="fas fa-cog fa-3x text-muted"></i>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-9">
+                            <h4>{{ resource.name }}</h4>
+                            <p class="text-muted">{{ resource.get_resource_type_display }}</p>
+                            {% if resource.description %}
+                            <p>{{ resource.description }}</p>
+                            {% endif %}
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <p><strong>Location:</strong> {{ resource.location }}</p>
+                                    <p><strong>Capacity:</strong> {{ resource.capacity }}</p>
+                                </div>
+                                <div class="col-sm-6">
+                                    <p><strong>Training Level:</strong> Level {{ resource.required_training_level }}</p>
+                                    <p><strong>Status:</strong> 
+                                        {% if resource.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Inactive</span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{% url 'booking:lab_admin_resources' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i> Back to Resources
+                </a>
+                <a href="{% url 'booking:lab_admin_edit_resource' resource.id %}" class="btn btn-primary">
+                    <i class="fas fa-edit me-1"></i> Edit Resource Instead
+                </a>
+            </div>
+
+            {% else %}
+            <!-- Can Delete -->
+            <div class="alert alert-warning" role="alert">
+                <h4 class="alert-heading"><i class="fas fa-exclamation-triangle me-2"></i>Confirm Deletion</h4>
+                <p>You are about to permanently delete the following resource:</p>
+                <p class="mb-0"><strong>{{ resource.name }}</strong> ({{ resource.get_resource_type_display }})</p>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Resource to be Deleted</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            {% if resource.image %}
+                            <img src="{{ resource.image.url }}" alt="{{ resource.name }}" class="img-fluid rounded mb-3" style="max-height: 200px; width: 100%; object-fit: cover;">
+                            {% else %}
+                            <div class="bg-light d-flex align-items-center justify-content-center rounded mb-3" style="height: 150px;">
+                                <i class="fas fa-cog fa-3x text-muted"></i>
+                            </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-9">
+                            <h4>{{ resource.name }}</h4>
+                            <p class="text-muted">{{ resource.get_resource_type_display }}</p>
+                            {% if resource.description %}
+                            <p>{{ resource.description }}</p>
+                            {% endif %}
+                            <div class="row">
+                                <div class="col-sm-6">
+                                    <p><strong>Location:</strong> {{ resource.location }}</p>
+                                    <p><strong>Capacity:</strong> {{ resource.capacity }}</p>
+                                </div>
+                                <div class="col-sm-6">
+                                    <p><strong>Training Level:</strong> Level {{ resource.required_training_level }}</p>
+                                    <p><strong>Status:</strong> 
+                                        {% if resource.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Inactive</span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card border-danger mt-4">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2"></i>Warning</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-danger"><strong>This action cannot be undone!</strong></p>
+                    <p>Deleting this resource will:</p>
+                    <ul>
+                        <li>Permanently remove the resource from the system</li>
+                        <li>Remove any associated images and files</li>
+                        <li>Make the resource unavailable for future bookings</li>
+                    </ul>
+                    <p class="mb-0">Are you sure you want to continue?</p>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-between mt-4">
+                <a href="{% url 'booking:lab_admin_resources' %}" class="btn btn-secondary">
+                    <i class="fas fa-times me-1"></i> Cancel
+                </a>
+                <div>
+                    <a href="{% url 'booking:lab_admin_edit_resource' resource.id %}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-edit me-1"></i> Edit Instead
+                    </a>
+                    <form method="post" style="display: inline;" onsubmit="return confirm('Are you absolutely sure you want to delete this resource? This action cannot be undone.')">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-trash me-1"></i> Delete Resource
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

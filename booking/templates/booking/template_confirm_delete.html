@@ -1,0 +1,56 @@
+{% extends 'booking/base.html' %}
+
+{% block title %}Delete Template - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-trash"></i> Delete Template</h2>
+    <a href="{% url 'booking:templates' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Templates
+    </a>
+</div>
+
+<div class="row justify-content-center">
+    <div class="col-md-6">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Confirm Deletion</h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    <strong>Warning:</strong> This action cannot be undone.
+                </div>
+                
+                <p>Are you sure you want to delete the template <strong>"{{ template.name }}"</strong>?</p>
+                
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6>Template Details:</h6>
+                        <ul class="list-unstyled mb-0">
+                            <li><strong>Name:</strong> {{ template.name }}</li>
+                            <li><strong>Resource:</strong> {{ template.resource.name }}</li>
+                            <li><strong>Duration:</strong> {{ template.duration_hours }}h {{ template.duration_minutes }}m</li>
+                            <li><strong>Times Used:</strong> {{ template.use_count }}</li>
+                            <li><strong>Created:</strong> {{ template.created_at|date:"M d, Y" }}</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between mt-4">
+                    <a href="{% url 'booking:templates' %}" class="btn btn-secondary">
+                        <i class="bi bi-x-circle"></i> Cancel
+                    </a>
+                    
+                    <form method="post" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">
+                            <i class="bi bi-trash"></i> Delete Template
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

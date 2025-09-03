@@ -1,0 +1,214 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Manage Departments - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-users me-2"></i>
+                    Manage Departments
+                </h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'booking:site_admin_dashboard' %}">Site Admin</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'booking:site_admin_academic_hierarchy' %}">Academic Hierarchy</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Departments</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters and Actions -->
+    <div class="row mb-4">
+        <div class="col-lg-4">
+            <form method="get" class="d-flex">
+                <input type="text" name="search" class="form-control me-2" 
+                       placeholder="Search departments..." 
+                       value="{{ search }}">
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="fas fa-search"></i>
+                </button>
+                {% if search %}
+                    <a href="{% url 'booking:site_admin_departments' %}" class="btn btn-outline-secondary ms-2">
+                        <i class="fas fa-times"></i>
+                    </a>
+                {% endif %}
+            </form>
+        </div>
+        <div class="col-lg-3">
+            <form method="get">
+                {% if search %}<input type="hidden" name="search" value="{{ search }}">{% endif %}
+                {% if selected_college %}<input type="hidden" name="college" value="{{ selected_college }}">{% endif %}
+                <select name="faculty" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Faculties</option>
+                    {% for faculty in faculties %}
+                        <option value="{{ faculty.id }}" {% if selected_faculty == faculty.id|slugify %}selected{% endif %}>
+                            {{ faculty.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+        <div class="col-lg-3">
+            <form method="get">
+                {% if search %}<input type="hidden" name="search" value="{{ search }}">{% endif %}
+                {% if selected_faculty %}<input type="hidden" name="faculty" value="{{ selected_faculty }}">{% endif %}
+                <select name="college" class="form-select" onchange="this.form.submit()">
+                    <option value="">All Colleges</option>
+                    {% for college in colleges %}
+                        <option value="{{ college.id }}" {% if selected_college == college.id|slugify %}selected{% endif %}>
+                            {{ college.faculty.code }} - {{ college.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+        <div class="col-lg-2 text-end">
+            <a href="{% url 'booking:site_admin_department_create' %}" class="btn btn-info">
+                <i class="fas fa-plus me-2"></i>
+                Add Department
+            </a>
+        </div>
+    </div>
+
+    <!-- Departments Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-users me-2"></i>
+                        Departments
+                        {% if search or selected_faculty or selected_college %}
+                            <small class="text-muted">(filtered)</small>
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if departments %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Code</th>
+                                        <th>College</th>
+                                        <th>Faculty</th>
+                                        <th>Status</th>
+                                        <th>Created</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for department in departments %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ department.name }}</strong>
+                                            </td>
+                                            <td>
+                                                <code>{{ department.code }}</code>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-success">{{ department.college.code }}</span>
+                                                <br>
+                                                <small class="text-muted">{{ department.college.name }}</small>
+                                            </td>
+                                            <td>
+                                                <span class="badge bg-primary">{{ department.college.faculty.code }}</span>
+                                                <br>
+                                                <small class="text-muted">{{ department.college.faculty.name }}</small>
+                                            </td>
+                                            <td>
+                                                {% if department.is_active %}
+                                                    <span class="badge bg-success">Active</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Inactive</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <small class="text-muted">{{ department.created_at|date:"M d, Y" }}</small>
+                                            </td>
+                                            <td>
+                                                <div class="btn-group" role="group">
+                                                    <a href="{% url 'booking:site_admin_department_edit' department.id %}" 
+                                                       class="btn btn-sm btn-outline-primary" 
+                                                       title="Edit Department">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                    <a href="{% url 'booking:site_admin_department_delete' department.id %}" 
+                                                       class="btn btn-sm btn-outline-danger" 
+                                                       title="Delete Department">
+                                                        <i class="fas fa-trash"></i>
+                                                    </a>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if departments.has_other_pages %}
+                            <nav aria-label="Department pagination">
+                                <ul class="pagination justify-content-center">
+                                    {% if departments.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if selected_faculty %}&faculty={{ selected_faculty }}{% endif %}{% if selected_college %}&college={{ selected_college }}{% endif %}">First</a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ departments.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if selected_faculty %}&faculty={{ selected_faculty }}{% endif %}{% if selected_college %}&college={{ selected_college }}{% endif %}">Previous</a>
+                                        </li>
+                                    {% endif %}
+
+                                    <li class="page-item active">
+                                        <span class="page-link">
+                                            Page {{ departments.number }} of {{ departments.paginator.num_pages }}
+                                        </span>
+                                    </li>
+
+                                    {% if departments.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ departments.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if selected_faculty %}&faculty={{ selected_faculty }}{% endif %}{% if selected_college %}&college={{ selected_college }}{% endif %}">Next</a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ departments.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if selected_faculty %}&faculty={{ selected_faculty }}{% endif %}{% if selected_college %}&college={{ selected_college }}{% endif %}">Last</a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">
+                                {% if search or selected_faculty or selected_college %}
+                                    No departments found matching your criteria
+                                {% else %}
+                                    No departments created yet
+                                {% endif %}
+                            </h5>
+                            <p class="text-muted">
+                                {% if search or selected_faculty or selected_college %}
+                                    Try adjusting your search or filter criteria.
+                                {% else %}
+                                    Create your first department to get started.
+                                {% endif %}
+                            </p>
+                            <a href="{% url 'booking:site_admin_department_create' %}" class="btn btn-info">
+                                <i class="fas fa-plus me-2"></i>
+                                Add New Department
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

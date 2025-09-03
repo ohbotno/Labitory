@@ -1,0 +1,133 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+{% load booking_extras %}
+
+{% block title %}Feature Not Available - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="text-center mb-4">
+                <i class="fas fa-lock fa-4x text-warning mb-3"></i>
+                <h1 class="display-6">Feature Not Available</h1>
+                <p class="lead text-muted">This feature requires a higher license tier</p>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>{{ feature_name|title|default:"This feature" }}</strong> is not available in your current license.
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h5>Current License Information</h5>
+                            <ul class="list-unstyled">
+                                <li><strong>Type:</strong> {{ license_info.type|title }}</li>
+                                <li><strong>Organization:</strong> {{ license_info.organization }}</li>
+                                <li><strong>Status:</strong> 
+                                    {% if license_info.is_valid %}
+                                        <span class="badge bg-success">{{ license_info.status }}</span>
+                                    {% else %}
+                                        <span class="badge bg-danger">{{ license_info.status }}</span>
+                                    {% endif %}
+                                </li>
+                                {% if license_info.expires_at %}
+                                    <li><strong>Expires:</strong> {{ license_info.expires_at|date:"M d, Y" }}</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h5>Available Features</h5>
+                            <div class="row">
+                                {% for feature, enabled in license_info.features.items %}
+                                    <div class="col-12 mb-1">
+                                        {% if enabled %}
+                                            <i class="fas fa-check-circle text-success me-2"></i>
+                                        {% else %}
+                                            <i class="fas fa-times-circle text-muted me-2"></i>
+                                        {% endif %}
+                                        <span class="{% if not enabled %}text-muted{% endif %}">
+                                            {{ feature|title|replace:"_, " }}
+                                        </span>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <h5>Need Access to This Feature?</h5>
+                        <p>To access <strong>{{ feature_name|title|default:"this feature" }}</strong>, you need to:</p>
+                        
+                        {% if license_info.type == 'open_source' %}
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-info-circle me-2"></i>Upgrade to Commercial License</h6>
+                                <p>This feature requires a commercial license. Contact us for pricing and upgrade options.</p>
+                                <ul>
+                                    <li>Advanced analytics and reporting</li>
+                                    <li>Custom branding options</li>
+                                    <li>Priority support</li>
+                                    <li>Enterprise features</li>
+                                </ul>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-arrow-up me-2"></i>Upgrade Your License</h6>
+                                <p>Your current {{ license_info.type }} license doesn't include this feature. Contact your license administrator or upgrade to a higher tier.</p>
+                            </div>
+                        {% endif %}
+
+                        <div class="d-flex gap-2">
+                            <a href="{% url 'booking:dashboard' %}" class="btn btn-primary">
+                                <i class="fas fa-arrow-left me-1"></i>Back to Dashboard
+                            </a>
+                            {% if perms.booking.view_license_status %}
+                                <a href="{% url 'booking:license_status' %}" class="btn btn-outline-info">
+                                    <i class="fas fa-info-circle me-1"></i>License Details
+                                </a>
+                            {% endif %}
+                            <a href="mailto:support@labitory.org?subject=License Upgrade Request" class="btn btn-outline-success">
+                                <i class="fas fa-envelope me-1"></i>Contact Support
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Feature Benefits Card -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-star me-2"></i>Premium Features Include
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Advanced Reports</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-chart-bar text-primary me-2"></i>Usage analytics</li>
+                                <li><i class="fas fa-chart-line text-primary me-2"></i>Performance metrics</li>
+                                <li><i class="fas fa-file-export text-primary me-2"></i>Data export tools</li>
+                                <li><i class="fas fa-database text-primary me-2"></i>Backup management</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Customization</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-palette text-success me-2"></i>Custom branding</li>
+                                <li><i class="fas fa-tag text-success me-2"></i>White-label options</li>
+                                <li><i class="fas fa-cog text-success me-2"></i>Advanced configuration</li>
+                                <li><i class="fas fa-headset text-success me-2"></i>Priority support</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

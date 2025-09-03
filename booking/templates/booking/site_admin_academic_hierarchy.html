@@ -1,0 +1,250 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Academic Hierarchy Management - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-sitemap me-2"></i>
+                    Academic Hierarchy Management
+                </h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'booking:site_admin_dashboard' %}">Site Admin</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Academic Hierarchy</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Overview -->
+    <div class="row mb-4">
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ stats.total_faculties }}</h4>
+                            <p class="mb-0">Total Faculties</p>
+                            <small>{{ stats.active_faculties }} active</small>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-university fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ stats.total_colleges }}</h4>
+                            <p class="mb-0">Total Colleges</p>
+                            <small>{{ stats.active_colleges }} active</small>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-building fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ stats.total_departments }}</h4>
+                            <p class="mb-0">Total Departments</p>
+                            <small>{{ stats.active_departments }} active</small>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bolt me-2"></i>
+                        Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-lg-4 mb-2">
+                            <a href="{% url 'booking:site_admin_faculties' %}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-university me-2"></i>
+                                Manage Faculties
+                            </a>
+                        </div>
+                        <div class="col-lg-4 mb-2">
+                            <a href="{% url 'booking:site_admin_colleges' %}" class="btn btn-outline-success w-100">
+                                <i class="fas fa-building me-2"></i>
+                                Manage Colleges
+                            </a>
+                        </div>
+                        <div class="col-lg-4 mb-2">
+                            <a href="{% url 'booking:site_admin_departments' %}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-users me-2"></i>
+                                Manage Departments
+                            </a>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-lg-4 mb-2">
+                            <a href="{% url 'booking:site_admin_faculty_create' %}" class="btn btn-primary w-100">
+                                <i class="fas fa-plus me-2"></i>
+                                Add New Faculty
+                            </a>
+                        </div>
+                        <div class="col-lg-4 mb-2">
+                            <a href="{% url 'booking:site_admin_college_create' %}" class="btn btn-success w-100">
+                                <i class="fas fa-plus me-2"></i>
+                                Add New College
+                            </a>
+                        </div>
+                        <div class="col-lg-4 mb-2">
+                            <a href="{% url 'booking:site_admin_department_create' %}" class="btn btn-info w-100">
+                                <i class="fas fa-plus me-2"></i>
+                                Add New Department
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Recent Faculties -->
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-university me-2"></i>
+                        Recent Faculties
+                    </h5>
+                    <a href="{% url 'booking:site_admin_faculties' %}" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if faculties %}
+                        {% for faculty in faculties %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <strong>{{ faculty.name }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ faculty.code }}</small>
+                                    {% if not faculty.is_active %}
+                                        <span class="badge bg-secondary ms-1">Inactive</span>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <small class="text-muted">
+                                        {{ faculty.colleges_count }} colleges<br>
+                                        {{ faculty.departments_count }} departments
+                                    </small>
+                                </div>
+                            </div>
+                            {% if not forloop.last %}<hr>{% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No faculties created yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Colleges -->
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-building me-2"></i>
+                        Recent Colleges
+                    </h5>
+                    <a href="{% url 'booking:site_admin_colleges' %}" class="btn btn-sm btn-outline-success">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if colleges %}
+                        {% for college in colleges %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div>
+                                    <strong>{{ college.name }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ college.code }} • {{ college.faculty.name }}</small>
+                                    {% if not college.is_active %}
+                                        <span class="badge bg-secondary ms-1">Inactive</span>
+                                    {% endif %}
+                                </div>
+                                <div>
+                                    <small class="text-muted">
+                                        {{ college.departments_count }} departments
+                                    </small>
+                                </div>
+                            </div>
+                            {% if not forloop.last %}<hr>{% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No colleges created yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Departments -->
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-users me-2"></i>
+                        Recent Departments
+                    </h5>
+                    <a href="{% url 'booking:site_admin_departments' %}" class="btn btn-sm btn-outline-info">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if departments %}
+                        {% for department in departments %}
+                            <div class="mb-2">
+                                <strong>{{ department.name }}</strong>
+                                <br>
+                                <small class="text-muted">
+                                    {{ department.code }} • {{ department.college.name }}
+                                    {% if not department.is_active %}
+                                        <span class="badge bg-secondary ms-1">Inactive</span>
+                                    {% endif %}
+                                </small>
+                            </div>
+                            {% if not forloop.last %}<hr>{% endif %}
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No departments created yet.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

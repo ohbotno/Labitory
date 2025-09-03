@@ -1,0 +1,1103 @@
+<!-- Tutorial System Component -->
+<!-- Main tutorial overlay and step management system -->
+
+<style>
+/* Tutorial System Styles */
+.tutorial-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 10000;
+    display: none;
+    backdrop-filter: blur(2px);
+    transition: all 0.3s ease;
+}
+
+.tutorial-overlay.active {
+    display: block;
+}
+
+.tutorial-spotlight {
+    position: absolute;
+    border: 3px solid #3b82f6;
+    border-radius: 12px;
+    background: transparent;
+    box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7);
+    transition: all 0.5s ease;
+    z-index: 10001;
+    pointer-events: none;
+}
+
+.tutorial-spotlight.pulse {
+    animation: tutorialPulse 2s infinite;
+}
+
+@keyframes tutorialPulse {
+    0%, 100% { 
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7), 0 0 20px rgba(59, 130, 246, 0.5);
+    }
+    50% { 
+        border-color: #60a5fa;
+        box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.7), 0 0 30px rgba(59, 130, 246, 0.8);
+    }
+}
+
+.tutorial-popover {
+    position: absolute;
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    max-width: 400px;
+    min-width: 320px;
+    z-index: 10002;
+    transform: scale(0.8);
+    opacity: 0;
+    transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border: 1px solid #e5e7eb;
+}
+
+.tutorial-popover.active {
+    transform: scale(1);
+    opacity: 1;
+}
+
+.tutorial-popover::before {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-style: solid;
+}
+
+/* Popover arrow positions */
+.tutorial-popover.arrow-top::before {
+    top: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 0 10px 10px 10px;
+    border-color: transparent transparent white transparent;
+}
+
+.tutorial-popover.arrow-bottom::before {
+    bottom: -10px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 10px 10px 0 10px;
+    border-color: white transparent transparent transparent;
+}
+
+.tutorial-popover.arrow-left::before {
+    left: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-width: 10px 10px 10px 0;
+    border-color: transparent white transparent transparent;
+}
+
+.tutorial-popover.arrow-right::before {
+    right: -10px;
+    top: 50%;
+    transform: translateY(-50%);
+    border-width: 10px 0 10px 10px;
+    border-color: transparent transparent transparent white;
+}
+
+.tutorial-header {
+    padding: 1.5rem 1.5rem 1rem 1.5rem;
+    border-bottom: 1px solid #f3f4f6;
+}
+
+.tutorial-step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+    border-radius: 50%;
+    font-weight: 600;
+    font-size: 0.875rem;
+    margin-bottom: 0.75rem;
+}
+
+.tutorial-title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: #111827;
+    margin: 0 0 0.5rem 0;
+    line-height: 1.4;
+}
+
+.tutorial-subtitle {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin: 0;
+}
+
+.tutorial-content {
+    padding: 1rem 1.5rem 1.5rem 1.5rem;
+}
+
+.tutorial-description {
+    font-size: 1rem;
+    color: #374151;
+    line-height: 1.6;
+    margin-bottom: 1.5rem;
+}
+
+.tutorial-image {
+    width: 100%;
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    border: 1px solid #e5e7eb;
+}
+
+.tutorial-code-block {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    padding: 1rem;
+    margin: 1rem 0;
+    font-family: 'Courier New', monospace;
+    font-size: 0.875rem;
+    color: #1e293b;
+    overflow-x: auto;
+}
+
+.tutorial-highlight {
+    background: #fef3c7;
+    padding: 0.125rem 0.25rem;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.tutorial-footer {
+    padding: 1rem 1.5rem;
+    border-top: 1px solid #f3f4f6;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: #f9fafb;
+    border-radius: 0 0 16px 16px;
+}
+
+.tutorial-progress {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.tutorial-progress-bar {
+    width: 80px;
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.tutorial-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #1d4ed8);
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.tutorial-actions {
+    display: flex;
+    gap: 0.75rem;
+}
+
+.btn-tutorial {
+    padding: 0.5rem 1rem;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+}
+
+.btn-tutorial-secondary {
+    background: #f3f4f6;
+    color: #374151;
+}
+
+.btn-tutorial-secondary:hover {
+    background: #e5e7eb;
+    transform: translateY(-1px);
+}
+
+.btn-tutorial-primary {
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    color: white;
+}
+
+.btn-tutorial-primary:hover {
+    background: linear-gradient(135deg, #1d4ed8, #1e40af);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+}
+
+.btn-tutorial-skip {
+    background: transparent;
+    color: #6b7280;
+    border: 1px solid #d1d5db;
+}
+
+.btn-tutorial-skip:hover {
+    background: #f9fafb;
+    color: #374151;
+}
+
+/* Tutorial floating button */
+.tutorial-float-btn {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+    border-radius: 50%;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+    z-index: 1000;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.tutorial-float-btn:hover {
+    transform: scale(1.1);
+    box-shadow: 0 6px 20px rgba(59, 130, 246, 0.6);
+}
+
+.tutorial-float-btn.pulse {
+    animation: tutorialFloatPulse 2s infinite;
+}
+
+@keyframes tutorialFloatPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+}
+
+/* Tutorial navigation dots */
+.tutorial-nav-dots {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin: 0 1rem;
+}
+
+.tutorial-nav-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #d1d5db;
+    transition: all 0.3s ease;
+    cursor: pointer;
+}
+
+.tutorial-nav-dot.active {
+    background: #3b82f6;
+    transform: scale(1.5);
+}
+
+.tutorial-nav-dot.completed {
+    background: #10b981;
+}
+
+/* Tutorial completion modal */
+.tutorial-completion-modal {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    max-width: 500px;
+    width: 90%;
+    z-index: 10003;
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    border: 1px solid #e5e7eb;
+}
+
+.tutorial-completion-modal.active {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 1;
+}
+
+.tutorial-completion-header {
+    text-align: center;
+    padding: 2rem 2rem 1rem 2rem;
+}
+
+.tutorial-completion-icon {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, #10b981, #059669);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    color: white;
+    margin: 0 auto 1rem auto;
+    animation: tutorialSuccess 0.6s ease;
+}
+
+@keyframes tutorialSuccess {
+    0% { transform: scale(0); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+.tutorial-completion-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 0.5rem;
+}
+
+.tutorial-completion-text {
+    color: #6b7280;
+    font-size: 1rem;
+}
+
+.tutorial-completion-content {
+    padding: 0 2rem 2rem 2rem;
+}
+
+.tutorial-rating {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.tutorial-rating-stars {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+}
+
+.tutorial-star {
+    font-size: 1.5rem;
+    color: #d1d5db;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tutorial-star.active,
+.tutorial-star:hover {
+    color: #fbbf24;
+    transform: scale(1.1);
+}
+
+.tutorial-feedback {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    font-size: 0.875rem;
+    resize: vertical;
+    min-height: 80px;
+}
+
+.tutorial-feedback:focus {
+    outline: none;
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+/* Dark mode styles */
+[data-theme="dark"] .tutorial-popover {
+    background: #374151;
+    border-color: #6b7280;
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] .tutorial-popover::before {
+    border-color: transparent transparent #374151 transparent;
+}
+
+[data-theme="dark"] .tutorial-popover.arrow-bottom::before {
+    border-color: #374151 transparent transparent transparent;
+}
+
+[data-theme="dark"] .tutorial-popover.arrow-left::before {
+    border-color: transparent #374151 transparent transparent;
+}
+
+[data-theme="dark"] .tutorial-popover.arrow-right::before {
+    border-color: transparent transparent transparent #374151;
+}
+
+[data-theme="dark"] .tutorial-title {
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] .tutorial-subtitle {
+    color: #9ca3af;
+}
+
+[data-theme="dark"] .tutorial-description {
+    color: #d1d5db;
+}
+
+[data-theme="dark"] .tutorial-footer {
+    background: #4b5563;
+    border-color: #6b7280;
+}
+
+[data-theme="dark"] .tutorial-progress {
+    color: #9ca3af;
+}
+
+[data-theme="dark"] .tutorial-code-block {
+    background: #1f2937;
+    border-color: #374151;
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] .tutorial-completion-modal {
+    background: #374151;
+    border-color: #6b7280;
+}
+
+[data-theme="dark"] .tutorial-completion-title {
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] .tutorial-completion-text {
+    color: #9ca3af;
+}
+
+[data-theme="dark"] .tutorial-feedback {
+    background: #4b5563;
+    border-color: #6b7280;
+    color: #e5e7eb;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .tutorial-popover {
+        max-width: 300px;
+        min-width: 280px;
+    }
+    
+    .tutorial-float-btn {
+        width: 50px;
+        height: 50px;
+        font-size: 1.25rem;
+        bottom: 15px;
+        right: 15px;
+    }
+    
+    .tutorial-completion-modal {
+        max-width: 350px;
+    }
+    
+    .tutorial-actions {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+    
+    .btn-tutorial {
+        justify-content: center;
+    }
+}
+</style>
+
+<!-- Tutorial Overlay Structure -->
+<div id="tutorial-overlay" class="tutorial-overlay">
+    <!-- Spotlight effect -->
+    <div id="tutorial-spotlight" class="tutorial-spotlight"></div>
+    
+    <!-- Tutorial popover -->
+    <div id="tutorial-popover" class="tutorial-popover">
+        <div class="tutorial-header">
+            <div class="tutorial-step-number" id="tutorial-step-number">1</div>
+            <h3 class="tutorial-title" id="tutorial-title">Welcome to Labitory!</h3>
+            <p class="tutorial-subtitle" id="tutorial-subtitle">Let's get you started</p>
+        </div>
+        
+        <div class="tutorial-content">
+            <div class="tutorial-description" id="tutorial-description">
+                This tutorial will guide you through the main features of the system.
+            </div>
+            <div id="tutorial-media"></div>
+        </div>
+        
+        <div class="tutorial-footer">
+            <div class="tutorial-progress">
+                <div class="tutorial-progress-bar">
+                    <div class="tutorial-progress-fill" id="tutorial-progress-fill"></div>
+                </div>
+                <span id="tutorial-step-info">1 of 5</span>
+            </div>
+            
+            <div class="tutorial-nav-dots" id="tutorial-nav-dots"></div>
+            
+            <div class="tutorial-actions">
+                <button type="button" class="btn-tutorial btn-tutorial-skip" id="tutorial-skip-btn">
+                    <i class="fas fa-times"></i> Skip
+                </button>
+                <button type="button" class="btn-tutorial btn-tutorial-secondary" id="tutorial-prev-btn" style="display: none;">
+                    <i class="fas fa-arrow-left"></i> Previous
+                </button>
+                <button type="button" class="btn-tutorial btn-tutorial-primary" id="tutorial-next-btn">
+                    Next <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tutorial Completion Modal -->
+<div id="tutorial-completion-modal" class="tutorial-completion-modal">
+    <div class="tutorial-completion-header">
+        <div class="tutorial-completion-icon">
+            <i class="fas fa-check"></i>
+        </div>
+        <h2 class="tutorial-completion-title">Tutorial Completed!</h2>
+        <p class="tutorial-completion-text">Great job! You've successfully completed the tutorial.</p>
+    </div>
+    
+    <div class="tutorial-completion-content">
+        <div class="tutorial-rating">
+            <p style="margin-bottom: 0.5rem; font-weight: 600;">How would you rate this tutorial?</p>
+            <div class="tutorial-rating-stars" id="tutorial-rating-stars">
+                <i class="fas fa-star tutorial-star" data-rating="1"></i>
+                <i class="fas fa-star tutorial-star" data-rating="2"></i>
+                <i class="fas fa-star tutorial-star" data-rating="3"></i>
+                <i class="fas fa-star tutorial-star" data-rating="4"></i>
+                <i class="fas fa-star tutorial-star" data-rating="5"></i>
+            </div>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem;">
+            <label for="tutorial-feedback-text" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">
+                Any feedback or suggestions? (Optional)
+            </label>
+            <textarea 
+                id="tutorial-feedback-text" 
+                class="tutorial-feedback" 
+                placeholder="Tell us what you think about this tutorial...">
+            </textarea>
+        </div>
+        
+        <div class="tutorial-actions">
+            <button type="button" class="btn-tutorial btn-tutorial-secondary" id="tutorial-close-btn">
+                <i class="fas fa-times"></i> Close
+            </button>
+            <button type="button" class="btn-tutorial btn-tutorial-primary" id="tutorial-submit-btn">
+                <i class="fas fa-check"></i> Submit Feedback
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Floating Tutorial Button -->
+<button type="button" id="tutorial-float-btn" class="tutorial-float-btn" style="display: none;" title="Start Tutorial">
+    <i class="fas fa-graduation-cap"></i>
+</button>
+
+<script>
+class TutorialSystem {
+    constructor() {
+        this.currentTutorial = null;
+        this.currentStep = 0;
+        this.isActive = false;
+        this.startTime = null;
+        this.selectedRating = 0;
+        
+        this.overlay = document.getElementById('tutorial-overlay');
+        this.spotlight = document.getElementById('tutorial-spotlight');
+        this.popover = document.getElementById('tutorial-popover');
+        this.completionModal = document.getElementById('tutorial-completion-modal');
+        this.floatBtn = document.getElementById('tutorial-float-btn');
+        
+        this.bindEvents();
+        this.checkForAutoStart();
+    }
+    
+    bindEvents() {
+        // Navigation buttons
+        document.getElementById('tutorial-next-btn').addEventListener('click', () => this.nextStep());
+        document.getElementById('tutorial-prev-btn').addEventListener('click', () => this.previousStep());
+        document.getElementById('tutorial-skip-btn').addEventListener('click', () => this.skipTutorial());
+        
+        // Float button
+        this.floatBtn.addEventListener('click', () => this.showTutorialMenu());
+        
+        // Completion modal
+        document.getElementById('tutorial-close-btn').addEventListener('click', () => this.closeTutorial());
+        document.getElementById('tutorial-submit-btn').addEventListener('click', () => this.submitFeedback());
+        
+        // Rating stars
+        document.querySelectorAll('.tutorial-star').forEach(star => {
+            star.addEventListener('click', (e) => this.setRating(parseInt(e.target.dataset.rating)));
+            star.addEventListener('mouseover', (e) => this.hoverRating(parseInt(e.target.dataset.rating)));
+        });
+        
+        document.getElementById('tutorial-rating-stars').addEventListener('mouseleave', () => this.hoverRating(0));
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => this.handleKeyboard(e));
+        
+        // Window resize
+        window.addEventListener('resize', () => this.updateSpotlight());
+    }
+    
+    async startTutorial(tutorialId, autoStart = false) {
+        try {
+            const response = await fetch(`/api/tutorials/${tutorialId}/`, {
+                headers: {
+                    'X-CSRFToken': getCSRFToken()
+                }
+            });
+            
+            if (!response.ok) throw new Error('Failed to load tutorial');
+            
+            this.currentTutorial = await response.json();
+            this.currentStep = 0;
+            this.isActive = true;
+            this.startTime = Date.now();
+            this.selectedRating = 0;
+            
+            // Track tutorial start
+            await this.trackProgress('start');
+            
+            this.showStep(0);
+            this.overlay.classList.add('active');
+            
+            // Hide float button during tutorial
+            this.floatBtn.style.display = 'none';
+            
+        } catch (error) {
+            console.error('Error starting tutorial:', error);
+            this.showError('Failed to load tutorial. Please try again.');
+        }
+    }
+    
+    showStep(stepIndex) {
+        if (!this.currentTutorial || stepIndex >= this.currentTutorial.steps.length) {
+            return;
+        }
+        
+        const step = this.currentTutorial.steps[stepIndex];
+        this.currentStep = stepIndex;
+        
+        // Update step content
+        document.getElementById('tutorial-step-number').textContent = stepIndex + 1;
+        document.getElementById('tutorial-title').textContent = step.title;
+        document.getElementById('tutorial-subtitle').textContent = step.subtitle || '';
+        document.getElementById('tutorial-description').innerHTML = step.description;
+        
+        // Update media
+        const mediaContainer = document.getElementById('tutorial-media');
+        mediaContainer.innerHTML = '';
+        
+        if (step.image) {
+            const img = document.createElement('img');
+            img.src = step.image;
+            img.className = 'tutorial-image';
+            img.alt = step.title;
+            mediaContainer.appendChild(img);
+        }
+        
+        if (step.code) {
+            const codeBlock = document.createElement('div');
+            codeBlock.className = 'tutorial-code-block';
+            codeBlock.textContent = step.code;
+            mediaContainer.appendChild(codeBlock);
+        }
+        
+        // Update navigation
+        this.updateNavigation();
+        
+        // Update progress
+        this.updateProgress();
+        
+        // Update spotlight
+        this.updateSpotlight();
+        
+        // Show popover with animation
+        setTimeout(() => {
+            this.popover.classList.add('active');
+        }, 100);
+    }
+    
+    updateSpotlight() {
+        if (!this.currentTutorial || !this.isActive) return;
+        
+        const step = this.currentTutorial.steps[this.currentStep];
+        const target = step.target ? document.querySelector(step.target) : null;
+        
+        if (target) {
+            const rect = target.getBoundingClientRect();
+            const padding = 8;
+            
+            this.spotlight.style.left = (rect.left - padding) + 'px';
+            this.spotlight.style.top = (rect.top - padding) + 'px';
+            this.spotlight.style.width = (rect.width + padding * 2) + 'px';
+            this.spotlight.style.height = (rect.height + padding * 2) + 'px';
+            this.spotlight.style.display = 'block';
+            this.spotlight.classList.add('pulse');
+            
+            // Position popover relative to target
+            this.positionPopover(rect);
+        } else {
+            this.spotlight.style.display = 'none';
+            this.spotlight.classList.remove('pulse');
+            
+            // Center popover
+            this.centerPopover();
+        }
+    }
+    
+    positionPopover(targetRect) {
+        const popoverRect = this.popover.getBoundingClientRect();
+        const windowWidth = window.innerWidth;
+        const windowHeight = window.innerHeight;
+        const margin = 20;
+        
+        let left, top;
+        let arrowClass = '';
+        
+        // Try to position below target first
+        if (targetRect.bottom + popoverRect.height + margin < windowHeight) {
+            top = targetRect.bottom + margin;
+            left = targetRect.left + (targetRect.width / 2) - (popoverRect.width / 2);
+            arrowClass = 'arrow-top';
+        }
+        // Try above
+        else if (targetRect.top - popoverRect.height - margin > 0) {
+            top = targetRect.top - popoverRect.height - margin;
+            left = targetRect.left + (targetRect.width / 2) - (popoverRect.width / 2);
+            arrowClass = 'arrow-bottom';
+        }
+        // Try to the right
+        else if (targetRect.right + popoverRect.width + margin < windowWidth) {
+            left = targetRect.right + margin;
+            top = targetRect.top + (targetRect.height / 2) - (popoverRect.height / 2);
+            arrowClass = 'arrow-left';
+        }
+        // Try to the left
+        else if (targetRect.left - popoverRect.width - margin > 0) {
+            left = targetRect.left - popoverRect.width - margin;
+            top = targetRect.top + (targetRect.height / 2) - (popoverRect.height / 2);
+            arrowClass = 'arrow-right';
+        }
+        // Fallback to center
+        else {
+            this.centerPopover();
+            return;
+        }
+        
+        // Ensure popover stays within viewport
+        left = Math.max(margin, Math.min(left, windowWidth - popoverRect.width - margin));
+        top = Math.max(margin, Math.min(top, windowHeight - popoverRect.height - margin));
+        
+        this.popover.style.left = left + 'px';
+        this.popover.style.top = top + 'px';
+        this.popover.className = 'tutorial-popover ' + arrowClass;
+    }
+    
+    centerPopover() {
+        this.popover.style.left = '50%';
+        this.popover.style.top = '50%';
+        this.popover.style.transform = 'translate(-50%, -50%)';
+        this.popover.className = 'tutorial-popover';
+    }
+    
+    updateNavigation() {
+        const prevBtn = document.getElementById('tutorial-prev-btn');
+        const nextBtn = document.getElementById('tutorial-next-btn');
+        
+        prevBtn.style.display = this.currentStep > 0 ? 'flex' : 'none';
+        
+        if (this.currentStep === this.currentTutorial.steps.length - 1) {
+            nextBtn.innerHTML = '<i class="fas fa-check"></i> Complete';
+        } else {
+            nextBtn.innerHTML = 'Next <i class="fas fa-arrow-right"></i>';
+        }
+        
+        // Update navigation dots
+        this.updateNavigationDots();
+    }
+    
+    updateNavigationDots() {
+        const dotsContainer = document.getElementById('tutorial-nav-dots');
+        dotsContainer.innerHTML = '';
+        
+        for (let i = 0; i < this.currentTutorial.steps.length; i++) {
+            const dot = document.createElement('div');
+            dot.className = 'tutorial-nav-dot';
+            
+            if (i < this.currentStep) {
+                dot.classList.add('completed');
+            } else if (i === this.currentStep) {
+                dot.classList.add('active');
+            }
+            
+            dot.addEventListener('click', () => this.goToStep(i));
+            dotsContainer.appendChild(dot);
+        }
+    }
+    
+    updateProgress() {
+        const progressFill = document.getElementById('tutorial-progress-fill');
+        const stepInfo = document.getElementById('tutorial-step-info');
+        
+        const progress = ((this.currentStep + 1) / this.currentTutorial.steps.length) * 100;
+        progressFill.style.width = progress + '%';
+        
+        stepInfo.textContent = `${this.currentStep + 1} of ${this.currentTutorial.steps.length}`;
+    }
+    
+    async nextStep() {
+        // Mark current step as completed
+        await this.trackProgress('step_completed', { step: this.currentStep });
+        
+        if (this.currentStep < this.currentTutorial.steps.length - 1) {
+            this.popover.classList.remove('active');
+            setTimeout(() => {
+                this.showStep(this.currentStep + 1);
+            }, 200);
+        } else {
+            await this.completeTutorial();
+        }
+    }
+    
+    async previousStep() {
+        if (this.currentStep > 0) {
+            this.popover.classList.remove('active');
+            setTimeout(() => {
+                this.showStep(this.currentStep - 1);
+            }, 200);
+        }
+    }
+    
+    goToStep(stepIndex) {
+        if (stepIndex >= 0 && stepIndex < this.currentTutorial.steps.length) {
+            this.popover.classList.remove('active');
+            setTimeout(() => {
+                this.showStep(stepIndex);
+            }, 200);
+        }
+    }
+    
+    async skipTutorial() {
+        if (confirm('Are you sure you want to skip this tutorial?')) {
+            await this.trackProgress('skipped');
+            this.closeTutorial();
+        }
+    }
+    
+    async completeTutorial() {
+        await this.trackProgress('completed');
+        
+        this.overlay.classList.remove('active');
+        this.isActive = false;
+        
+        // Show completion modal
+        setTimeout(() => {
+            this.completionModal.classList.add('active');
+        }, 300);
+    }
+    
+    async closeTutorial() {
+        this.overlay.classList.remove('active');
+        this.completionModal.classList.remove('active');
+        this.isActive = false;
+        
+        // Show float button again
+        this.floatBtn.style.display = 'flex';
+        
+        // Reset form
+        this.selectedRating = 0;
+        document.getElementById('tutorial-feedback-text').value = '';
+        this.updateStars();
+    }
+    
+    async submitFeedback() {
+        const feedback = document.getElementById('tutorial-feedback-text').value;
+        
+        try {
+            await fetch('/api/tutorials/feedback/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({
+                    tutorial_id: this.currentTutorial.id,
+                    rating: this.selectedRating,
+                    feedback: feedback
+                })
+            });
+            
+            this.closeTutorial();
+            this.showSuccess('Thank you for your feedback!');
+            
+        } catch (error) {
+            console.error('Error submitting feedback:', error);
+            this.showError('Failed to submit feedback. Please try again.');
+        }
+    }
+    
+    setRating(rating) {
+        this.selectedRating = rating;
+        this.updateStars();
+    }
+    
+    hoverRating(rating) {
+        const stars = document.querySelectorAll('.tutorial-star');
+        stars.forEach((star, index) => {
+            if (rating > 0) {
+                star.classList.toggle('active', index < rating);
+            } else {
+                star.classList.toggle('active', index < this.selectedRating);
+            }
+        });
+    }
+    
+    updateStars() {
+        const stars = document.querySelectorAll('.tutorial-star');
+        stars.forEach((star, index) => {
+            star.classList.toggle('active', index < this.selectedRating);
+        });
+    }
+    
+    async trackProgress(action, data = {}) {
+        if (!this.currentTutorial) return;
+        
+        try {
+            await fetch('/api/tutorials/progress/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({
+                    tutorial_id: this.currentTutorial.id,
+                    action: action,
+                    step: this.currentStep,
+                    time_spent: this.startTime ? Math.floor((Date.now() - this.startTime) / 1000) : 0,
+                    ...data
+                })
+            });
+        } catch (error) {
+            console.error('Error tracking progress:', error);
+        }
+    }
+    
+    handleKeyboard(e) {
+        if (!this.isActive) return;
+        
+        switch (e.key) {
+            case 'ArrowRight':
+            case ' ':
+                e.preventDefault();
+                this.nextStep();
+                break;
+            case 'ArrowLeft':
+                e.preventDefault();
+                this.previousStep();
+                break;
+            case 'Escape':
+                e.preventDefault();
+                this.skipTutorial();
+                break;
+        }
+    }
+    
+    async checkForAutoStart() {
+        try {
+            const response = await fetch('/api/tutorials/auto-start/', {
+                headers: {
+                    'X-CSRFToken': getCSRFToken()
+                }
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                if (data.tutorial_id) {
+                    // Show float button with pulse if there's an available tutorial
+                    this.floatBtn.style.display = 'flex';
+                    this.floatBtn.classList.add('pulse');
+                    
+                    // Auto-start if configured
+                    if (data.auto_start) {
+                        setTimeout(() => {
+                            this.startTutorial(data.tutorial_id, true);
+                        }, 2000);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error checking for auto-start:', error);
+        }
+    }
+    
+    async showTutorialMenu() {
+        // This would show a menu of available tutorials
+        // For now, we'll just start the first available tutorial
+        try {
+            const response = await fetch('/api/tutorials/available/', {
+                headers: {
+                    'X-CSRFToken': getCSRFToken()
+                }
+            });
+            
+            if (response.ok) {
+                const tutorials = await response.json();
+                if (tutorials.length > 0) {
+                    this.startTutorial(tutorials[0].id);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading tutorials:', error);
+        }
+    }
+    
+    showSuccess(message) {
+        // This would integrate with your existing notification system
+        console.log('Success:', message);
+    }
+    
+    showError(message) {
+        // This would integrate with your existing notification system
+        console.error('Error:', message);
+    }
+}
+
+// Initialize tutorial system when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+    window.tutorialSystem = new TutorialSystem();
+});
+
+// Global function to start a specific tutorial
+function startTutorial(tutorialId) {
+    if (window.tutorialSystem) {
+        window.tutorialSystem.startTutorial(tutorialId);
+    }
+}
+</script>

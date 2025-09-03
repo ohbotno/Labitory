@@ -1,0 +1,321 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}License Management - Site Administration{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-certificate me-2"></i>
+                    License Management
+                </h1>
+                <div>
+                    <a href="{% url 'booking:site_admin_dashboard' %}" class="btn btn-secondary">
+                        <i class="fas fa-arrow-left me-1"></i>
+                        Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if error %}
+    <div class="alert alert-danger">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        {{ error }}
+    </div>
+    {% endif %}
+
+    <!-- Current License Information -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Current License Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if license_config %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Organization:</strong></td>
+                                    <td>{{ license_config.organization_name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>License Type:</strong></td>
+                                    <td>
+                                        <span class="badge bg-primary">{{ license_config.get_license_type_display }}</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Status:</strong></td>
+                                    <td>
+                                        {% if license_info.is_valid %}
+                                            <span class="badge bg-success">Valid</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Invalid</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Contact Email:</strong></td>
+                                    <td>{{ license_config.contact_email }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-borderless">
+                                <tr>
+                                    <td><strong>Expires:</strong></td>
+                                    <td>
+                                        {% if license_config.expires_at %}
+                                            {{ license_config.expires_at|date:"F j, Y" }}
+                                        {% else %}
+                                            Never
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Support Expires:</strong></td>
+                                    <td>
+                                        {% if license_config.support_expires_at %}
+                                            {{ license_config.support_expires_at|date:"F j, Y" }}
+                                        {% else %}
+                                            Never
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Max Users:</strong></td>
+                                    <td>{{ license_config.max_users|default:"Unlimited" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Max Resources:</strong></td>
+                                    <td>{{ license_config.max_resources|default:"Unlimited" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-exclamation-circle fa-3x text-warning mb-3"></i>
+                        <h5>No License Configured</h5>
+                        <p class="text-muted">This installation is running under the open source license.</p>
+                        <a href="{% url 'booking:site_admin_license_activate' %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>
+                            Activate Commercial License
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-bolt me-2"></i>
+                        Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% if not license_config or license_config.license_type != 'open_source' %}
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'booking:site_admin_license_select_open_source' %}" class="btn btn-success w-100">
+                                <i class="fas fa-balance-scale me-2"></i>
+                                Open Source
+                            </a>
+                        </div>
+                        {% endif %}
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'booking:site_admin_license_activate' %}" class="btn btn-primary w-100">
+                                <i class="fas fa-key me-2"></i>
+                                Activate License
+                            </a>
+                        </div>
+                        {% if enabled_features.custom_branding %}
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'booking:site_admin_branding_config' %}" class="btn btn-success w-100">
+                                <i class="fas fa-palette me-2"></i>
+                                Configure Branding
+                            </a>
+                        </div>
+                        {% endif %}
+                        {% if license_config %}
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'booking:site_admin_license_logs' %}" class="btn btn-info w-100">
+                                <i class="fas fa-list-alt me-2"></i>
+                                View Validation Logs
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button id="validateLicenseBtn" class="btn btn-primary w-100">
+                                <i class="fas fa-check-circle me-2"></i>
+                                Validate Now
+                                <span id="validateSpinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enabled Features -->
+    {% if enabled_features %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list-check me-2"></i>
+                        Enabled Features
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% for feature, enabled in enabled_features.items %}
+                        <div class="col-md-3 mb-2">
+                            <div class="d-flex align-items-center">
+                                {% if enabled %}
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                {% else %}
+                                    <i class="fas fa-times-circle text-muted me-2"></i>
+                                {% endif %}
+                                <span {% if not enabled %}class="text-muted"{% endif %}>
+                                    {% if feature == 'basic_booking' %}Basic Booking
+                                    {% elif feature == 'user_management' %}User Management
+                                    {% elif feature == 'resource_management' %}Resource Management
+                                    {% elif feature == 'email_notifications' %}Email Notifications
+                                    {% elif feature == 'custom_branding' %}Custom Branding
+                                    {% elif feature == 'white_label' %}White Label
+                                    {% elif feature == 'advanced_reports' %}Advanced Reports
+                                    {% elif feature == 'api_access' %}API Access
+                                    {% elif feature == 'premium_support' %}Premium Support
+                                    {% elif feature == 'usage_analytics' %}Usage Analytics
+                                    {% elif feature == 'priority_updates' %}Priority Updates
+                                    {% else %}{{ feature|title }}{% endif %}
+                                </span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Validation Logs -->
+    {% if validation_logs %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Recent Validation Logs
+                    </h5>
+                    <a href="{% url 'booking:site_admin_license_logs' %}" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Date/Time</th>
+                                    <th>Type</th>
+                                    <th>Result</th>
+                                    <th>Domain</th>
+                                    <th>Response Time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for log in validation_logs %}
+                                <tr>
+                                    <td>{{ log.created_at|date:"M j, Y H:i" }}</td>
+                                    <td>{{ log.get_validation_type_display }}</td>
+                                    <td>
+                                        {% if log.result == 'success' %}
+                                            <span class="badge bg-success">{{ log.get_result_display }}</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">{{ log.get_result_display }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ log.domain_checked|default:"-" }}</td>
+                                    <td>
+                                        {% if log.response_time %}
+                                            {{ log.response_time|floatformat:3 }}s
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const validateBtn = document.getElementById('validateLicenseBtn');
+    const validateSpinner = document.getElementById('validateSpinner');
+    
+    if (validateBtn) {
+        validateBtn.addEventListener('click', function() {
+            validateSpinner.classList.remove('d-none');
+            validateBtn.disabled = true;
+            
+            fetch('{% url "booking:site_admin_license_validate_ajax" %}', {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': '{{ csrf_token }}',
+                    'Content-Type': 'application/json',
+                },
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    if (data.valid) {
+                        alert('License validation successful!');
+                    } else {
+                        alert('License validation failed: ' + data.message);
+                    }
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                alert('Network error: ' + error);
+            })
+            .finally(() => {
+                validateSpinner.classList.add('d-none');
+                validateBtn.disabled = false;
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

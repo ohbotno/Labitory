@@ -1,0 +1,649 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}{{ resource.name }} - Resources - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="bi bi-{{ resource.resource_type|default:'box' }} me-2"></i>{{ resource.name }}</h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0">
+                        <li class="breadcrumb-item"><a href="{% url 'booking:calendar' %}">Home</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'booking:resources_list' %}">Resources</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">{{ resource.name }}</li>
+                    </ol>
+                </nav>
+            </div>
+
+            <div class="row">
+                <!-- Resource Information Panel -->
+                <div class="col-lg-4 mb-4">
+                    <div class="card">
+                        <!-- Resource Image -->
+                        {% if resource.image %}
+                        <img src="{{ resource.image.url }}" alt="{{ resource.name }}" class="card-img-top" style="height: 250px; object-fit: cover;">
+                        {% else %}
+                        <div class="card-img-top d-flex align-items-center justify-content-center bg-light" style="height: 250px;">
+                            {% if resource.resource_type == 'robot' %}
+                                <i class="bi bi-robot text-muted" style="font-size: 4rem;"></i>
+                            {% elif resource.resource_type == 'instrument' %}
+                                <i class="bi bi-tools text-muted" style="font-size: 4rem;"></i>
+                            {% elif resource.resource_type == 'room' %}
+                                <i class="bi bi-door-open text-muted" style="font-size: 4rem;"></i>
+                            {% elif resource.resource_type == 'safety_cabinet' %}
+                                <i class="bi bi-shield-check text-muted" style="font-size: 4rem;"></i>
+                            {% else %}
+                                <i class="bi bi-box text-muted" style="font-size: 4rem;"></i>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+
+                        <div class="card-body">
+                            <h5 class="card-title">
+                                {{ resource.name }}
+                                <span class="badge bg-primary ms-2">{{ resource.get_resource_type_display }}</span>
+                            </h5>
+                            
+                            {% if resource.description %}
+                            <p class="card-text">{{ resource.description }}</p>
+                            {% endif %}
+
+                            <!-- Resource Details -->
+                            <div class="row">
+                                <div class="col-12">
+                                    <h6 class="fw-bold">Details</h6>
+                                    <ul class="list-unstyled">
+                                        <li><i class="bi bi-geo-alt me-2"></i><strong>Location:</strong> {{ resource.location }}</li>
+                                        <li><i class="bi bi-people me-2"></i><strong>Capacity:</strong> {{ resource.capacity }} user{{ resource.capacity|pluralize }}</li>
+                                        {% if resource.required_training_level > 1 %}
+                                        <li><i class="bi bi-mortarboard me-2"></i><strong>Training Level Required:</strong> {{ resource.required_training_level }}</li>
+                                        {% endif %}
+                                        {% if resource.requires_induction %}
+                                        <li><i class="bi bi-info-circle me-2"></i><strong>Training Required:</strong> Yes</li>
+                                        {% endif %}
+                                        {% if resource.max_booking_hours %}
+                                        <li><i class="bi bi-clock me-2"></i><strong>Max Booking:</strong> {{ resource.max_booking_hours }} hour{{ resource.max_booking_hours|pluralize }}</li>
+                                        {% endif %}
+                                    </ul>
+                                </div>
+                            </div>
+
+                            <!-- Access Status -->
+                            <div class="mt-3">
+                                <h6 class="fw-bold">Access Status</h6>
+                                {% if user_has_access %}
+                                    <div class="alert alert-success">
+                                        <i class="bi bi-check-circle-fill me-2"></i>
+                                        You have access to this resource
+                                    </div>
+                                {% elif has_pending_training %}
+                                    <div class="alert alert-info persistent-alert">
+                                        <i class="bi bi-book-fill me-2"></i>
+                                        Training pending - You will be contacted with training details
+                                    </div>
+                                {% elif has_pending_request %}
+                                    <!-- Removed duplicate pending request message - shown in main content area -->
+                                {% else %}
+                                    <div class="alert alert-info">
+                                        <i class="bi bi-lock-fill me-2"></i>
+                                        You do not have access to this resource
+                                    </div>
+                                {% endif %}
+                            </div>
+
+
+                            <!-- Approval Progress -->
+                            {% if approval_progress and approval_progress.overall.total_stages > 0 %}
+                            <div class="mt-3">
+                                <h6 class="fw-bold">Approval Progress</h6>
+                                <div class="card">
+                                    <div class="card-body p-3">
+                                        <!-- Overall Progress Bar -->
+                                        <div class="d-flex justify-content-between align-items-center mb-2">
+                                            <small class="text-muted">Overall Progress</small>
+                                            <small class="text-muted">{{ approval_progress.overall.completed_stages }}/{{ approval_progress.overall.total_stages }}</small>
+                                        </div>
+                                        <div class="progress mb-3" style="height: 6px;">
+                                            <div class="progress-bar" role="progressbar" 
+                                                 style="width: {{ approval_progress.overall.percentage }}%"
+                                                 aria-valuenow="{{ approval_progress.overall.percentage }}" 
+                                                 aria-valuemin="0" aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                        
+                                        <!-- Individual Stages -->
+                                        {% for stage in approval_progress.stages %}
+                                        {% if stage.required %}
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="me-2">
+                                                {% if stage.status == 'completed' %}
+                                                    <i class="bi bi-check-circle-fill text-success"></i>
+                                                {% elif stage.status == 'pending' %}
+                                                    <i class="bi bi-clock-fill text-warning"></i>
+                                                {% elif stage.status == 'not_started' %}
+                                                    <i class="bi bi-circle text-muted"></i>
+                                                {% else %}
+                                                    <i class="bi bi-dash-circle text-muted"></i>
+                                                {% endif %}
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <div class="d-flex justify-content-between align-items-center">
+                                                    <span class="small fw-medium">{{ stage.name }}</span>
+                                                    {% if stage.status == 'completed' %}
+                                                        <small class="badge bg-success">Complete</small>
+                                                    {% elif stage.status == 'pending' %}
+                                                        <small class="badge bg-warning text-dark">Pending</small>
+                                                    {% elif stage.status == 'not_started' %}
+                                                        <small class="badge bg-secondary">Not Started</small>
+                                                    {% endif %}
+                                                </div>
+                                                <small class="text-muted">{{ stage.description }}</small>
+                                                
+                                                <!-- Stage Details -->
+                                                {% if stage.details and stage.key != 'admin_approval' %}
+                                                <div class="mt-1">
+                                                    {% if stage.key == 'training' and stage.details.training_records %}
+                                                        <!-- Enhanced training details showing actual UserTraining status -->
+                                                        {% for record in stage.details.training_records %}
+                                                        <small class="d-block mb-1">
+                                                            <i class="bi {% if record.status == 'completed' %}bi-check-circle text-success{% elif record.status == 'enrolled' or record.status == 'in_progress' %}bi-clock text-warning{% else %}bi-circle text-muted{% endif %} me-1"></i>
+                                                            {{ record.course_title }}
+                                                            {% if record.status == 'completed' %}
+                                                                <span class="text-success">(Completed{% if record.completed_at %} {{ record.completed_at|date:"M j, Y" }}{% endif %})</span>
+                                                            {% elif record.status == 'enrolled' %}
+                                                                <span class="text-info">(Enrolled)</span>
+                                                            {% elif record.status == 'in_progress' %}
+                                                                <span class="text-warning">(In Progress)</span>
+                                                            {% elif record.status == 'failed' %}
+                                                                <span class="text-danger">(Failed - Retake Required)</span>
+                                                            {% elif record.status == 'expired' %}
+                                                                <span class="text-danger">(Expired - Renewal Required)</span>
+                                                            {% else %}
+                                                                <span class="text-muted">(Not Enrolled)</span>
+                                                            {% endif %}
+                                                        </small>
+                                                        {% endfor %}
+                                                    {% else %}
+                                                        <!-- Standard details display -->
+                                                        {% if stage.details.pending %}
+                                                        <small class="text-muted d-block">
+                                                            <strong>Still needed:</strong>
+                                                            {% for item in stage.details.pending %}
+                                                                {{ item }}{% if not forloop.last %}, {% endif %}
+                                                            {% endfor %}
+                                                        </small>
+                                                        {% endif %}
+                                                        {% if stage.details.completed %}
+                                                        <small class="text-success d-block">
+                                                            <strong>Completed:</strong>
+                                                            {% for item in stage.details.completed %}
+                                                                {{ item }}{% if not forloop.last %}, {% endif %}
+                                                            {% endfor %}
+                                                        </small>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                        {% endfor %}
+                                        
+                                        <!-- Next Steps -->
+                                        {% if not approval_progress.overall.all_completed and not user_has_access and approval_progress.next_step %}
+                                        <div class="mt-3 pt-2 border-top">
+                                            <small class="text-muted fw-medium">Next Step:</small>
+                                            <div class="mt-1">
+                                                <small class="text-primary">
+                                                    <i class="bi bi-arrow-right me-1"></i>{{ approval_progress.next_step.name }}
+                                                    {% if approval_progress.next_step.key == 'induction' %}
+                                                        - Contact lab administrator for general lab safety induction
+                                                    {% elif approval_progress.next_step.key == 'training' %}
+                                                        - Complete equipment-specific training courses
+                                                    {% elif approval_progress.next_step.key == 'risk_assessment' %}
+                                                        - Complete mandatory risk assessments
+                                                    {% elif approval_progress.next_step.key == 'admin_approval' %}
+                                                        {% if not approval_progress.stages.0.completed or not approval_progress.stages.1.completed or not approval_progress.stages.2.completed %}
+                                                            - Complete prerequisites before requesting access
+                                                        {% else %}
+                                                            - Submit access request for final approval
+                                                        {% endif %}
+                                                    {% endif %}
+                                                </small>
+                                            </div>
+                                        </div>
+                                        {% elif user_has_access %}
+                                        <div class="mt-3 pt-2 border-top">
+                                            <small class="text-success fw-medium">
+                                                <i class="bi bi-check-circle me-1"></i>All requirements completed - Access granted!
+                                            </small>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+
+
+
+                            <!-- Action Button -->
+                            <div class="d-grid gap-2">
+                                {% if resource.is_closed %}
+                                    <div class="btn btn-danger" role="button">
+                                        <i class="bi bi-lock me-1"></i>Resource Temporarily Closed
+                                    </div>
+                                    {% if resource.closed_reason %}
+                                        <div class="alert alert-warning mt-2">
+                                            <small><strong>Reason:</strong> {{ resource.closed_reason }}</small>
+                                        </div>
+                                    {% endif %}
+                                {% elif show_calendar %}
+                                    <a href="{% url 'booking:create_booking' %}?resource={{ resource.id }}" class="btn btn-primary">
+                                        <i class="bi bi-plus-circle me-1"></i>Create Booking
+                                    </a>
+                                {% elif has_pending_training %}
+                                    <div class="btn btn-info" role="button">
+                                        <i class="bi bi-book me-1"></i>Training Pending
+                                    </div>
+                                {% elif needs_risk_assessments %}
+                                    {% if risk_assessment_status.not_started > 0 %}
+                                        <a href="#risk-assessments" class="btn btn-danger" onclick="document.querySelector('#risk-assessments').scrollIntoView({behavior: 'smooth'})">
+                                            <i class="bi bi-shield-exclamation me-1"></i>Submit Risk Assessment ({{ risk_assessment_status.not_started }} pending)
+                                        </a>
+                                    {% elif risk_assessment_status.pending > 0 %}
+                                        <div class="btn btn-secondary" role="button" title="Risk assessments under review">
+                                            <i class="bi bi-clock me-1"></i>Risk Assessment Review ({{ risk_assessment_status.pending }} pending)
+                                        </div>
+                                    {% else %}
+                                        <div class="btn btn-danger" role="button" title="Complete required risk assessments first">
+                                            <i class="bi bi-shield-exclamation me-1"></i>Risk Assessments Required
+                                        </div>
+                                    {% endif %}
+                                {% elif has_pending_request %}
+                                    <div class="btn btn-secondary" role="button">
+                                        <i class="bi bi-clock me-1"></i>Request Pending
+                                    </div>
+                                {% else %}
+                                    <a href="{% url 'booking:request_resource_access' resource.id %}" class="btn btn-outline-primary">
+                                        <i class="bi bi-key me-1"></i>Request Access
+                                    </a>
+                                {% endif %}
+                                
+                                <!-- Report Issue Button -->
+                                <a href="{% url 'booking:report_resource_issue' resource.id %}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>Report Issue
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Content Panel -->
+                <div class="col-lg-8">
+                    {% if show_calendar %}
+                        <!-- Calendar View -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="bi bi-calendar3 me-2"></i>{{ resource.name }} Calendar
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                <div id="resource-calendar" style="min-height: 600px;"></div>
+                            </div>
+                        </div>
+                    {% else %}
+                        <!-- Access Request Information -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">
+                                    <i class="bi bi-key me-2"></i>Resource Access
+                                </h5>
+                            </div>
+                            <div class="card-body">
+                                {% if has_pending_training %}
+                                    <div class="alert alert-info persistent-alert">
+                                        <h6><i class="bi bi-book-fill me-2"></i>Training Pending</h6>
+                                        <p class="mb-0">You have requested training for this resource. You will be contacted with training details and schedule information.</p>
+                                    </div>
+                                {% elif has_pending_request %}
+                                    <div class="alert alert-warning persistent-alert">
+                                        <h6><i class="bi bi-clock-fill me-2"></i>Request Pending</h6>
+                                        <p class="mb-2">Your access request for this resource is currently being reviewed. You will be notified once a decision is made.</p>
+                                        
+                                        <!-- Combined Progress Summary -->
+                                        {% if approval_progress and approval_progress.stages %}
+                                        <div class="mt-3 pt-2 border-top">
+                                            <h6 class="small fw-medium mb-2">Requirements Progress:</h6>
+                                            {% for stage in approval_progress.stages %}
+                                                {% if stage.required and not stage.completed %}
+                                                    {% if stage.key == 'training' %}
+                                                    <div class="small mb-1">
+                                                        <i class="bi bi-mortarboard me-1"></i>
+                                                        <strong>Equipment Training:</strong> 
+                                                        {% if stage.details.training_records %}
+                                                            {{ stage.details.completed|length }}/{{ stage.details.total_required }} courses completed
+                                                        {% else %}
+                                                            No specific courses required yet
+                                                        {% endif %}
+                                                    </div>
+                                                    {% elif stage.key == 'risk_assessment' %}
+                                                    <div class="small mb-1">
+                                                        <i class="bi bi-shield-exclamation me-1"></i>
+                                                        <strong>Risk Assessment:</strong> {{ risk_assessment_status.completed }}/{{ required_risk_assessments.count }} completed
+                                                    </div>
+                                                    {% elif stage.key == 'induction' %}
+                                                    <div class="small mb-1">
+                                                        <i class="bi bi-person-check me-1"></i>
+                                                        <strong>Lab Induction:</strong> {{ stage.status|title }}
+                                                    </div>
+                                                    {% endif %}
+                                                {% endif %}
+                                            {% endfor %}
+                                            <div class="small text-muted mt-1">
+                                                Complete all requirements before your request can be approved.
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                {% else %}
+                                    <div class="alert alert-info">
+                                        <h6><i class="bi bi-info-circle-fill me-2"></i>Access Required</h6>
+                                        <p>To view the calendar and book this resource, you need to request access first. Click the "Request Access" button to submit your request.</p>
+                                    </div>
+
+                                    <h6>Why might I need access?</h6>
+                                    <ul>
+                                        <li>This resource may require specific training or qualifications</li>
+                                        <li>Access may be restricted to certain user groups or roles</li>
+                                        <li>The resource manager needs to approve users before they can book</li>
+                                        {% if resource.requires_induction %}
+                                        <li>This resource requires completion of a safety induction</li>
+                                        {% endif %}
+                                        {% if resource.required_training_level > 1 %}
+                                        <li>This resource requires training level {{ resource.required_training_level }} or higher</li>
+                                        {% endif %}
+                                    </ul>
+
+                                    <div class="d-grid gap-2 mt-3">
+                                        <a href="{% url 'booking:request_resource_access' resource.id %}" class="btn btn-primary">
+                                            <i class="bi bi-key me-1"></i>Request Access to {{ resource.name }}
+                                        </a>
+                                    </div>
+                                {% endif %}
+
+                                <!-- Lab Induction Action Section -->
+                                {% if not user_has_access and resource.requires_induction %}
+                                {% for stage in approval_progress.stages %}
+                                    {% if stage.key == 'induction' and stage.required and not stage.completed %}
+                                    <div class="mt-4" id="lab-induction-actions">
+                                        <h6 class="fw-bold text-primary mb-3">
+                                            <i class="bi bi-person-check me-2"></i>Lab Induction Required
+                                        </h6>
+                                        <div class="border rounded p-3">
+                                            <div class="d-flex justify-content-between align-items-start">
+                                                <div class="flex-grow-1">
+                                                    <h6 class="mb-1">{{ stage.name }}</h6>
+                                                    <div class="small text-muted mb-2">
+                                                        {{ stage.description }}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="d-grid gap-2 mt-2">
+                                                <a href="{% url 'booking:lab_admin_inductions' %}" class="btn btn-primary btn-sm">
+                                                    <i class="bi bi-person-plus me-1"></i>Request Lab Induction
+                                                </a>
+                                                <small class="text-muted">Contact lab administrator to schedule your general lab safety induction</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                                {% endif %}
+
+                                <!-- Equipment Training Action Section -->
+                                {% if not user_has_access %}
+                                {% for stage in approval_progress.stages %}
+                                    {% if stage.key == 'training' and stage.required and not stage.completed %}
+                                    <div class="mt-4" id="equipment-training-actions">
+                                        <h6 class="fw-bold text-warning mb-3">
+                                            <i class="bi bi-mortarboard me-2"></i>Equipment Training Required
+                                        </h6>
+                                        
+                                        {% if stage.details.training_records %}
+                                            {% for record in stage.details.training_records %}
+                                            <div class="border rounded p-3 mb-3">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div class="flex-grow-1">
+                                                        <h6 class="mb-1">{{ record.course_title }}</h6>
+                                                        {% if record.status != 'not_enrolled' and record.status %}
+                                                        <div class="small mb-2">
+                                                            Status: 
+                                                            <span class="badge bg-{% if record.status == 'completed' %}success{% elif record.status == 'enrolled' or record.status == 'in_progress' %}warning{% elif record.status == 'failed' or record.status == 'expired' %}danger{% else %}secondary{% endif %}">
+                                                                {% if record.status == 'completed' %}Completed
+                                                                {% elif record.status == 'enrolled' %}Enrolled
+                                                                {% elif record.status == 'in_progress' %}In Progress
+                                                                {% elif record.status == 'failed' %}Failed
+                                                                {% elif record.status == 'expired' %}Expired
+                                                                {% endif %}
+                                                            </span>
+                                                        </div>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                <div class="d-grid gap-2 mt-2">
+                                                    {% if record.status == 'completed' %}
+                                                        <div class="btn btn-success btn-sm" disabled>
+                                                            <i class="bi bi-check-circle-fill me-1"></i>Completed
+                                                            {% if record.completed_at %}
+                                                                <small class="d-block mt-1 text-muted">{{ record.completed_at|date:"M j, Y" }}</small>
+                                                            {% endif %}
+                                                        </div>
+                                                    {% elif record.status == 'scheduled' %}
+                                                        <div class="btn btn-info btn-sm" disabled>
+                                                            <i class="bi bi-calendar-check me-1"></i>Training Scheduled
+                                                            {% if record.session_date %}
+                                                                <small class="d-block mt-1">{{ record.session_date|date:"M j, Y g:i A" }}</small>
+                                                            {% endif %}
+                                                        </div>
+                                                    {% elif record.status == 'enrolled' or record.status == 'in_progress' %}
+                                                        <a href="{% url 'booking:my_training' %}" class="btn btn-primary btn-sm">
+                                                            <i class="bi bi-arrow-right me-1"></i>Continue Training
+                                                        </a>
+                                                    {% elif record.status == 'failed' or record.status == 'expired' %}
+                                                        <div class="btn btn-secondary btn-sm" disabled>
+                                                            <i class="bi bi-x-circle me-1"></i>Training Pending - Contact Lab Admin
+                                                        </div>
+                                                    {% else %}
+                                                        <div class="small">
+                                                            <i class="bi bi-clock me-1"></i>Training Pending
+                                                            <div class="small text-muted">Awaiting training to be scheduled</div>
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        {% else %}
+                                            <div class="border rounded p-3">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div class="flex-grow-1">
+                                                        <h6 class="mb-1">Equipment Training</h6>
+                                                        <div class="small text-muted mb-2">
+                                                            No specific training courses configured yet for this resource.
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div class="mt-2">
+                                                    <div class="small">
+                                                        <i class="bi bi-clock me-1"></i>Training Pending
+                                                    </div>
+                                                    <small class="text-muted">Training courses will be scheduled by lab administrator</small>
+                                                </div>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                {% endfor %}
+                                {% endif %}
+
+                                <!-- Risk Assessment Action Section -->
+                                {% if not user_has_access and resource.requires_risk_assessment and required_risk_assessments and needs_risk_assessments %}
+                                <div class="mt-4" id="risk-assessments-actions">
+                                    <h6 class="fw-bold text-danger mb-3">
+                                        <i class="bi bi-shield-exclamation me-2"></i>Required Risk Assessments
+                                    </h6>
+                                    
+                                    {% for assessment in required_risk_assessments %}
+                                    <div class="border rounded p-3 mb-3">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-1">{{ assessment.title }}</h6>
+                                                <div class="text-muted small mb-2">
+                                                    <span class="me-3">
+                                                        <i class="bi bi-exclamation-triangle me-1"></i>
+                                                        Risk Level: 
+                                                        <span class="badge bg-{% if assessment.risk_level == 'high' %}danger{% elif assessment.risk_level == 'medium' %}warning{% elif assessment.risk_level == 'low' %}success{% else %}secondary{% endif %}">
+                                                            {{ assessment.get_risk_level_display }}
+                                                        </span>
+                                                    </span>
+                                                </div>
+                                                {% for assessment_id, user_assessment in user_risk_assessments.items %}
+                                                    {% if assessment_id == assessment.id %}
+                                                        {% if user_assessment %}
+                                                            <div class="small">
+                                                                Status: 
+                                                                <span class="badge bg-{% if user_assessment.status == 'approved' %}success{% elif user_assessment.status == 'submitted' %}info{% elif user_assessment.status == 'in_progress' %}warning{% else %}secondary{% endif %}">
+                                                                    {{ user_assessment.get_status_display }}
+                                                                </span>
+                                                                {% if user_assessment.submitted_at %}
+                                                                    <br><small class="text-muted">
+                                                                        <i class="bi bi-clock me-1"></i>{{ user_assessment.submitted_at|date:"M j, g:i A" }}
+                                                                    </small>
+                                                                {% endif %}
+                                                            </div>
+                                                        {% else %}
+                                                            <div class="small">
+                                                                <span class="badge bg-secondary">Not Started</span>
+                                                            </div>
+                                                        {% endif %}
+                                                    {% endif %}
+                                                {% endfor %}
+                                            </div>
+                                        </div>
+                                        <div class="d-grid gap-2 mt-2">
+                                            {% for assessment_id, user_assessment in user_risk_assessments.items %}
+                                                {% if assessment_id == assessment.id %}
+                                                    {% if user_assessment and user_assessment.status == 'approved' %}
+                                                        <div class="btn btn-success btn-sm" disabled>
+                                                            <i class="bi bi-check-circle-fill me-1"></i>Completed
+                                                        </div>
+                                                    {% elif user_assessment and user_assessment.status == 'submitted' %}
+                                                        <div class="btn btn-info btn-sm" disabled>
+                                                            <i class="bi bi-clock me-1"></i>Under Review
+                                                        </div>
+                                                    {% elif user_assessment and user_assessment.status == 'in_progress' %}
+                                                        <a href="{% url 'booking:start_risk_assessment' assessment.id %}" class="btn btn-primary btn-sm">
+                                                            <i class="bi bi-arrow-right me-1"></i>Continue Assessment
+                                                        </a>
+                                                    {% else %}
+                                                        <a href="{% url 'booking:start_risk_assessment' assessment.id %}" class="btn btn-primary btn-sm">
+                                                            <i class="bi bi-play me-1"></i>Start Assessment
+                                                        </a>
+                                                    {% endif %}
+                                                {% endif %}
+                                            {% endfor %}
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endif %}
+
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if show_calendar %}
+<!-- FullCalendar Integration -->
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const calendarEl = document.getElementById('resource-calendar');
+    
+    const calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'timeGridWeek',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'timeGridWeek,timeGridDay,listWeek'
+        },
+        slotMinTime: '09:00:00',
+        slotMaxTime: '18:00:00',
+        allDaySlot: false,
+        businessHours: {
+            daysOfWeek: [1, 2, 3, 4, 5], // Monday - Friday
+            startTime: '09:00',
+            endTime: '18:00'
+        },
+        height: 'auto',
+        contentHeight: 600,
+        events: '/api/bookings/?resource={{ resource.id }}',
+        eventClick: function(info) {
+            // Handle event click - could open booking details
+            window.location.href = `/booking/${info.event.extendedProps.booking_id}/`;
+        },
+        selectable: true,
+        selectMirror: true,
+        select: function(selectionInfo) {
+            // Handle time slot selection for new booking
+            const startTime = selectionInfo.start.toISOString();
+            const endTime = selectionInfo.end.toISOString();
+            window.location.href = `/booking/create/?resource={{ resource.id }}&start=${startTime}&end=${endTime}`;
+        },
+        eventDisplay: 'block',
+        eventClassNames: function(info) {
+            // Style events based on status
+            switch(info.event.extendedProps.status) {
+                case 'approved': return ['fc-event-approved'];
+                case 'pending': return ['fc-event-pending'];
+                case 'cancelled': return ['fc-event-cancelled'];
+                default: return [];
+            }
+        }
+    });
+
+    calendar.render();
+});
+</script>
+
+<style>
+.fc-event-approved {
+    background-color: #28a745 !important;
+    border-color: #1e7e34 !important;
+}
+
+.fc-event-pending {
+    background-color: #ffc107 !important;
+    border-color: #d39e00 !important;
+    color: #000 !important;
+}
+
+.fc-event-cancelled {
+    background-color: #6c757d !important;
+    border-color: #545b62 !important;
+}
+
+.fc-event:hover {
+    opacity: 0.8;
+}
+</style>
+{% endif %}
+{% endblock %}

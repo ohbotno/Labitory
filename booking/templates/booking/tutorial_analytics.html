@@ -1,0 +1,333 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Tutorial Analytics: {{ tutorial.name }} - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-chart-bar me-2"></i>Tutorial Analytics</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:tutorial_management' %}">Tutorial Management</a></li>
+                            <li class="breadcrumb-item active">Analytics: {{ tutorial.name }}</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{% url 'booking:tutorial_edit' tutorial.id %}" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-edit me-1"></i> Edit Tutorial
+                    </a>
+                    <a href="{% url 'booking:tutorial_management' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Management
+                    </a>
+                </div>
+            </div>
+
+            <!-- Tutorial Info Header -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h4 class="mb-1">
+                                <i class="{{ tutorial.category.icon }} me-2"></i>{{ tutorial.name }}
+                            </h4>
+                            <p class="text-muted mb-0">{{ tutorial.description }}</p>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <span class="badge bg-{% if tutorial.is_active %}success{% else %}secondary{% endif %} fs-6">
+                                {% if tutorial.is_active %}Active{% else %}Inactive{% endif %}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Key Metrics -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body text-center">
+                            <div class="display-6 mb-2">{{ analytics.total_starts|default:0 }}</div>
+                            <h5 class="card-title mb-0">Total Starts</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body text-center">
+                            <div class="display-6 mb-2">{{ analytics.total_completions|default:0 }}</div>
+                            <h5 class="card-title mb-0">Completions</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body text-center">
+                            <div class="display-6 mb-2">
+                                {% if analytics.total_starts %}
+                                    {{ analytics.completion_rate|floatformat:1 }}%
+                                {% else %}
+                                    0%
+                                {% endif %}
+                            </div>
+                            <h5 class="card-title mb-0">Completion Rate</h5>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning">
+                        <div class="card-body text-center">
+                            <div class="display-6 mb-2">
+                                {% if analytics.total_completions %}
+                                    {{ analytics.average_duration|floatformat:1 }}m
+                                {% else %}
+                                    0m
+                                {% endif %}
+                            </div>
+                            <h5 class="card-title mb-0">Avg Duration</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- User Progress -->
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">User Progress</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if user_progress %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>User</th>
+                                            <th>Status</th>
+                                            <th>Progress</th>
+                                            <th>Started</th>
+                                            <th>Last Updated</th>
+                                            <th>Duration</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for progress in user_progress %}
+                                        <tr>
+                                            <td>
+                                                <div class="d-flex align-items-center">
+                                                    <div class="avatar-sm me-2">
+                                                        <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center" style="width: 32px; height: 32px;">
+                                                            <i class="fas fa-user text-white"></i>
+                                                        </div>
+                                                    </div>
+                                                    <div>
+                                                        <div class="fw-medium">{{ progress.user.get_full_name|default:progress.user.username }}</div>
+                                                        <small class="text-muted">{{ progress.user.userprofile.role|title|default:"Student" }}</small>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>
+                                                {% if progress.completed %}
+                                                    <span class="badge bg-success">Completed</span>
+                                                {% elif progress.current_step %}
+                                                    <span class="badge bg-primary">In Progress</span>
+                                                {% else %}
+                                                    <span class="badge bg-secondary">Started</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="progress" style="height: 20px;">
+                                                    {% with progress_pct=progress.current_step|default:0|mul:100|div:tutorial.steps|length|floatformat:0 %}
+                                                    <div class="progress-bar" style="width: {{ progress_pct }}%">
+                                                        {{ progress_pct }}%
+                                                    </div>
+                                                    {% endwith %}
+                                                </div>
+                                                <small class="text-muted">Step {{ progress.current_step|default:0 }} of {{ tutorial.steps|length }}</small>
+                                            </td>
+                                            <td>
+                                                <small>{{ progress.started_at|date:"M d, Y" }}<br>{{ progress.started_at|time:"H:i" }}</small>
+                                            </td>
+                                            <td>
+                                                <small>{{ progress.last_updated|date:"M d, Y" }}<br>{{ progress.last_updated|time:"H:i" }}</small>
+                                            </td>
+                                            <td>
+                                                {% if progress.completed and progress.completed_at %}
+                                                    <small>{{ progress.duration_minutes|floatformat:1 }}m</small>
+                                                {% else %}
+                                                    <small class="text-muted">-</small>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- Pagination -->
+                            {% if user_progress.has_other_pages %}
+                            <nav aria-label="User progress pagination">
+                                <ul class="pagination justify-content-center mt-3">
+                                    {% if user_progress.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ user_progress.previous_page_number }}">Previous</a>
+                                    </li>
+                                    {% endif %}
+                                    
+                                    {% for num in user_progress.paginator.page_range %}
+                                    {% if user_progress.number == num %}
+                                    <li class="page-item active">
+                                        <span class="page-link">{{ num }}</span>
+                                    </li>
+                                    {% elif num > user_progress.number|add:'-3' and num < user_progress.number|add:'3' %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                    </li>
+                                    {% endif %}
+                                    {% endfor %}
+                                    
+                                    {% if user_progress.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ user_progress.next_page_number }}">Next</a>
+                                    </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                            {% endif %}
+                            {% else %}
+                            <div class="text-center text-muted py-4">
+                                <i class="fas fa-chart-line fa-3x mb-3"></i>
+                                <h5>No Progress Data Yet</h5>
+                                <p>This tutorial hasn't been started by any users yet.</p>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analytics Summary -->
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Quick Stats</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <h6>Tutorial Configuration</h6>
+                                <ul class="list-unstyled">
+                                    <li><strong>Steps:</strong> {{ tutorial.steps|length }}</li>
+                                    <li><strong>Est. Duration:</strong> {{ tutorial.estimated_duration }} min</li>
+                                    <li><strong>Difficulty:</strong> {{ tutorial.get_difficulty_level_display }}</li>
+                                    <li><strong>Category:</strong> {{ tutorial.category.name }}</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <h6>Targeting</h6>
+                                <ul class="list-unstyled">
+                                    <li><strong>Roles:</strong> 
+                                        {% if tutorial.target_roles %}
+                                            {% for role in tutorial.target_roles %}{{ role|title }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                                        {% else %}
+                                            All
+                                        {% endif %}
+                                    </li>
+                                    <li><strong>Pages:</strong> 
+                                        {% if tutorial.target_pages %}
+                                            {{ tutorial.target_pages|length }} specific
+                                        {% else %}
+                                            All pages
+                                        {% endif %}
+                                    </li>
+                                    <li><strong>Trigger:</strong> {{ tutorial.get_trigger_type_display }}</li>
+                                </ul>
+                            </div>
+
+                            <div class="mb-3">
+                                <h6>User Engagement</h6>
+                                <ul class="list-unstyled">
+                                    <li><strong>Drop-off Rate:</strong> 
+                                        {% if analytics.total_starts %}
+                                            {{ analytics.drop_off_rate|floatformat:1 }}%
+                                        {% else %}
+                                            0%
+                                        {% endif %}
+                                    </li>
+                                    <li><strong>Skip Rate:</strong> 
+                                        {% if analytics.total_starts %}
+                                            {{ analytics.skip_rate|floatformat:1 }}%
+                                        {% else %}
+                                            0%
+                                        {% endif %}
+                                    </li>
+                                </ul>
+                            </div>
+
+                            {% if feedback_summary %}
+                            <div class="mb-3">
+                                <h6>Feedback Summary</h6>
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="me-2">
+                                        {% for i in "12345" %}
+                                            <i class="fas fa-star {% if forloop.counter <= feedback_summary.average_rating %}text-warning{% else %}text-muted{% endif %}"></i>
+                                        {% endfor %}
+                                    </div>
+                                    <span class="text-muted">({{ feedback_summary.total_feedback }} reviews)</span>
+                                </div>
+                                <small class="text-muted">Avg: {{ feedback_summary.average_rating|floatformat:1 }}/5</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if recent_feedback %}
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5 class="mb-0">Recent Feedback</h5>
+                        </div>
+                        <div class="card-body">
+                            {% for feedback in recent_feedback %}
+                            <div class="mb-3 p-2 bg-light rounded">
+                                <div class="d-flex justify-content-between align-items-start mb-1">
+                                    <small class="fw-medium">{{ feedback.user.get_full_name|default:feedback.user.username }}</small>
+                                    <div>
+                                        {% for i in "12345" %}
+                                            <i class="fas fa-star small {% if forloop.counter <= feedback.rating %}text-warning{% else %}text-muted{% endif %}"></i>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% if feedback.comments %}
+                                <p class="small mb-1">{{ feedback.comments|truncatewords:20 }}</p>
+                                {% endif %}
+                                <small class="text-muted">{{ feedback.created_at|timesince }} ago</small>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-refresh analytics every 30 seconds
+    setInterval(function() {
+        // Only refresh if page is visible
+        if (!document.hidden) {
+            location.reload();
+        }
+    }, 30000);
+});
+</script>
+{% endblock %}

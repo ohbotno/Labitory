@@ -1,0 +1,332 @@
+<!-- Create Schedule Modal -->
+<div class="modal fade" id="createScheduleModal" tabindex="-1" aria-labelledby="createScheduleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" action="{% url 'booking:site_admin_backup_automation' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="create_schedule">
+                
+                <div class="modal-header">
+                    <h5 class="modal-title" id="createScheduleModalLabel">
+                        <i class="fas fa-plus me-2"></i>
+                        Create Backup Schedule
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="name" class="form-label">Schedule Name</label>
+                            <input type="text" class="form-control" name="name" id="name" 
+                                   placeholder="e.g., Daily System Backup" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="frequency" class="form-label">Frequency</label>
+                            <select class="form-select" name="frequency" id="frequency" required>
+                                {% for value, label in frequency_choices %}
+                                    {% if value != 'disabled' %}
+                                        <option value="{{ value }}" {% if value == 'weekly' %}selected{% endif %}>{{ label }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="backup_time" class="form-label">Backup Time</label>
+                            <input type="time" class="form-control" name="backup_time" id="backup_time" 
+                                   value="02:00" required>
+                        </div>
+                        <div class="col-md-4 mb-3" id="dayOfWeekGroup">
+                            <label for="day_of_week" class="form-label">Day of Week</label>
+                            <select class="form-select" name="day_of_week" id="day_of_week">
+                                {% for value, label in day_of_week_choices %}
+                                    <option value="{{ value }}" {% if value == 6 %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3 d-none" id="dayOfMonthGroup">
+                            <label for="day_of_month" class="form-label">Day of Month</label>
+                            <input type="number" class="form-control" name="day_of_month" id="day_of_month" 
+                                   min="1" max="28" value="1">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" name="enabled" id="enabled" checked>
+                                <label class="form-check-label" for="enabled">
+                                    Enable Schedule
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6><i class="fas fa-cogs me-2"></i>Backup Components</h6>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="include_database" id="include_database" checked>
+                                <label class="form-check-label" for="include_database">
+                                    <i class="fas fa-database me-1"></i>Database
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="include_media" id="include_media" checked>
+                                <label class="form-check-label" for="include_media">
+                                    <i class="fas fa-images me-1"></i>Media Files
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="include_configuration" id="include_configuration" checked>
+                                <label class="form-check-label" for="include_configuration">
+                                    <i class="fas fa-cog me-1"></i>Configuration
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6><i class="fas fa-archive me-2"></i>Retention Settings</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="max_backups_to_keep" class="form-label">Max Backups to Keep</label>
+                            <input type="number" class="form-control" name="max_backups_to_keep" id="max_backups_to_keep" 
+                                   min="1" value="7" required>
+                            <div class="form-text">Maximum number of automated backups to retain</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="retention_days" class="form-label">Retention Days</label>
+                            <input type="number" class="form-control" name="retention_days" id="retention_days" 
+                                   min="1" value="30" required>
+                            <div class="form-text">Days to keep backups before automatic deletion</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label for="notification_email" class="form-label">Notification Email (Optional)</label>
+                            <input type="email" class="form-control" name="notification_email" id="notification_email" 
+                                   placeholder="admin@example.com">
+                            <div class="form-text">Email address to notify on backup failures</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>
+                        Create Schedule
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Schedule Modal -->
+<div class="modal fade" id="editScheduleModal" tabindex="-1" aria-labelledby="editScheduleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="post" id="editScheduleForm" action="{% url 'booking:site_admin_backup_automation' %}">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update_schedule">
+                <input type="hidden" name="schedule_id" id="editScheduleId">
+                
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editScheduleModalLabel">
+                        <i class="fas fa-edit me-2"></i>
+                        Edit Backup Schedule
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="editName" class="form-label">Schedule Name</label>
+                            <input type="text" class="form-control" name="name" id="editName" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="editFrequency" class="form-label">Frequency</label>
+                            <select class="form-select" name="frequency" id="editFrequency" required>
+                                {% for value, label in frequency_choices %}
+                                    {% if value != 'disabled' %}
+                                        <option value="{{ value }}">{{ label }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="editBackupTime" class="form-label">Backup Time</label>
+                            <input type="time" class="form-control" name="backup_time" id="editBackupTime" required>
+                        </div>
+                        <div class="col-md-4 mb-3" id="editDayOfWeekGroup">
+                            <label for="editDayOfWeek" class="form-label">Day of Week</label>
+                            <select class="form-select" name="day_of_week" id="editDayOfWeek">
+                                {% for value, label in day_of_week_choices %}
+                                    <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-3 d-none" id="editDayOfMonthGroup">
+                            <label for="editDayOfMonth" class="form-label">Day of Month</label>
+                            <input type="number" class="form-control" name="day_of_month" id="editDayOfMonth" 
+                                   min="1" max="28">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="form-check mt-4">
+                                <input class="form-check-input" type="checkbox" name="enabled" id="editEnabled">
+                                <label class="form-check-label" for="editEnabled">
+                                    Enable Schedule
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6><i class="fas fa-cogs me-2"></i>Backup Components</h6>
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="include_database" id="editIncludeDatabase">
+                                <label class="form-check-label" for="editIncludeDatabase">
+                                    <i class="fas fa-database me-1"></i>Database
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="include_media" id="editIncludeMedia">
+                                <label class="form-check-label" for="editIncludeMedia">
+                                    <i class="fas fa-images me-1"></i>Media Files
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="include_configuration" id="editIncludeConfiguration">
+                                <label class="form-check-label" for="editIncludeConfiguration">
+                                    <i class="fas fa-cog me-1"></i>Configuration
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6><i class="fas fa-archive me-2"></i>Retention Settings</h6>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="editMaxBackupsToKeep" class="form-label">Max Backups to Keep</label>
+                            <input type="number" class="form-control" name="max_backups_to_keep" id="editMaxBackupsToKeep" 
+                                   min="1" required>
+                            <div class="form-text">Maximum number of automated backups to retain</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="editRetentionDays" class="form-label">Retention Days</label>
+                            <input type="number" class="form-control" name="retention_days" id="editRetentionDays" 
+                                   min="1" required>
+                            <div class="form-text">Days to keep backups before automatic deletion</div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label for="editNotificationEmail" class="form-label">Notification Email (Optional)</label>
+                            <input type="email" class="form-control" name="notification_email" id="editNotificationEmail">
+                            <div class="form-text">Email address to notify on backup failures</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Schedule Status Information -->
+                    <div id="scheduleStatusInfo" class="d-none mt-3">
+                        <hr>
+                        <h6><i class="fas fa-info-circle me-2"></i>Schedule Status</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <small class="text-muted">Last Run:</small>
+                                <div id="editLastRun">-</div>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">Last Success:</small>
+                                <div id="editLastSuccess">-</div>
+                            </div>
+                        </div>
+                        <div class="row mt-2">
+                            <div class="col-md-6">
+                                <small class="text-muted">Success Rate:</small>
+                                <div id="editSuccessRate">-</div>
+                            </div>
+                            <div class="col-md-6">
+                                <small class="text-muted">Next Run:</small>
+                                <div id="editNextRun">-</div>
+                            </div>
+                        </div>
+                        <div class="row mt-2" id="editLastErrorContainer" style="display: none;">
+                            <div class="col-12">
+                                <small class="text-muted">Last Error:</small>
+                                <div id="editLastError" class="text-danger small"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-2"></i>
+                        Update Schedule
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteScheduleModal" tabindex="-1" aria-labelledby="deleteScheduleModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteScheduleModalLabel">
+                    <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                    Confirm Delete Schedule
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete the backup schedule <strong id="deleteScheduleName"></strong>?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    <strong>Warning:</strong> This action cannot be undone. The schedule will be permanently removed and any future automated backups will stop.
+                </div>
+                <div id="scheduleDeleteInfo" class="mt-3">
+                    <h6>Schedule Details:</h6>
+                    <ul id="deleteScheduleDetails" class="list-unstyled mb-0">
+                        <!-- Details will be populated by JavaScript -->
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+                    <i class="fas fa-trash me-2"></i>
+                    Delete Schedule
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

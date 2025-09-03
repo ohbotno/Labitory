@@ -1,0 +1,233 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-file-earmark-text"></i> {{ title }}</h2>
+    <a href="{% url 'booking:templates' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Templates
+    </a>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Template Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.name.id_for_label }}" class="form-label">Template Name</label>
+                            {{ form.name }}
+                            {% if form.name.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.name.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.resource.id_for_label }}" class="form-label">Resource</label>
+                            {{ form.resource }}
+                            {% if form.resource.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.resource.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                            <div class="text-danger">
+                                {% for error in form.description.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.title_template.id_for_label }}" class="form-label">Booking Title Template</label>
+                        {{ form.title_template }}
+                        {% if form.title_template.errors %}
+                            <div class="text-danger">
+                                {% for error in form.title_template.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="text-muted">This will be the default title for bookings created from this template.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.description_template.id_for_label }}" class="form-label">Booking Description Template</label>
+                        {{ form.description_template }}
+                        {% if form.description_template.errors %}
+                            <div class="text-danger">
+                                {% for error in form.description_template.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="{{ form.duration_hours.id_for_label }}" class="form-label">Duration Hours</label>
+                            {{ form.duration_hours }}
+                            {% if form.duration_hours.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.duration_hours.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label for="{{ form.duration_minutes.id_for_label }}" class="form-label">Duration Minutes</label>
+                            {{ form.duration_minutes }}
+                            {% if form.duration_minutes.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.duration_minutes.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4">
+                            <label for="{{ form.preferred_start_time.id_for_label }}" class="form-label">Preferred Start Time</label>
+                            {{ form.preferred_start_time }}
+                            {% if form.preferred_start_time.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.preferred_start_time.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <small class="text-muted">Optional default start time.</small>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.notes_template.id_for_label }}" class="form-label">Notes Template</label>
+                        {{ form.notes_template }}
+                        {% if form.notes_template.errors %}
+                            <div class="text-danger">
+                                {% for error in form.notes_template.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                {{ form.shared_with_group }}
+                                <label class="form-check-label" for="{{ form.shared_with_group.id_for_label }}">
+                                    Share bookings with group by default
+                                </label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                {{ form.is_public }}
+                                <label class="form-check-label" for="{{ form.is_public.id_for_label }}">
+                                    Make template public (visible to all users)
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'booking:templates' %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Save Template
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Template Preview</h6>
+            </div>
+            <div class="card-body">
+                <div id="template-preview">
+                    <p class="text-muted">Fill in the form to see a preview of your template.</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Tips</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="bi bi-lightbulb text-warning"></i> Use descriptive names for easy identification</li>
+                    <li><i class="bi bi-lightbulb text-warning"></i> Public templates can be used by all users</li>
+                    <li><i class="bi bi-lightbulb text-warning"></i> Set preferred start times for common booking patterns</li>
+                    <li><i class="bi bi-lightbulb text-warning"></i> Templates save time for frequent bookings</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Update preview as user types
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const preview = document.getElementById('template-preview');
+    
+    function updatePreview() {
+        const name = form.querySelector('[name="name"]').value || 'Template Name';
+        const titleTemplate = form.querySelector('[name="title_template"]').value || 'Booking Title';
+        const resource = form.querySelector('[name="resource"] option:checked').text || 'Resource';
+        const hours = form.querySelector('[name="duration_hours"]').value || '1';
+        const minutes = form.querySelector('[name="duration_minutes"]').value || '0';
+        const isPublic = form.querySelector('[name="is_public"]').checked;
+        
+        preview.innerHTML = `
+            <h6>${name}</h6>
+            <p><strong>Resource:</strong> ${resource}</p>
+            <p><strong>Title:</strong> ${titleTemplate}</p>
+            <p><strong>Duration:</strong> ${hours}h ${minutes}m</p>
+            <p><strong>Visibility:</strong> ${isPublic ? 'Public' : 'Private'}</p>
+        `;
+    }
+    
+    // Update on input
+    form.addEventListener('input', updatePreview);
+    form.addEventListener('change', updatePreview);
+    
+    // Initial update
+    updatePreview();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,275 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Group: {{ group_name }} - {{ lab_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .group-header {
+        background: linear-gradient(135deg, #007cba, #005a88);
+        color: white;
+        padding: 2rem;
+        border-radius: 0.375rem;
+        margin-bottom: 2rem;
+    }
+    .stat-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 1.5rem;
+        text-align: center;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .stat-number {
+        font-size: 2rem;
+        font-weight: bold;
+        color: #007cba;
+    }
+    .stat-label {
+        color: #6c757d;
+        margin-top: 0.5rem;
+    }
+    .member-card {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+        transition: box-shadow 0.2s;
+    }
+    .member-card:hover {
+        box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .member-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .member-details h6 {
+        margin: 0;
+        color: #495057;
+    }
+    .member-details small {
+        color: #6c757d;
+    }
+    .role-badge {
+        padding: 0.25rem 0.75rem;
+        border-radius: 0.5rem;
+        font-size: 0.75rem;
+        font-weight: 600;
+        text-transform: uppercase;
+    }
+    .role-student { background: #e3f2fd; color: #1976d2; }
+    .role-researcher { background: #f3e5f5; color: #7b1fa2; }
+    .role-academic { background: #e8f5e8; color: #388e3c; }
+    .role-technician { background: #fff3e0; color: #f57c00; }
+    .role-sysadmin { background: #ffebee; color: #d32f2f; }
+    
+    .member-actions {
+        display: flex;
+        gap: 0.5rem;
+    }
+    .add-user-section {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        margin-bottom: 2rem;
+    }
+    .recent-bookings {
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Group Header -->
+    <div class="group-header">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h1 class="mb-0">👥 {{ group_name }}</h1>
+                <p class="mb-0 mt-2">Group Management</p>
+            </div>
+            <div>
+                <a href="{% url 'booking:group_management' %}" class="btn btn-light">← Back to Groups</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Group Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-number">{{ group_stats.total_members }}</div>
+                <div class="stat-label">Total Members</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-number">{{ group_stats.recent_bookings }}</div>
+                <div class="stat-label">Recent Bookings (30 days)</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-number">{{ group_stats.active_bookings }}</div>
+                <div class="stat-label">Active Bookings</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="stat-card">
+                <div class="stat-number">{{ group_stats.roles.count }}</div>
+                <div class="stat-label">Different Roles</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Role Distribution -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>📊 Role Distribution</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex gap-3 flex-wrap">
+                        {% for role_stat in group_stats.roles %}
+                        <span class="role-badge role-{{ role_stat.role }}">
+                            {{ role_stat.role|title }}: {{ role_stat.count }}
+                        </span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Users Section -->
+    {% if available_users %}
+    <div class="add-user-section">
+        <h5>➕ Add Users to Group</h5>
+        <form method="post">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="bulk_assign">
+            <input type="hidden" name="target_group" value="{{ group_name }}">
+            
+            <div class="row">
+                {% for user_profile in available_users %}
+                <div class="col-md-4 mb-2">
+                    <label class="form-check-label d-flex align-items-center">
+                        <input type="checkbox" name="user_ids" value="{{ user_profile.id }}" class="form-check-input me-2">
+                        <span>{{ user_profile.user.get_full_name }} ({{ user_profile.role }})</span>
+                    </label>
+                </div>
+                {% endfor %}
+            </div>
+            
+            <button type="submit" class="btn btn-success mt-2">Add Selected Users</button>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Group Members -->
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5>👥 Group Members ({{ group_members.count }})</h5>
+                    <div>
+                        <button class="btn btn-outline-secondary btn-sm" onclick="toggleMemberSelection()">Select All</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% for member in group_members %}
+                    <div class="member-card">
+                        <div class="member-info">
+                            <div class="member-details">
+                                <h6>{{ member.user.get_full_name }}</h6>
+                                <small>
+                                    {{ member.user.email }} | 
+                                    {% if member.student_id %}Student ID: {{ member.student_id }}{% endif %}
+                                    {% if member.staff_number %}Staff: {{ member.staff_number }}{% endif %}
+                                    | Training Level: {{ member.training_level }}
+                                </small>
+                                {% if member.department %}
+                                <br><small class="text-muted">{{ member.department.name }}, {{ member.college.name }}</small>
+                                {% endif %}
+                            </div>
+                            <div class="d-flex align-items-center gap-3">
+                                <span class="role-badge role-{{ member.role }}">{{ member.role|title }}</span>
+                                <div class="member-actions">
+                                    <!-- Change Role -->
+                                    <form method="post" class="d-inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="change_role">
+                                        <input type="hidden" name="user_id" value="{{ member.id }}">
+                                        <select name="new_role" class="form-select form-select-sm" onchange="this.form.submit()">
+                                            {% for role_value, role_label in role_choices %}
+                                            <option value="{{ role_value }}" {% if member.role == role_value %}selected{% endif %}>
+                                                {{ role_label }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </form>
+                                    
+                                    <!-- Remove from Group -->
+                                    <form method="post" class="d-inline" onsubmit="return confirm('Remove {{ member.user.get_full_name }} from group?')">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="remove_member">
+                                        <input type="hidden" name="user_id" value="{{ member.id }}">
+                                        <button type="submit" class="btn btn-outline-danger btn-sm">Remove</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="alert alert-info">
+                        This group has no members.
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Bookings -->
+        <div class="col-lg-4">
+            <div class="recent-bookings">
+                <h5>📅 Recent Group Bookings</h5>
+                {% for booking in recent_bookings %}
+                <div class="card mb-2">
+                    <div class="card-body p-2">
+                        <h6 class="card-title mb-1">{{ booking.title }}</h6>
+                        <small class="text-muted">
+                            {{ booking.user.get_full_name }}<br>
+                            {{ booking.resource.name }}<br>
+                            {{ booking.start_time|date:"M d, H:i" }}
+                        </small>
+                        <span class="badge bg-{{ booking.status|default:'secondary' }} mt-1">{{ booking.status|title }}</span>
+                    </div>
+                </div>
+                {% empty %}
+                <div class="alert alert-info">
+                    No recent bookings from this group.
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleMemberSelection() {
+    const checkboxes = document.querySelectorAll('input[name="user_ids"]');
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    
+    checkboxes.forEach(cb => {
+        cb.checked = !allChecked;
+    });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,719 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Lab Admin - Access Requests - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-key me-2"></i>Access Requests Management</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_dashboard' %}">Lab Admin</a></li>
+                            <li class="breadcrumb-item active">Access Requests</li>
+                        </ol>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Filter Section -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select" onchange="this.form.submit()">
+                                <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+                                <option value="approved" {% if status_filter == 'approved' %}selected{% endif %}>Approved</option>
+                                <option value="rejected" {% if status_filter == 'rejected' %}selected{% endif %}>Rejected</option>
+                                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                            </select>
+                        </div>
+                        <div class="col-md-9 d-flex align-items-end">
+                            <a href="{% url 'booking:lab_admin_access_requests' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-sync-alt"></i> Reset Filter
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Access Requests List -->
+            {% for request in access_requests %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h5 class="mb-0">
+                                {{ request.user.get_full_name }} 
+                                <small class="text-muted">({{ request.user.username }})</small>
+                                {% if request.status == 'pending' %}
+                                <span class="badge bg-warning text-dark">Pending</span>
+                                {% elif request.status == 'approved' %}
+                                <span class="badge bg-success">Approved</span>
+                                {% elif request.status == 'rejected' %}
+                                <span class="badge bg-danger">Rejected</span>
+                                {% endif %}
+                            </h5>
+                            <small class="text-muted">
+                                Requested {{ request.created_at|date:"M j, Y g:i A" }} for {{ request.resource.name }}
+                            </small>
+                        </div>
+                        {% if request.status == 'pending' %}
+                        <div class="col-auto">
+                            {% if request.prerequisite_status.all_met %}
+                            <span class="badge bg-success">Ready for Approval</span>
+                            {% else %}
+                            <span class="badge bg-warning text-dark">Prerequisites Pending</span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <!-- Basic Information -->
+                        <div class="col-md-6">
+                            <h6 class="fw-bold mb-3">Request Details</h6>
+                            <p><strong>Resource:</strong> {{ request.resource.name }}</p>
+                            <p><strong>Access Type:</strong> {{ request.get_access_type_display }}</p>
+                            <p><strong>User Role:</strong> {{ request.user.userprofile.get_role_display }}</p>
+                            {% if request.user.userprofile.department %}
+                            <p><strong>Department:</strong> {{ request.user.userprofile.department.name }}</p>
+                            {% endif %}
+                            
+                            <!-- Supervisor Information for Students -->
+                            {% if request.supervisor_name or request.supervisor_email %}
+                            <div class="mt-3 p-2 bg-light rounded">
+                                <h6 class="fw-bold mb-2"><i class="bi bi-mortarboard me-1"></i>Supervisor Information</h6>
+                                {% if request.supervisor_name %}
+                                <p class="mb-1"><strong>Name:</strong> {{ request.supervisor_name }}</p>
+                                {% endif %}
+                                {% if request.supervisor_email %}
+                                <p class="mb-0"><strong>Email:</strong> <a href="mailto:{{ request.supervisor_email }}">{{ request.supervisor_email }}</a></p>
+                                {% endif %}
+                            </div>
+                            {% endif %}
+                            
+                            {% if request.justification %}
+                            <p class="mt-3"><strong>Justification:</strong></p>
+                            <p class="text-muted small">{{ request.justification }}</p>
+                            {% endif %}
+                        </div>
+                        
+                        <!-- Prerequisites Section -->
+                        <div class="col-md-6">
+                            {% if request.status == 'pending' %}
+                            <h6 class="fw-bold mb-3">Prerequisites Checklist</h6>
+                            
+                            <!-- Safety Induction -->
+                            <div class="border rounded p-3 mb-3">
+                                <div class="d-flex align-items-start justify-content-between">
+                                    <div class="d-flex align-items-start">
+                                        {% if request.prerequisite_status.safety_induction.completed %}
+                                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+                                        {% else %}
+                                        <i class="bi bi-circle text-muted me-2 mt-1"></i>
+                                        {% endif %}
+                                        <div>
+                                            <strong>Lab Health & Safety Induction</strong>
+                                            {% if request.prerequisite_status.safety_induction.completed %}
+                                            <div class="small text-success">
+                                                ✓ Confirmed by {{ request.prerequisite_status.safety_induction.confirmed_by.get_full_name }}
+                                                <br>{{ request.prerequisite_status.safety_induction.confirmed_at|date:"M j, Y g:i A" }}
+                                            </div>
+                                            {% if request.prerequisite_status.safety_induction.notes %}
+                                            <div class="small text-muted mt-1">
+                                                <strong>Notes:</strong> {{ request.prerequisite_status.safety_induction.notes }}
+                                            </div>
+                                            {% endif %}
+                                            {% else %}
+                                            <div class="small text-muted">Confirm user has completed lab safety induction</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% if not request.prerequisite_status.safety_induction.completed %}
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#safetyModal{{ request.id }}">
+                                            Confirm
+                                        </button>
+                                        <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#scheduleSafetyModal{{ request.id }}">
+                                            Schedule
+                                        </button>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Lab Training -->
+                            <div class="border rounded p-3 mb-3">
+                                <div class="d-flex align-items-start justify-content-between">
+                                    <div class="d-flex align-items-start">
+                                        {% if request.prerequisite_status.lab_training.completed %}
+                                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+                                        {% else %}
+                                        <i class="bi bi-circle text-muted me-2 mt-1"></i>
+                                        {% endif %}
+                                        <div>
+                                            <strong>Resource Training</strong>
+                                            {% if request.prerequisite_status.lab_training.completed %}
+                                            <div class="small text-success">
+                                                ✓ Confirmed by {{ request.prerequisite_status.lab_training.confirmed_by.get_full_name }}
+                                                <br>{{ request.prerequisite_status.lab_training.confirmed_at|date:"M j, Y g:i A" }}
+                                            </div>
+                                            {% if request.prerequisite_status.lab_training.notes %}
+                                            <div class="small text-muted mt-1">
+                                                <strong>Notes:</strong> {{ request.prerequisite_status.lab_training.notes }}
+                                            </div>
+                                            {% endif %}
+                                            {% else %}
+                                            <div class="small text-muted">Confirm training completion or schedule training</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% if not request.prerequisite_status.lab_training.completed %}
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#trainingModal{{ request.id }}">
+                                            Confirm
+                                        </button>
+                                        <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#scheduleTrainingModal{{ request.id }}">
+                                            Schedule
+                                        </button>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <!-- Risk Assessment -->
+                            <div class="border rounded p-3 mb-3">
+                                <div class="d-flex align-items-start justify-content-between">
+                                    <div class="d-flex align-items-start">
+                                        {% if request.prerequisite_status.risk_assessment.completed %}
+                                        <i class="bi bi-check-circle-fill text-success me-2 mt-1"></i>
+                                        {% else %}
+                                        <i class="bi bi-circle text-muted me-2 mt-1"></i>
+                                        {% endif %}
+                                        <div>
+                                            <strong>Risk Assessment</strong>
+                                            {% if request.prerequisite_status.risk_assessment.completed %}
+                                            <div class="small text-success">
+                                                ✓ Confirmed by {{ request.prerequisite_status.risk_assessment.confirmed_by.get_full_name }}
+                                                <br>{{ request.prerequisite_status.risk_assessment.confirmed_at|date:"M j, Y g:i A" }}
+                                            </div>
+                                            {% if request.prerequisite_status.risk_assessment.notes %}
+                                            <div class="small text-muted mt-1">
+                                                <strong>Notes:</strong> {{ request.prerequisite_status.risk_assessment.notes }}
+                                            </div>
+                                            {% endif %}
+                                            {% else %}
+                                            <div class="small text-muted">Confirm user has submitted required risk assessment</div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    {% if not request.prerequisite_status.risk_assessment.completed %}
+                                    <div class="btn-group">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#riskAssessmentModal{{ request.id }}">
+                                            Confirm
+                                        </button>
+                                        <button type="button" class="btn btn-outline-info btn-sm" onclick="checkUserRiskAssessments({{ request.user.id }}, '{{ request.user.get_full_name|default:request.user.username }}')" title="Check user's risk assessment status">
+                                            <i class="bi bi-search"></i> Check Status
+                                        </button>
+                                    </div>
+                                    {% else %}
+                                    <a href="{% url 'booking:risk_assessments' %}?user={{ request.user.id }}" class="btn btn-outline-info btn-sm" title="View user's risk assessments">
+                                        <i class="bi bi-eye"></i> View Assessments
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% else %}
+                            <h6 class="fw-bold mb-3">Review Information</h6>
+                            {% if request.reviewed_by %}
+                            <p><strong>Reviewed by:</strong> {{ request.reviewed_by.get_full_name }}</p>
+                            <p><strong>Reviewed at:</strong> {{ request.reviewed_at|date:"M j, Y g:i A" }}</p>
+                            {% endif %}
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <!-- Action Buttons -->
+                    {% if request.status == 'pending' %}
+                    <hr>
+                    <div class="d-flex justify-content-end gap-2">
+                        {% if request.prerequisite_status.all_met %}
+                        <form method="post" style="display: inline;" onsubmit="return confirm('Approve this access request?')">
+                            {% csrf_token %}
+                            <input type="hidden" name="request_id" value="{{ request.id }}">
+                            <input type="hidden" name="action" value="approve">
+                            <button type="submit" class="btn btn-success">
+                                <i class="bi bi-check-circle"></i> Approve Access
+                            </button>
+                        </form>
+                        {% else %}
+                        <button type="button" class="btn btn-success" disabled title="Complete prerequisites first">
+                            <i class="bi bi-check-circle"></i> Approve Access
+                        </button>
+                        {% endif %}
+                        
+                        <form method="post" style="display: inline;" onsubmit="return confirm('Reject this access request?')">
+                            {% csrf_token %}
+                            <input type="hidden" name="request_id" value="{{ request.id }}">
+                            <input type="hidden" name="action" value="reject">
+                            <button type="submit" class="btn btn-outline-danger">
+                                <i class="bi bi-x-circle"></i> Reject
+                            </button>
+                        </form>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+            <!-- Modals for each request -->
+            {% if request.status == 'pending' %}
+            <!-- Safety Induction Confirmation Modal -->
+            <div class="modal fade" id="safetyModal{{ request.id }}" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Confirm Safety Induction</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="request_id" value="{{ request.id }}">
+                            <input type="hidden" name="action" value="confirm_safety">
+                            <div class="modal-body">
+                                <p><strong>User:</strong> {{ request.user.get_full_name }}</p>
+                                <p><strong>Resource:</strong> {{ request.resource.name }}</p>
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle"></i>
+                                    Confirm that this user has completed the lab health and safety induction (external to this system).
+                                </div>
+                                <div class="mb-3">
+                                    <label for="safety_notes{{ request.id }}" class="form-label">Notes (optional)</label>
+                                    <textarea class="form-control" id="safety_notes{{ request.id }}" name="safety_notes" rows="3" placeholder="Any additional notes about the safety induction..."></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary">Confirm Safety Induction</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Schedule Safety Induction Modal -->
+            <div class="modal fade" id="scheduleSafetyModal{{ request.id }}" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Schedule Safety Induction Session</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="request_id" value="{{ request.id }}">
+                            <input type="hidden" name="action" value="schedule_safety_induction">
+                            <div class="modal-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <p><strong>User:</strong> {{ request.user.get_full_name }}</p>
+                                        <p><strong>Email:</strong> {{ request.user.email }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>Resource:</strong> {{ request.resource.name }}</p>
+                                        <p><strong>Location:</strong> {{ request.resource.location }}</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-info">
+                                    <i class="bi bi-calendar-plus"></i>
+                                    Schedule a specific safety induction session or create a general induction request to be scheduled later.
+                                </div>
+                                
+                                <!-- Induction Date and Time -->
+                                <div class="mb-4">
+                                    <h6 class="fw-bold mb-3">Induction Schedule (Optional)</h6>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="induction_date{{ request.id }}" class="form-label">Induction Date</label>
+                                            <input type="date" class="form-control" id="induction_date{{ request.id }}" name="induction_date" 
+                                                   min="{{ today|date:'Y-m-d' }}">
+                                            <div class="form-text">Leave blank to schedule later</div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="induction_time{{ request.id }}" class="form-label">Induction Time</label>
+                                            <input type="time" class="form-control" id="induction_time{{ request.id }}" name="induction_time">
+                                            <div class="form-text">Leave blank to schedule later</div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="induction_duration{{ request.id }}" class="form-label">Expected Duration (hours)</label>
+                                        <select class="form-select" id="induction_duration{{ request.id }}" name="induction_duration">
+                                            <option value="">Not specified</option>
+                                            <option value="0.5">30 minutes</option>
+                                            <option value="1" selected>1 hour</option>
+                                            <option value="1.5">1.5 hours</option>
+                                            <option value="2">2 hours</option>
+                                            <option value="3">3 hours</option>
+                                            <option value="4">4 hours</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <!-- Induction Details -->
+                                <div class="mb-3">
+                                    <label for="induction_justification{{ request.id }}" class="form-label">Induction Notes & Requirements</label>
+                                    <textarea class="form-control" id="induction_justification{{ request.id }}" name="induction_justification" rows="4" 
+                                              placeholder="Describe the safety induction requirements, specific areas to be covered, or any special considerations...">Lab health & safety induction required for access to {{ request.resource.name }}</textarea>
+                                </div>
+                                
+                                <!-- Instructor Assignment -->
+                                <div class="mb-3">
+                                    <label for="induction_instructor_notes{{ request.id }}" class="form-label">Instructor Notes (Optional)</label>
+                                    <textarea class="form-control" id="induction_instructor_notes{{ request.id }}" name="induction_instructor_notes" rows="2" 
+                                              placeholder="Notes for the assigned instructor, special requirements, preparation needed..."></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-info">
+                                    <i class="bi bi-calendar-plus me-1"></i>Create Induction Request
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Resource Training Confirmation Modal -->
+            <div class="modal fade" id="trainingModal{{ request.id }}" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Confirm Resource Training</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="request_id" value="{{ request.id }}">
+                            <input type="hidden" name="action" value="confirm_training">
+                            <div class="modal-body">
+                                <p><strong>User:</strong> {{ request.user.get_full_name }}</p>
+                                <p><strong>Resource:</strong> {{ request.resource.name }}</p>
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle"></i>
+                                    Confirm that this user has completed the required resource training.
+                                </div>
+                                <div class="mb-3">
+                                    <label for="training_notes{{ request.id }}" class="form-label">Training Notes (optional)</label>
+                                    <textarea class="form-control" id="training_notes{{ request.id }}" name="training_notes" rows="3" placeholder="Training details, date completed, instructor..."></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary">Confirm Training</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Schedule Training Modal -->
+            <div class="modal fade" id="scheduleTrainingModal{{ request.id }}" tabindex="-1">
+                <div class="modal-dialog modal-lg">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Schedule Training Session</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="request_id" value="{{ request.id }}">
+                            <input type="hidden" name="action" value="schedule_training">
+                            <div class="modal-body">
+                                <div class="row mb-3">
+                                    <div class="col-md-6">
+                                        <p><strong>User:</strong> {{ request.user.get_full_name }}</p>
+                                        <p><strong>Email:</strong> {{ request.user.email }}</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <p><strong>Resource:</strong> {{ request.resource.name }}</p>
+                                        <p><strong>Location:</strong> {{ request.resource.location }}</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="alert alert-info">
+                                    <i class="bi bi-calendar-plus"></i>
+                                    Schedule a specific training session or create a general training request to be scheduled later.
+                                </div>
+                                
+                                <!-- Training Date and Time -->
+                                <div class="mb-4">
+                                    <h6 class="fw-bold mb-3">Training Schedule (Optional)</h6>
+                                    <div class="row">
+                                        <div class="col-md-6 mb-3">
+                                            <label for="training_date{{ request.id }}" class="form-label">Training Date</label>
+                                            <input type="date" class="form-control" id="training_date{{ request.id }}" name="training_date" 
+                                                   min="{{ today|date:'Y-m-d' }}">
+                                            <div class="form-text">Leave blank to schedule later</div>
+                                        </div>
+                                        <div class="col-md-6 mb-3">
+                                            <label for="training_time{{ request.id }}" class="form-label">Training Time</label>
+                                            <input type="time" class="form-control" id="training_time{{ request.id }}" name="training_time">
+                                            <div class="form-text">Leave blank to schedule later</div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="training_duration{{ request.id }}" class="form-label">Expected Duration (hours)</label>
+                                        <select class="form-select" id="training_duration{{ request.id }}" name="training_duration">
+                                            <option value="">Not specified</option>
+                                            <option value="0.5">30 minutes</option>
+                                            <option value="1" selected>1 hour</option>
+                                            <option value="1.5">1.5 hours</option>
+                                            <option value="2">2 hours</option>
+                                            <option value="3">3 hours</option>
+                                            <option value="4">4 hours</option>
+                                            <option value="8">Full day (8 hours)</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                <!-- Training Details -->
+                                <div class="mb-3">
+                                    <label for="training_justification{{ request.id }}" class="form-label">Training Notes & Requirements</label>
+                                    <textarea class="form-control" id="training_justification{{ request.id }}" name="training_justification" rows="4" 
+                                              placeholder="Describe the training requirements, specific skills to be covered, or any special considerations...">Training required for access to {{ request.resource.name }}</textarea>
+                                </div>
+                                
+                                <!-- Trainer Assignment -->
+                                <div class="mb-3">
+                                    <label for="trainer_notes{{ request.id }}" class="form-label">Trainer Notes (Optional)</label>
+                                    <textarea class="form-control" id="trainer_notes{{ request.id }}" name="trainer_notes" rows="2" 
+                                              placeholder="Notes for the assigned trainer, special requirements, preparation needed..."></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-info">
+                                    <i class="bi bi-calendar-plus me-1"></i>Create Training Request
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Risk Assessment Confirmation Modal -->
+            <div class="modal fade" id="riskAssessmentModal{{ request.id }}" tabindex="-1">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Confirm Risk Assessment</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        </div>
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="request_id" value="{{ request.id }}">
+                            <input type="hidden" name="action" value="confirm_risk_assessment">
+                            <div class="modal-body">
+                                <p><strong>User:</strong> {{ request.user.get_full_name }}</p>
+                                <p><strong>Resource:</strong> {{ request.resource.name }}</p>
+                                <div class="alert alert-info">
+                                    <i class="bi bi-clipboard-check"></i>
+                                    Confirm that this user has submitted the required risk assessment for their planned activities.
+                                </div>
+                                <div class="mb-3">
+                                    <label for="risk_assessment_notes{{ request.id }}" class="form-label">Risk Assessment Notes (optional)</label>
+                                    <textarea class="form-control" id="risk_assessment_notes{{ request.id }}" name="risk_assessment_notes" rows="3" placeholder="Details about the risk assessment submission, reference number, or any special considerations..."></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="submit" class="btn btn-primary">Confirm Risk Assessment</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            {% empty %}
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                    <h4>No Access Requests Found</h4>
+                    <p class="text-muted">
+                        {% if status_filter == 'pending' %}
+                        No pending access requests at this time.
+                        {% else %}
+                        No access requests match the current filter.
+                        {% endif %}
+                    </p>
+                    {% if status_filter != 'pending' %}
+                    <a href="{% url 'booking:lab_admin_access_requests' %}" class="btn btn-outline-primary">
+                        View Pending Requests
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Pagination -->
+            {% if access_requests.has_other_pages %}
+            <nav aria-label="Access requests pagination">
+                <ul class="pagination justify-content-center">
+                    {% if access_requests.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if status_filter %}status={{ status_filter }}&{% endif %}page={{ access_requests.previous_page_number }}">Previous</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in access_requests.paginator.page_range %}
+                    {% if access_requests.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > access_requests.number|add:'-3' and num < access_requests.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if status_filter %}status={{ status_filter }}&{% endif %}page={{ num }}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if access_requests.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if status_filter %}status={{ status_filter }}&{% endif %}page={{ access_requests.next_page_number }}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function checkUserRiskAssessments(userId, userName) {
+    // Show loading state
+    const loadingHtml = '<div class="text-center p-3"><i class="fas fa-spinner fa-spin me-2"></i>Checking risk assessments...</div>';
+    
+    // Create or show modal
+    let modal = document.getElementById('riskAssessmentStatusModal');
+    if (!modal) {
+        // Create modal dynamically
+        modal = document.createElement('div');
+        modal.className = 'modal fade';
+        modal.id = 'riskAssessmentStatusModal';
+        modal.setAttribute('tabindex', '-1');
+        modal.innerHTML = `
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Risk Assessment Status</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body" id="riskAssessmentStatusContent">
+                        ${loadingHtml}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <a href="/risk-assessments/?user=${userId}" class="btn btn-primary" id="viewAllAssessmentsBtn" style="display: none;">
+                            <i class="bi bi-eye me-1"></i>View All Assessments
+                        </a>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    } else {
+        document.getElementById('riskAssessmentStatusContent').innerHTML = loadingHtml;
+        document.getElementById('viewAllAssessmentsBtn').style.display = 'none';
+    }
+    
+    // Show modal
+    const bootstrapModal = new bootstrap.Modal(modal);
+    bootstrapModal.show();
+    
+    // Fetch user's risk assessments
+    fetch(`/risk-assessments/?user=${userId}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.text())
+    .then(html => {
+        // Parse the response to extract risk assessment count
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        const assessmentCards = doc.querySelectorAll('.assessment-card');
+        
+        let content = '';
+        if (assessmentCards.length === 0) {
+            content = `
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>No Risk Assessments Found</strong>
+                    <p class="mb-0 mt-2">User <strong>${userName}</strong> has not submitted any risk assessments yet.</p>
+                    <p class="mb-0 mt-1 small text-muted">The user needs to complete and submit a risk assessment before their access can be approved.</p>
+                </div>
+            `;
+        } else {
+            content = `
+                <div class="alert alert-success">
+                    <i class="bi bi-check-circle me-2"></i>
+                    <strong>Risk Assessments Found</strong>
+                    <p class="mb-0 mt-2">User <strong>${userName}</strong> has submitted <strong>${assessmentCards.length}</strong> risk assessment(s).</p>
+                </div>
+                <div class="mt-3">
+                    <h6>Recent Assessments:</h6>
+                    <div class="list-group">
+            `;
+            
+            // Show first few assessments
+            for (let i = 0; i < Math.min(3, assessmentCards.length); i++) {
+                const card = assessmentCards[i];
+                const title = card.querySelector('h5')?.textContent?.trim() || 'Risk Assessment';
+                const description = card.querySelector('.card-text')?.textContent?.trim() || '';
+                const riskLevel = card.querySelector('.badge')?.textContent?.trim() || '';
+                
+                content += `
+                    <div class="list-group-item">
+                        <div class="d-flex w-100 justify-content-between">
+                            <h6 class="mb-1">${title}</h6>
+                            ${riskLevel ? `<span class="badge bg-${riskLevel.toLowerCase().includes('high') ? 'danger' : riskLevel.toLowerCase().includes('medium') ? 'warning' : 'success'}">${riskLevel}</span>` : ''}
+                        </div>
+                        ${description ? `<p class="mb-1 small text-muted">${description.substring(0, 100)}${description.length > 100 ? '...' : ''}</p>` : ''}
+                    </div>
+                `;
+            }
+            
+            content += '</div></div>';
+            
+            if (assessmentCards.length > 3) {
+                content += `<p class="mt-2 text-muted small">And ${assessmentCards.length - 3} more assessment(s)...</p>`;
+            }
+            
+            // Show the "View All Assessments" button
+            document.getElementById('viewAllAssessmentsBtn').style.display = 'inline-block';
+        }
+        
+        document.getElementById('riskAssessmentStatusContent').innerHTML = content;
+    })
+    .catch(error => {
+        console.error('Error fetching risk assessments:', error);
+        document.getElementById('riskAssessmentStatusContent').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong>Error</strong>
+                <p class="mb-0 mt-2">Unable to check risk assessment status. Please try again or check manually.</p>
+            </div>
+        `;
+    });
+}
+</script>
+{% endblock %}

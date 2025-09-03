@@ -1,0 +1,562 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}{% if tutorial %}Edit{% else %}Create{% endif %} Tutorial - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1>
+                        <i class="fas fa-graduation-cap me-2"></i>
+                        {% if tutorial %}Edit Tutorial{% else %}Create Tutorial{% endif %}
+                    </h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:tutorial_management' %}">Tutorial Management</a></li>
+                            <li class="breadcrumb-item active">{% if tutorial %}Edit{% else %}Create{% endif %}</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{% url 'booking:tutorial_management' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>Back to Management
+                    </a>
+                    {% if tutorial %}
+                    <a href="{% url 'booking:tutorial_preview' tutorial.pk %}" class="btn btn-outline-info" target="_blank">
+                        <i class="fas fa-eye me-2"></i>Preview
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+
+            <form method="post" id="tutorial-form">
+                {% csrf_token %}
+                
+                <div class="row">
+                    <!-- Tutorial Configuration -->
+                    <div class="col-lg-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">Tutorial Configuration</h5>
+                            </div>
+                            <div class="card-body">
+                                <!-- Basic Info -->
+                                <div class="mb-3">
+                                    <label for="{{ form.name.id_for_label }}" class="form-label">
+                                        Tutorial Name <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.name }}
+                                    {% if form.name.errors %}
+                                    <div class="text-danger small">{{ form.name.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.category.id_for_label }}" class="form-label">
+                                        Category <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.category }}
+                                    {% if form.category.errors %}
+                                    <div class="text-danger small">{{ form.category.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.description.id_for_label }}" class="form-label">
+                                        Description <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.description }}
+                                    {% if form.description.errors %}
+                                    <div class="text-danger small">{{ form.description.errors.0 }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <!-- Targeting -->
+                                <h6 class="mt-4 mb-3">Targeting</h6>
+                                
+                                <div class="mb-3">
+                                    <label for="{{ form.target_roles.id_for_label }}" class="form-label">
+                                        Target Roles
+                                    </label>
+                                    {{ form.target_roles }}
+                                    <small class="form-text text-muted">{{ form.target_roles.help_text }}</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.target_pages.id_for_label }}" class="form-label">
+                                        Target Pages
+                                    </label>
+                                    {{ form.target_pages }}
+                                    <small class="form-text text-muted">{{ form.target_pages.help_text }}</small>
+                                </div>
+
+                                <!-- Settings -->
+                                <h6 class="mt-4 mb-3">Settings</h6>
+                                
+                                <div class="row">
+                                    <div class="col-6">
+                                        <div class="mb-3">
+                                            <label for="{{ form.trigger_type.id_for_label }}" class="form-label">
+                                                Trigger Type
+                                            </label>
+                                            {{ form.trigger_type }}
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="mb-3">
+                                            <label for="{{ form.difficulty_level.id_for_label }}" class="form-label">
+                                                Difficulty
+                                            </label>
+                                            {{ form.difficulty_level }}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.estimated_duration.id_for_label }}" class="form-label">
+                                        Duration (minutes)
+                                    </label>
+                                    {{ form.estimated_duration }}
+                                    <small class="form-text text-muted">{{ form.estimated_duration.help_text }}</small>
+                                </div>
+
+                                <!-- Checkboxes -->
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        {{ form.is_active }}
+                                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                            {{ form.is_active.label }}
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        {{ form.is_mandatory }}
+                                        <label class="form-check-label" for="{{ form.is_mandatory.id_for_label }}">
+                                            {{ form.is_mandatory.label }}
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        {{ form.auto_start }}
+                                        <label class="form-check-label" for="{{ form.auto_start.id_for_label }}">
+                                            {{ form.auto_start.label }}
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        {{ form.allow_skip }}
+                                        <label class="form-check-label" for="{{ form.allow_skip.id_for_label }}">
+                                            {{ form.allow_skip.label }}
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        {{ form.show_progress }}
+                                        <label class="form-check-label" for="{{ form.show_progress.id_for_label }}">
+                                            {{ form.show_progress.label }}
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Step Builder -->
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">Tutorial Steps</h5>
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="addStep()">
+                                        <i class="fas fa-plus me-2"></i>Add Step
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div id="steps-container">
+                                    <!-- Steps will be dynamically added here -->
+                                </div>
+                                
+                                <div id="no-steps-message" class="text-center text-muted py-5" style="display: none;">
+                                    <i class="fas fa-list-ol fa-3x mb-3"></i>
+                                    <h6>No steps added yet</h6>
+                                    <p>Click "Add Step" to create your first tutorial step.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Hidden field for steps JSON -->
+                {{ form.steps_json }}
+
+                <!-- Form Actions -->
+                <div class="row mt-4">
+                    <div class="col-12">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <small class="text-muted">
+                                    <span class="text-danger">*</span> Required fields
+                                </small>
+                            </div>
+                            <div>
+                                <a href="{% url 'booking:tutorial_management' %}" class="btn btn-outline-secondary me-2">
+                                    Cancel
+                                </a>
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>
+                                    {% if tutorial %}Update{% else %}Create{% endif %} Tutorial
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Step Modal -->
+<div class="modal fade" id="stepModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Tutorial Step</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="step-form">
+                    <div class="mb-3">
+                        <label for="step-title" class="form-label">Step Title <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="step-title" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="step-subtitle" class="form-label">Subtitle (Optional)</label>
+                        <input type="text" class="form-control" id="step-subtitle">
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="step-description" class="form-label">Description <span class="text-danger">*</span></label>
+                        <textarea class="form-control" id="step-description" rows="4" required></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="step-target" class="form-label">Target Element</label>
+                                <input type="text" class="form-control" id="step-target" 
+                                       placeholder="CSS selector (e.g., #create-booking-btn)">
+                                <small class="form-text text-muted">CSS selector for element to highlight</small>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="step-image" class="form-label">Image URL</label>
+                                <input type="url" class="form-control" id="step-image" 
+                                       placeholder="https://example.com/image.jpg">
+                                <small class="form-text text-muted">Optional image to display</small>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="step-code" class="form-label">Code Snippet (Optional)</label>
+                        <textarea class="form-control" id="step-code" rows="3" 
+                                  placeholder="Optional code snippet to display..."></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="saveStep()">Save Step</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.step-item {
+    border: 1px solid #e3e6f0;
+    border-radius: 0.35rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background: #f8f9fc;
+    transition: all 0.2s ease;
+}
+
+.step-item:hover {
+    border-color: #5a6c7d;
+    box-shadow: 0 0.15rem 1.75rem 0 rgba(58, 59, 69, 0.15);
+}
+
+.step-header {
+    display: flex;
+    justify-content-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+}
+
+.step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border-radius: 50%;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.step-title {
+    font-weight: 600;
+    color: #5a5c69;
+    margin: 0 0 0.25rem 0;
+}
+
+.step-subtitle {
+    font-size: 0.875rem;
+    color: #858796;
+    margin: 0;
+}
+
+.step-description {
+    color: #5a5c69;
+    margin-bottom: 0.75rem;
+}
+
+.step-meta {
+    display: flex;
+    gap: 1rem;
+    font-size: 0.75rem;
+    color: #858796;
+}
+
+.step-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.sortable-handle {
+    cursor: move;
+    color: #858796;
+    margin-right: 0.5rem;
+}
+
+.sortable-handle:hover {
+    color: #5a5c69;
+}
+
+/* Dark mode styles */
+[data-theme="dark"] .step-item {
+    background: #374151;
+    border-color: #6b7280;
+}
+
+[data-theme="dark"] .step-title {
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] .step-subtitle,
+[data-theme="dark"] .step-description,
+[data-theme="dark"] .step-meta {
+    color: #9ca3af;
+}
+
+[data-theme="dark"] .sortable-handle {
+    color: #9ca3af;
+}
+
+[data-theme="dark"] .sortable-handle:hover {
+    color: #e5e7eb;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script>
+let steps = [];
+let editingStepIndex = -1;
+let stepModal;
+let sortable;
+
+document.addEventListener('DOMContentLoaded', function() {
+    stepModal = new bootstrap.Modal(document.getElementById('stepModal'));
+    
+    // Initialize with existing steps if editing
+    {% if tutorial.steps %}
+    steps = {{ tutorial.steps|safe }};
+    renderSteps();
+    {% endif %}
+    
+    // Initialize sortable
+    initializeSortable();
+    
+    // Form submission
+    document.getElementById('tutorial-form').addEventListener('submit', function(e) {
+        // Update the hidden steps field
+        document.getElementById('{{ form.steps_json.id_for_label }}').value = JSON.stringify(steps);
+    });
+});
+
+function initializeSortable() {
+    const container = document.getElementById('steps-container');
+    sortable = Sortable.create(container, {
+        handle: '.sortable-handle',
+        animation: 150,
+        onEnd: function(evt) {
+            // Reorder steps array
+            const item = steps.splice(evt.oldIndex, 1)[0];
+            steps.splice(evt.newIndex, 0, item);
+            renderSteps();
+        }
+    });
+}
+
+function addStep() {
+    editingStepIndex = -1;
+    clearStepForm();
+    stepModal.show();
+}
+
+function editStep(index) {
+    editingStepIndex = index;
+    const step = steps[index];
+    
+    document.getElementById('step-title').value = step.title || '';
+    document.getElementById('step-subtitle').value = step.subtitle || '';
+    document.getElementById('step-description').value = step.description || '';
+    document.getElementById('step-target').value = step.target || '';
+    document.getElementById('step-image').value = step.image || '';
+    document.getElementById('step-code').value = step.code || '';
+    
+    stepModal.show();
+}
+
+function deleteStep(index) {
+    if (confirm('Are you sure you want to delete this step?')) {
+        steps.splice(index, 1);
+        renderSteps();
+    }
+}
+
+function moveStepUp(index) {
+    if (index > 0) {
+        const temp = steps[index];
+        steps[index] = steps[index - 1];
+        steps[index - 1] = temp;
+        renderSteps();
+    }
+}
+
+function moveStepDown(index) {
+    if (index < steps.length - 1) {
+        const temp = steps[index];
+        steps[index] = steps[index + 1];
+        steps[index + 1] = temp;
+        renderSteps();
+    }
+}
+
+function clearStepForm() {
+    document.getElementById('step-form').reset();
+}
+
+function saveStep() {
+    const title = document.getElementById('step-title').value.trim();
+    const subtitle = document.getElementById('step-subtitle').value.trim();
+    const description = document.getElementById('step-description').value.trim();
+    const target = document.getElementById('step-target').value.trim();
+    const image = document.getElementById('step-image').value.trim();
+    const code = document.getElementById('step-code').value.trim();
+    
+    if (!title || !description) {
+        alert('Please fill in the required fields (Title and Description).');
+        return;
+    }
+    
+    const step = {
+        title: title,
+        subtitle: subtitle,
+        description: description,
+        target: target,
+        image: image,
+        code: code
+    };
+    
+    if (editingStepIndex >= 0) {
+        steps[editingStepIndex] = step;
+    } else {
+        steps.push(step);
+    }
+    
+    renderSteps();
+    stepModal.hide();
+}
+
+function renderSteps() {
+    const container = document.getElementById('steps-container');
+    const noStepsMessage = document.getElementById('no-steps-message');
+    
+    if (steps.length === 0) {
+        container.innerHTML = '';
+        noStepsMessage.style.display = 'block';
+        return;
+    }
+    
+    noStepsMessage.style.display = 'none';
+    
+    container.innerHTML = steps.map((step, index) => `
+        <div class="step-item" data-index="${index}">
+            <div class="step-header">
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-grip-vertical sortable-handle"></i>
+                    <div class="step-number">${index + 1}</div>
+                    <div class="ms-3">
+                        <h6 class="step-title">${escapeHtml(step.title)}</h6>
+                        ${step.subtitle ? `<p class="step-subtitle">${escapeHtml(step.subtitle)}</p>` : ''}
+                    </div>
+                </div>
+                <div class="step-actions">
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="editStep(${index})" title="Edit Step">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" onclick="deleteStep(${index})" title="Delete Step">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="step-description">${escapeHtml(step.description)}</div>
+            <div class="step-meta">
+                ${step.target ? `<span><i class="fas fa-crosshairs me-1"></i>Target: ${escapeHtml(step.target)}</span>` : ''}
+                ${step.image ? `<span><i class="fas fa-image me-1"></i>Has Image</span>` : ''}
+                ${step.code ? `<span><i class="fas fa-code me-1"></i>Has Code</span>` : ''}
+            </div>
+        </div>
+    `).join('');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

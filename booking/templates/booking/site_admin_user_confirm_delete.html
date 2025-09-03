@@ -1,0 +1,312 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Delete User - {{ block.super }}{% endblock %}
+
+{% block extra_head %}
+<style>
+/* Prevent alerts from auto-dismissing on this page */
+.alert:not(.alert-success):not(.persistent-alert) {
+    animation: none !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-trash text-danger me-2"></i>
+                    Delete User
+                </h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'booking:site_admin_dashboard' %}">Site Admin</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'booking:site_admin_users' %}">User Management</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Delete User</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Confirm User Deletion
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger persistent-alert">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-warning me-2"></i>
+                            Warning: This action cannot be undone!
+                        </h6>
+                        <p class="mb-0">
+                            You are about to permanently delete this user account and all associated data.
+                        </p>
+                    </div>
+
+                    <!-- User Details -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>User Information</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Username:</strong></td>
+                                    <td><code>{{ user_to_delete.username }}</code></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Name:</strong></td>
+                                    <td>{{ user_to_delete.get_full_name|default:"N/A" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Email:</strong></td>
+                                    <td>{{ user_to_delete.email }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Role:</strong></td>
+                                    <td>
+                                        {% if user_to_delete.userprofile %}
+                                            <span class="badge bg-primary">{{ user_to_delete.userprofile.get_role_display }}</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">No Profile</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Status:</strong></td>
+                                    <td>
+                                        {% if user_to_delete.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                        {% if user_to_delete.is_superuser %}
+                                            <span class="badge bg-warning text-dark ms-1">Superuser</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Joined:</strong></td>
+                                    <td>{{ user_to_delete.date_joined|date:"M d, Y H:i" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Last Login:</strong></td>
+                                    <td>{{ user_to_delete.last_login|date:"M d, Y H:i"|default:"Never" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Data Impact Assessment</h6>
+                            <div class="mb-2">
+                                <span class="badge bg-info me-2">{{ bookings_count }}</span>
+                                Total booking(s) will be deleted
+                            </div>
+                            {% if active_bookings_count > 0 %}
+                                <div class="mb-2">
+                                    <span class="badge bg-warning me-2">{{ active_bookings_count }}</span>
+                                    Active booking(s) will be deleted
+                                </div>
+                            {% endif %}
+                            <div class="mb-2">
+                                <span class="badge bg-secondary me-2">{{ resource_access_count }}</span>
+                                Resource access record(s) will be deleted
+                            </div>
+                            <div class="mb-2">
+                                <span class="badge bg-primary me-2">{{ training_records_count }}</span>
+                                Training record(s) will be deleted
+                            </div>
+                            {% if approved_bookings_count > 0 %}
+                                <div class="mb-2">
+                                    <span class="badge bg-warning me-2">{{ approved_bookings_count }}</span>
+                                    Booking(s) approved by this user (references will be cleared)
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <!-- Active Bookings Warning -->
+                    {% if active_bookings_count > 0 %}
+                        <div class="alert alert-warning persistent-alert">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-calendar-times me-2"></i>
+                                Active Bookings
+                            </h6>
+                            <p class="mb-1">This user has {{ active_bookings_count }} active booking(s) that will be permanently deleted:</p>
+                            <ul class="mb-0">
+                                <li>Approved bookings will be cancelled without notification</li>
+                                <li>Pending bookings will be automatically rejected</li>
+                                <li>This may disrupt laboratory schedules and resource availability</li>
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <!-- Cannot Delete Warning -->
+                    {% if not can_delete %}
+                        <div class="alert alert-danger persistent-alert">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-ban me-2"></i>
+                                Cannot Delete User
+                            </h6>
+                            <p class="mb-0">
+                                This user has active bookings and cannot be deleted. Please cancel or complete all active bookings first,
+                                or deactivate the user account instead.
+                            </p>
+                        </div>
+                    {% endif %}
+
+                    <!-- User Profile Information -->
+                    {% if user_to_delete.userprofile %}
+                        <div class="alert alert-info persistent-alert">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-user me-2"></i>
+                                User Profile Details
+                            </h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Staff Number:</strong> {{ user_to_delete.userprofile.staff_number|default:"N/A" }}</p>
+                                    <p class="mb-1"><strong>Phone:</strong> {{ user_to_delete.userprofile.phone|default:"N/A" }}</p>
+                                    <p class="mb-1"><strong>Department:</strong> {{ user_to_delete.userprofile.department|default:"N/A" }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p class="mb-1"><strong>Inducted:</strong> 
+                                        {% if user_to_delete.userprofile.is_inducted %}
+                                            <span class="text-success">Yes</span>
+                                        {% else %}
+                                            <span class="text-warning">No</span>
+                                        {% endif %}
+                                    </p>
+                                    <p class="mb-1"><strong>Email Verified:</strong>
+                                        {% if user_to_delete.userprofile.email_verified %}
+                                            <span class="text-success">Yes</span>
+                                        {% else %}
+                                            <span class="text-warning">No</span>
+                                        {% endif %}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    {% if can_delete %}
+                        <!-- Confirmation -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="bg-light p-3 rounded">
+                                    <p class="mb-2">
+                                        <strong>To confirm deletion, please type the username:</strong>
+                                    </p>
+                                    <p class="mb-0">
+                                        <code>{{ user_to_delete.username }}</code>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <form method="post" id="deleteForm" class="mt-4">
+                            {% csrf_token %}
+                            
+                            <div class="mb-3">
+                                <label for="confirmUsername" class="form-label">
+                                    Username Confirmation <span class="text-danger">*</span>
+                                </label>
+                                <input type="text" 
+                                       id="confirmUsername" 
+                                       class="form-control" 
+                                       placeholder="Type username to confirm deletion"
+                                       required>
+                            </div>
+
+                            <div class="d-flex justify-content-between">
+                                <a href="{% url 'booking:site_admin_users' %}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left me-2"></i>
+                                    Cancel
+                                </a>
+                                <button type="submit" class="btn btn-danger" id="deleteButton" disabled>
+                                    <i class="fas fa-trash me-2"></i>
+                                    Delete User Permanently
+                                </button>
+                            </div>
+                        </form>
+                    {% else %}
+                        <!-- Cannot delete - show alternative actions -->
+                        <div class="d-flex justify-content-between mt-4">
+                            <a href="{% url 'booking:site_admin_users' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>
+                                Back to User Management
+                            </a>
+                            <div>
+                                <button type="button" class="btn btn-secondary me-2" onclick="toggleUserStatus('{{ user_to_delete.id }}', false)">
+                                    <i class="fas fa-ban me-2"></i>
+                                    Deactivate User Instead
+                                </button>
+                            </div>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if can_delete %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Prevent auto-dismissal of alerts on this page
+    const alerts = document.querySelectorAll('.alert:not(.alert-success):not(.persistent-alert)');
+    alerts.forEach(function(alert) {
+        alert.classList.add('persistent-alert');
+    });
+    
+    const confirmUsername = document.getElementById('confirmUsername');
+    const deleteButton = document.getElementById('deleteButton');
+    const expectedUsername = "{{ user_to_delete.username|escapejs }}";
+    
+    confirmUsername.addEventListener('input', function() {
+        if (this.value === expectedUsername) {
+            deleteButton.disabled = false;
+            deleteButton.classList.remove('btn-secondary');
+            deleteButton.classList.add('btn-danger');
+        } else {
+            deleteButton.disabled = true;
+            deleteButton.classList.remove('btn-danger');
+            deleteButton.classList.add('btn-secondary');
+        }
+    });
+    
+    document.getElementById('deleteForm').addEventListener('submit', function(e) {
+        if (confirmUsername.value !== expectedUsername) {
+            e.preventDefault();
+            alert('Username confirmation does not match.');
+            return false;
+        }
+        
+        const confirmMessage = `Are you absolutely sure you want to delete user "${expectedUsername}"?\n\n` +
+                             `This will permanently delete:\n` +
+                             `• {{ bookings_count }} booking(s)\n` +
+                             `• {{ resource_access_count }} resource access record(s)\n` +
+                             `• {{ training_records_count }} training record(s)\n` +
+                             `• User profile and account\n\n` +
+                             `This action cannot be undone.`;
+        
+        if (!confirm(confirmMessage)) {
+            e.preventDefault();
+            return false;
+        }
+    });
+});
+
+// Function to toggle user status (deactivate instead of delete)
+function toggleUserStatus(userId, activate) {
+    // This would be implemented to call an AJAX endpoint to toggle user status
+    alert('User deactivation feature would be implemented here.');
+}
+</script>
+{% endif %}
+{% endblock %}

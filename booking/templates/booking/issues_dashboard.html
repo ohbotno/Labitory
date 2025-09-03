@@ -1,0 +1,221 @@
+{% extends "booking/base.html" %}
+{% load static %}
+
+{% block title %}Issues Dashboard - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="bi bi-tools me-2"></i>Issues Dashboard
+                    </h1>
+                    <p class="text-muted mb-0">Monitor and manage resource issues</p>
+                </div>
+            </div>
+
+            <!-- Statistics Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-primary">{{ stats.total }}</h3>
+                            <p class="card-text">Total Issues</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-danger">{{ stats.open }}</h3>
+                            <p class="card-text">Open Issues</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-warning">{{ stats.in_progress }}</h3>
+                            <p class="card-text">In Progress</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <h3 class="text-danger">{{ stats.critical }}</h3>
+                            <p class="card-text">Critical Issues</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-funnel me-2"></i>Filters
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-2">
+                            <label for="{{ filter_form.resource.id_for_label }}" class="form-label">Resource</label>
+                            {{ filter_form.resource }}
+                        </div>
+                        <div class="col-md-2">
+                            <label for="{{ filter_form.status.id_for_label }}" class="form-label">Status</label>
+                            {{ filter_form.status }}
+                        </div>
+                        <div class="col-md-2">
+                            <label for="{{ filter_form.severity.id_for_label }}" class="form-label">Severity</label>
+                            {{ filter_form.severity }}
+                        </div>
+                        <div class="col-md-2">
+                            <label for="{{ filter_form.category.id_for_label }}" class="form-label">Category</label>
+                            {{ filter_form.category }}
+                        </div>
+                        <div class="col-md-2">
+                            <label for="{{ filter_form.assigned_to.id_for_label }}" class="form-label">Assigned To</label>
+                            {{ filter_form.assigned_to }}
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="bi bi-search me-1"></i>Filter
+                            </button>
+                            <a href="{% url 'booking:issues_dashboard' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Reset
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Issues Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="card-title mb-0">
+                        <i class="bi bi-list-task me-2"></i>Issues List
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    {% if issues %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Resource</th>
+                                        <th>Title</th>
+                                        <th>Severity</th>
+                                        <th>Status</th>
+                                        <th>Reported By</th>
+                                        <th>Assigned To</th>
+                                        <th>Age</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for issue in issues %}
+                                    <tr {% if issue.is_overdue %}class="table-warning"{% endif %}>
+                                        <td>
+                                            <strong>#{{ issue.id }}</strong>
+                                            {% if issue.is_urgent %}
+                                                <i class="bi bi-exclamation-circle text-danger ms-1" title="Urgent"></i>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'booking:resource_detail' issue.resource.id %}" class="text-decoration-none">
+                                                {{ issue.resource.name }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'booking:issue_detail' issue.id %}" class="text-decoration-none">
+                                                {{ issue.title|truncatechars:50 }}
+                                            </a>
+                                            {% if issue.blocks_resource_use %}
+                                                <i class="bi bi-shield-exclamation text-danger ms-1" title="Blocks resource use"></i>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{{ issue.get_severity_color }}{% if issue.get_severity_color == 'warning' %} text-dark{% endif %}">
+                                                {{ issue.get_severity_display }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{{ issue.get_status_color }}">
+                                                {{ issue.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>{{ issue.reported_by.get_full_name|default:issue.reported_by.username }}</td>
+                                        <td>
+                                            {% if issue.assigned_to %}
+                                                {{ issue.assigned_to.get_full_name|default:issue.assigned_to.username }}
+                                            {% else %}
+                                                <span class="text-muted">Unassigned</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {{ issue.age_in_days }} day{{ issue.age_in_days|pluralize }}
+                                            {% if issue.is_overdue %}
+                                                <i class="bi bi-clock text-danger ms-1" title="Overdue"></i>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'booking:issue_detail' issue.id %}" class="btn btn-sm btn-outline-primary">
+                                                <i class="bi bi-eye me-1"></i>View
+                                            </a>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if issues.has_other_pages %}
+                            <div class="card-footer">
+                                <nav aria-label="Issues pagination">
+                                    <ul class="pagination justify-content-center mb-0">
+                                        {% if issues.has_previous %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ issues.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Previous</a>
+                                            </li>
+                                        {% endif %}
+                                        
+                                        {% for num in issues.paginator.page_range %}
+                                            {% if issues.number == num %}
+                                                <li class="page-item active">
+                                                    <span class="page-link">{{ num }}</span>
+                                                </li>
+                                            {% elif num > issues.number|add:'-3' and num < issues.number|add:'3' %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                                                </li>
+                                            {% endif %}
+                                        {% endfor %}
+                                        
+                                        {% if issues.has_next %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ issues.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Next</a>
+                                            </li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-inbox display-1 text-muted"></i>
+                            <h4 class="text-muted mt-3">No Issues Found</h4>
+                            <p class="text-muted">No issues match your current filter criteria.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

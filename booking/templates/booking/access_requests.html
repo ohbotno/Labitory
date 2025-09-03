@@ -1,0 +1,235 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Access Requests - {{ lab_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.request-card {
+    transition: transform 0.2s;
+}
+.request-card:hover {
+    transform: translateY(-2px);
+}
+.compliance-indicator {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-right: 5px;
+}
+.compliance-complete { background-color: #28a745; }
+.compliance-partial { background-color: #ffc107; }
+.compliance-incomplete { background-color: #dc3545; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-key"></i> Access Requests</h2>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'booking:approval_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="">All Statuses</option>
+                                <option value="pending" {% if request.GET.status == 'pending' %}selected{% endif %}>Pending</option>
+                                <option value="approved" {% if request.GET.status == 'approved' %}selected{% endif %}>Approved</option>
+                                <option value="rejected" {% if request.GET.status == 'rejected' %}selected{% endif %}>Rejected</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Resource Type</label>
+                            <select name="resource_type" class="form-select">
+                                <option value="">All Types</option>
+                                {% for type in resource_types %}
+                                <option value="{{ type.0 }}" {% if request.GET.resource_type == type.0 %}selected{% endif %}>{{ type.1 }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Access Type</label>
+                            <select name="access_type" class="form-select">
+                                <option value="">All Access Types</option>
+                                <option value="view" {% if request.GET.access_type == 'view' %}selected{% endif %}>View</option>
+                                <option value="book" {% if request.GET.access_type == 'book' %}selected{% endif %}>Book</option>
+                                <option value="manage" {% if request.GET.access_type == 'manage' %}selected{% endif %}>Manage</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-filter"></i> Filter
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Access Requests List -->
+    <div class="row">
+        <div class="col-12">
+            {% if access_requests %}
+                {% for request in access_requests %}
+                <div class="card mb-3 request-card">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-6">
+                                <div class="d-flex align-items-center mb-2">
+                                    <h5 class="mb-0 me-2">{{ request.user.get_full_name }}</h5>
+                                    <span class="badge bg-{{ request.status|yesno:'success,warning,secondary' }}">
+                                        {{ request.get_status_display }}
+                                    </span>
+                                </div>
+                                <p class="text-muted mb-1">
+                                    <i class="fas fa-cube me-1"></i> {{ request.resource.name }}
+                                    <span class="ms-2">
+                                        <i class="fas fa-user-tag me-1"></i> {{ request.access_type|capfirst }}
+                                    </span>
+                                </p>
+                                <p class="text-muted mb-0">
+                                    <i class="fas fa-clock me-1"></i> Requested {{ request.created_at|timesince }} ago
+                                    {% if request.requested_duration_days %}
+                                    <span class="ms-2">
+                                        <i class="fas fa-calendar me-1"></i> {{ request.requested_duration_days }} days
+                                    </span>
+                                    {% endif %}
+                                </p>
+                            </div>
+                            
+                            <div class="col-md-4">
+                                <div class="mb-2">
+                                    <small class="text-muted">Compliance Status:</small>
+                                    <div class="mt-1">
+                                        {% with compliance=request.check_user_compliance %}
+                                        <span class="compliance-indicator compliance-{% if compliance.training_complete and compliance.risk_assessments_complete %}complete{% elif compliance.training_complete or compliance.risk_assessments_complete %}partial{% else %}incomplete{% endif %}"></span>
+                                        {% if compliance.training_complete %}
+                                            <i class="fas fa-graduation-cap text-success me-2" title="Training Complete"></i>
+                                        {% else %}
+                                            <i class="fas fa-graduation-cap text-warning me-2" title="Training Incomplete"></i>
+                                        {% endif %}
+                                        {% if compliance.risk_assessments_complete %}
+                                            <i class="fas fa-shield-alt text-success" title="Risk Assessments Complete"></i>
+                                        {% else %}
+                                            <i class="fas fa-shield-alt text-warning" title="Risk Assessments Incomplete"></i>
+                                        {% endif %}
+                                        {% endwith %}
+                                    </div>
+                                </div>
+                                {% if request.justification %}
+                                <div>
+                                    <small class="text-muted">Justification:</small>
+                                    <p class="small mb-0">{{ request.justification|truncatewords:15 }}</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-2 text-end">
+                                <div class="d-grid gap-2">
+                                    <a href="{% url 'booking:access_request_detail' request.id %}" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-eye"></i> Review
+                                    </a>
+                                    {% if request.status == 'pending' and request.can_be_approved_by_current_user %}
+                                    <div class="btn-group" role="group">
+                                        <a href="{% url 'booking:approve_access_request' request.id %}" class="btn btn-success btn-sm">
+                                            <i class="fas fa-check"></i>
+                                        </a>
+                                        <a href="{% url 'booking:reject_access_request' request.id %}" class="btn btn-danger btn-sm">
+                                            <i class="fas fa-times"></i>
+                                        </a>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+
+                <!-- Pagination -->
+                {% if is_paginated %}
+                <div class="d-flex justify-content-center">
+                    <nav aria-label="Access requests pagination">
+                        <ul class="pagination">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.resource_type %}&resource_type={{ request.GET.resource_type }}{% endif %}{% if request.GET.access_type %}&access_type={{ request.GET.access_type }}{% endif %}">&laquo; First</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.resource_type %}&resource_type={{ request.GET.resource_type }}{% endif %}{% if request.GET.access_type %}&access_type={{ request.GET.access_type }}{% endif %}">Previous</a>
+                                </li>
+                            {% endif %}
+
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                </span>
+                            </li>
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.resource_type %}&resource_type={{ request.GET.resource_type }}{% endif %}{% if request.GET.access_type %}&access_type={{ request.GET.access_type }}{% endif %}">Next</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}{% if request.GET.resource_type %}&resource_type={{ request.GET.resource_type }}{% endif %}{% if request.GET.access_type %}&access_type={{ request.GET.access_type }}{% endif %}">Last &raquo;</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+                {% endif %}
+            {% else %}
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                        <h4 class="text-muted">No Access Requests Found</h4>
+                        <p class="text-muted">There are no access requests matching your criteria.</p>
+                        {% if request.GET.status or request.GET.resource_type or request.GET.access_type %}
+                        <a href="{% url 'booking:access_requests' %}" class="btn btn-primary">
+                            <i class="fas fa-filter"></i> Clear Filters
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Add tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+    
+    // Auto-refresh every 2 minutes
+    setTimeout(function() {
+        location.reload();
+    }, 120000);
+});
+</script>
+{% endblock %}

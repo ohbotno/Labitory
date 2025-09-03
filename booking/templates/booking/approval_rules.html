@@ -1,0 +1,621 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Approval Rules - {{ lab_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.rule-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 1rem;
+    border-left: 4px solid #007bff;
+}
+.rule-auto { border-left-color: #28a745; }
+.rule-single { border-left-color: #ffc107; }
+.rule-tiered { border-left-color: #dc3545; }
+.rule-quota { border-left-color: #6f42c1; }
+.rule-conditional { border-left-color: #fd7e14; }
+
+.condition-badge {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+    border-radius: 12px;
+    margin-right: 0.5rem;
+    margin-bottom: 0.25rem;
+    display: inline-block;
+}
+.condition-time { background-color: #e3f2fd; color: #1565c0; }
+.condition-usage { background-color: #f3e5f5; color: #7b1fa2; }
+.condition-training { background-color: #e8f5e8; color: #2e7d32; }
+.condition-role { background-color: #fff3e0; color: #ef6c00; }
+.condition-resource { background-color: #fce4ec; color: #c2185b; }
+
+.rule-builder {
+    background-color: #f8f9fa;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    padding: 2rem;
+    text-align: center;
+    margin-bottom: 1rem;
+}
+.rule-builder:hover {
+    border-color: #007bff;
+    background-color: #e7f3ff;
+}
+
+.condition-builder {
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-cogs me-2"></i>Approval Rules</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:approval_dashboard' %}">Approvals</a></li>
+                            <li class="breadcrumb-item active">Rules</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div class="btn-group">
+                    <a href="{% url 'booking:approval_statistics' %}" class="btn btn-outline-info">
+                        <i class="fas fa-chart-line me-2"></i>View Statistics
+                    </a>
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createRuleModal">
+                        <i class="fas fa-plus me-2"></i>Create New Rule
+                    </button>
+                </div>
+            </div>
+
+            <!-- Quick Stats -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-check-double fa-2x me-3"></i>
+                                <div>
+                                    <h3 class="mb-0">{{ stats.auto_rules }}</h3>
+                                    <small>Auto-Approval Rules</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-user-check fa-2x me-3"></i>
+                                <div>
+                                    <h3 class="mb-0">{{ stats.manual_rules }}</h3>
+                                    <small>Manual Approval Rules</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-sitemap fa-2x me-3"></i>
+                                <div>
+                                    <h3 class="mb-0">{{ stats.conditional_rules }}</h3>
+                                    <small>Conditional Rules</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-secondary text-white">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-toggle-on fa-2x me-3"></i>
+                                <div>
+                                    <h3 class="mb-0">{{ stats.active_rules }}</h3>
+                                    <small>Active Rules</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Filter and Search -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Rule Type</label>
+                            <select name="type" class="form-select">
+                                <option value="">All Types</option>
+                                <option value="auto" {% if request.GET.type == 'auto' %}selected{% endif %}>Auto-Approval</option>
+                                <option value="single" {% if request.GET.type == 'single' %}selected{% endif %}>Single Approval</option>
+                                <option value="tiered" {% if request.GET.type == 'tiered' %}selected{% endif %}>Tiered Approval</option>
+                                <option value="quota" {% if request.GET.type == 'quota' %}selected{% endif %}>Quota-Based</option>
+                                <option value="conditional" {% if request.GET.type == 'conditional' %}selected{% endif %}>Conditional</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Resource</label>
+                            <select name="resource" class="form-select">
+                                <option value="">All Resources</option>
+                                {% for resource in resources %}
+                                <option value="{{ resource.id }}" {% if request.GET.resource == resource.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ resource.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Search</label>
+                            <input type="text" name="search" class="form-control" placeholder="Search rules by name or description..." value="{{ request.GET.search }}">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-outline-primary me-2">
+                                <i class="fas fa-search"></i>
+                            </button>
+                            <a href="{% url 'booking:approval_rules' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i>
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Rules List -->
+            {% for rule in rules %}
+            <div class="rule-card rule-{{ rule.approval_type }}">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <div class="d-flex align-items-center mb-2">
+                                <h5 class="mb-0 me-3">{{ rule.name }}</h5>
+                                {% if rule.is_active %}
+                                <span class="badge bg-success">Active</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Inactive</span>
+                                {% endif %}
+                                <span class="badge bg-primary ms-2">{{ rule.get_approval_type_display }}</span>
+                                {% if rule.approval_type == 'conditional' %}
+                                <span class="badge bg-warning ms-2">{{ rule.get_condition_type_display }}</span>
+                                {% endif %}
+                            </div>
+                            
+                            {% if rule.description %}
+                            <p class="text-muted mb-2">{{ rule.description }}</p>
+                            {% endif %}
+                            
+                            <div class="mb-2">
+                                <strong>Applies to:</strong>
+                                {% if rule.resource %}
+                                <span class="badge bg-light text-dark">{{ rule.resource.name }}</span>
+                                {% else %}
+                                <span class="badge bg-light text-dark">All Resources</span>
+                                {% endif %}
+                                
+                                {% if rule.user_role %}
+                                <span class="badge bg-info">{{ rule.get_user_role_display }}</span>
+                                {% endif %}
+                            </div>
+                            
+                            {% if rule.approval_type == 'conditional' and rule.conditional_logic %}
+                            <div class="mb-2">
+                                <strong>Conditions:</strong>
+                                {% for condition_type, condition_data in rule.conditional_logic.items %}
+                                {% if condition_data %}
+                                <span class="condition-badge condition-{{ condition_type }}">
+                                    {% if condition_type == 'time_based' %}
+                                    <i class="fas fa-clock"></i> Time: {{ condition_data.description|default:"Custom time conditions" }}
+                                    {% elif condition_type == 'usage_based' %}
+                                    <i class="fas fa-chart-line"></i> Usage: {{ condition_data.description|default:"Usage limits" }}
+                                    {% elif condition_type == 'training_based' %}
+                                    <i class="fas fa-graduation-cap"></i> Training: {{ condition_data.description|default:"Training requirements" }}
+                                    {% elif condition_type == 'role_based' %}
+                                    <i class="fas fa-user-tag"></i> Role: {{ condition_data.description|default:"Role restrictions" }}
+                                    {% elif condition_type == 'resource_based' %}
+                                    <i class="fas fa-cog"></i> Resource: {{ condition_data.description|default:"Resource conditions" }}
+                                    {% endif %}
+                                </span>
+                                {% endif %}
+                                {% endfor %}
+                            </div>
+                            {% endif %}
+                            
+                            <small class="text-muted">
+                                Priority: {{ rule.priority }} | 
+                                Created: {{ rule.created_at|date:"M j, Y" }}
+                                {% if rule.fallback_rule %}
+                                | Fallback: {{ rule.fallback_rule.name }}
+                                {% endif %}
+                            </small>
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="btn-group" role="group">
+                                <button class="btn btn-sm btn-outline-primary" onclick="editRule({{ rule.id }})">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                                <button class="btn btn-sm btn-outline-info" onclick="testRule({{ rule.id }})">
+                                    <i class="fas fa-play"></i> Test
+                                </button>
+                                {% if rule.is_active %}
+                                <button class="btn btn-sm btn-outline-secondary" onclick="toggleRule({{ rule.id }}, false)">
+                                    <i class="fas fa-pause"></i> Disable
+                                </button>
+                                {% else %}
+                                <button class="btn btn-sm btn-outline-success" onclick="toggleRule({{ rule.id }}, true)">
+                                    <i class="fas fa-play"></i> Enable
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="rule-builder" onclick="document.querySelector('[data-bs-target=&quot;#createRuleModal&quot;]').click()">
+                <i class="fas fa-plus-circle fa-3x text-muted mb-3"></i>
+                <h4>No Approval Rules Found</h4>
+                <p class="text-muted">Click here to create your first approval rule</p>
+            </div>
+            {% endfor %}
+
+            <!-- Pagination -->
+            {% if rules.has_other_pages %}
+            <nav aria-label="Rules pagination">
+                <ul class="pagination justify-content-center">
+                    {% if rules.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if request.GET.type %}type={{ request.GET.type }}&{% endif %}{% if request.GET.resource %}resource={{ request.GET.resource }}&{% endif %}{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ rules.previous_page_number }}">Previous</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in rules.paginator.page_range %}
+                    {% if rules.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > rules.number|add:'-3' and num < rules.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if request.GET.type %}type={{ request.GET.type }}&{% endif %}{% if request.GET.resource %}resource={{ request.GET.resource }}&{% endif %}{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ num }}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if rules.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if request.GET.type %}type={{ request.GET.type }}&{% endif %}{% if request.GET.resource %}resource={{ request.GET.resource }}&{% endif %}{% if request.GET.search %}search={{ request.GET.search }}&{% endif %}page={{ rules.next_page_number }}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Create Rule Modal -->
+<div class="modal fade" id="createRuleModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Approval Rule</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createRuleForm" method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Rule Name *</label>
+                                <input type="text" name="name" class="form-control" required placeholder="e.g., Auto-approve for trusted users">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Rule Type *</label>
+                                <select name="approval_type" class="form-select" required onchange="toggleRuleOptions(this.value)">
+                                    <option value="">Select rule type...</option>
+                                    <option value="auto">Auto-Approval</option>
+                                    <option value="single">Single Level Approval</option>
+                                    <option value="tiered">Tiered Approval</option>
+                                    <option value="quota">Quota-Based Approval</option>
+                                    <option value="conditional">Conditional Approval</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" class="form-control" rows="2" placeholder="Describe when and how this rule applies..."></textarea>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Resource</label>
+                                <select name="resource" class="form-select">
+                                    <option value="">All Resources</option>
+                                    {% for resource in resources %}
+                                    <option value="{{ resource.id }}">{{ resource.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">User Role</label>
+                                <select name="user_role" class="form-select">
+                                    <option value="">All Roles</option>
+                                    <option value="student">Student</option>
+                                    <option value="researcher">Researcher</option>
+                                    <option value="academic">Academic</option>
+                                    <option value="technician">Technician</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Priority</label>
+                                <input type="number" name="priority" class="form-control" value="100" min="1" max="999">
+                                <div class="form-text">Lower numbers = higher priority</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Fallback Rule</label>
+                                <select name="fallback_rule" class="form-select">
+                                    <option value="">No fallback</option>
+                                    {% for existing_rule in all_rules %}
+                                    <option value="{{ existing_rule.id }}">{{ existing_rule.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Conditional Rule Options -->
+                    <div id="conditionalOptions" style="display: none;">
+                        <hr>
+                        <h6><i class="fas fa-cogs me-2"></i>Conditional Logic</h6>
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Condition Type *</label>
+                            <select name="condition_type" class="form-select" onchange="showConditionBuilder(this.value)">
+                                <option value="">Select condition type...</option>
+                                <option value="time_based">Time-Based Conditions</option>
+                                <option value="usage_based">Usage-Based Conditions</option>
+                                <option value="training_based">Training-Based Conditions</option>
+                                <option value="role_based">Role-Based Conditions</option>
+                                <option value="resource_based">Resource-Based Conditions</option>
+                                <option value="custom">Custom Logic</option>
+                            </select>
+                        </div>
+                        
+                        <!-- Time-Based Conditions -->
+                        <div id="timeConditions" class="condition-builder" style="display: none;">
+                            <h6>Time-Based Conditions</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="time_business_hours" id="timeBusinessHours">
+                                        <label class="form-check-label" for="timeBusinessHours">
+                                            Only during business hours
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="time_advance_booking" id="timeAdvanceBooking">
+                                        <label class="form-check-label" for="timeAdvanceBooking">
+                                            Require advance booking
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <label class="form-label">Minimum advance (hours)</label>
+                                        <input type="number" name="time_min_advance" class="form-control" value="24">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Maximum duration (hours)</label>
+                                        <input type="number" name="time_max_duration" class="form-control" value="8">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Usage-Based Conditions -->
+                        <div id="usageConditions" class="condition-builder" style="display: none;">
+                            <h6>Usage-Based Conditions</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <label class="form-label">Max bookings per user per month</label>
+                                        <input type="number" name="usage_max_monthly" class="form-control" value="10">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Max hours per user per week</label>
+                                        <input type="number" name="usage_max_weekly_hours" class="form-control" value="20">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="usage_prevent_consecutive" id="usagePreventConsecutive">
+                                        <label class="form-check-label" for="usagePreventConsecutive">
+                                            Prevent consecutive bookings
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="usage_priority_returning" id="usagePriorityReturning">
+                                        <label class="form-check-label" for="usagePriorityReturning">
+                                            Priority for returning users
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Training-Based Conditions -->
+                        <div id="trainingConditions" class="condition-builder" style="display: none;">
+                            <h6>Training-Based Conditions</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="training_require_certification" id="trainingRequireCertification">
+                                        <label class="form-check-label" for="trainingRequireCertification">
+                                            Require valid certification
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="training_require_recent" id="trainingRequireRecent">
+                                        <label class="form-check-label" for="trainingRequireRecent">
+                                            Require recent training (within 12 months)
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <label class="form-label">Minimum training level</label>
+                                        <select name="training_min_level" class="form-select">
+                                            <option value="basic">Basic</option>
+                                            <option value="intermediate">Intermediate</option>
+                                            <option value="advanced">Advanced</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Rule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function toggleRuleOptions(ruleType) {
+    const conditionalOptions = document.getElementById('conditionalOptions');
+    if (ruleType === 'conditional') {
+        conditionalOptions.style.display = 'block';
+    } else {
+        conditionalOptions.style.display = 'none';
+    }
+}
+
+function showConditionBuilder(conditionType) {
+    // Hide all condition builders
+    document.getElementById('timeConditions').style.display = 'none';
+    document.getElementById('usageConditions').style.display = 'none';
+    document.getElementById('trainingConditions').style.display = 'none';
+    
+    // Show the selected condition builder
+    if (conditionType === 'time_based') {
+        document.getElementById('timeConditions').style.display = 'block';
+    } else if (conditionType === 'usage_based') {
+        document.getElementById('usageConditions').style.display = 'block';
+    } else if (conditionType === 'training_based') {
+        document.getElementById('trainingConditions').style.display = 'block';
+    }
+}
+
+function editRule(ruleId) {
+    alert('Edit functionality would open a modal with pre-filled form for rule ' + ruleId);
+}
+
+function testRule(ruleId) {
+    alert('Test functionality would simulate rule evaluation for rule ' + ruleId);
+}
+
+function toggleRule(ruleId, activate) {
+    if (confirm(`Are you sure you want to ${activate ? 'enable' : 'disable'} this rule?`)) {
+        fetch(`/lab-admin/approval-rules/${ruleId}/toggle/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({active: activate})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        });
+    }
+}
+
+// Form validation and submission
+document.getElementById('createRuleForm').addEventListener('submit', function(e) {
+    const ruleType = this.approval_type.value;
+    const conditionType = this.condition_type?.value;
+    
+    if (ruleType === 'conditional' && !conditionType) {
+        e.preventDefault();
+        alert('Please select a condition type for conditional rules');
+        return;
+    }
+    
+    // Build conditional logic object
+    if (ruleType === 'conditional') {
+        const conditionalLogic = {};
+        
+        if (conditionType === 'time_based') {
+            conditionalLogic.time_based = {
+                business_hours_only: this.time_business_hours?.checked || false,
+                require_advance_booking: this.time_advance_booking?.checked || false,
+                min_advance_hours: parseInt(this.time_min_advance?.value) || 24,
+                max_duration_hours: parseInt(this.time_max_duration?.value) || 8,
+            };
+        } else if (conditionType === 'usage_based') {
+            conditionalLogic.usage_based = {
+                max_monthly_bookings: parseInt(this.usage_max_monthly?.value) || 10,
+                max_weekly_hours: parseInt(this.usage_max_weekly_hours?.value) || 20,
+                prevent_consecutive: this.usage_prevent_consecutive?.checked || false,
+                priority_returning_users: this.usage_priority_returning?.checked || false,
+            };
+        } else if (conditionType === 'training_based') {
+            conditionalLogic.training_based = {
+                require_certification: this.training_require_certification?.checked || false,
+                require_recent_training: this.training_require_recent?.checked || false,
+                min_training_level: this.training_min_level?.value || 'basic',
+            };
+        }
+        
+        // Add hidden field with conditional logic JSON
+        const hiddenField = document.createElement('input');
+        hiddenField.type = 'hidden';
+        hiddenField.name = 'conditional_logic';
+        hiddenField.value = JSON.stringify(conditionalLogic);
+        this.appendChild(hiddenField);
+    }
+});
+</script>
+{% endblock %}

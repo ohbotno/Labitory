@@ -1,0 +1,287 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+{% load booking_extras %}
+
+{% block title %}Risk Assessments - {{ lab_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.assessment-card {
+    transition: transform 0.2s;
+}
+.assessment-card:hover {
+    transform: translateY(-2px);
+}
+.risk-level-low { border-left: 4px solid #28a745; }
+.risk-level-medium { border-left: 4px solid #ffc107; }
+.risk-level-high { border-left: 4px solid #fd7e14; }
+.risk-level-critical { border-left: 4px solid #dc3545; }
+.assessment-status {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-shield-alt"></i> Risk Assessments</h2>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'booking:approval_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                    {% if user.userprofile.role in 'technician,academic,sysadmin' %}
+                    <a href="{% url 'booking:create_risk_assessment' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Create Assessment
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-2">
+                            <label class="form-label">Assessment Type</label>
+                            <select name="assessment_type" class="form-select">
+                                <option value="">All Types</option>
+                                {% for type in assessment_types %}
+                                <option value="{{ type.0 }}" {% if request.GET.assessment_type == type.0 %}selected{% endif %}>{{ type.1 }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Risk Level</label>
+                            <select name="risk_level" class="form-select">
+                                <option value="">All Levels</option>
+                                <option value="low" {% if request.GET.risk_level == 'low' %}selected{% endif %}>Low</option>
+                                <option value="medium" {% if request.GET.risk_level == 'medium' %}selected{% endif %}>Medium</option>
+                                <option value="high" {% if request.GET.risk_level == 'high' %}selected{% endif %}>High</option>
+                                <option value="critical" {% if request.GET.risk_level == 'critical' %}selected{% endif %}>Critical</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="">All Statuses</option>
+                                <option value="active" {% if request.GET.status == 'active' %}selected{% endif %}>Active</option>
+                                <option value="expired" {% if request.GET.status == 'expired' %}selected{% endif %}>Expired</option>
+                                <option value="due_for_review" {% if request.GET.status == 'due_for_review' %}selected{% endif %}>Due for Review</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Resource</label>
+                            <select name="resource" class="form-select">
+                                <option value="">All Resources</option>
+                                {% for resource in resources %}
+                                <option value="{{ resource.id }}" {% if request.GET.resource == resource.id|stringformat:"s" %}selected{% endif %}>{{ resource.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-1">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-filter"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div class="d-grid">
+                                <a href="{% url 'booking:risk_assessments' %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times"></i> Clear
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Risk Assessments List -->
+    <div class="row">
+        {% if risk_assessments %}
+            {% for assessment in risk_assessments %}
+            <div class="col-lg-6 mb-4">
+                <div class="card assessment-card risk-level-{{ assessment.risk_level }} position-relative">
+                    <span class="badge bg-{{ assessment.risk_level|yesno:'danger,warning,success,info' }} assessment-status">
+                        {{ assessment.get_risk_level_display }}
+                    </span>
+                    <div class="card-body">
+                        <h5 class="card-title">{{ assessment.title }}</h5>
+                        <p class="card-text text-muted">
+                            <i class="fas fa-cube me-1"></i> {{ assessment.resource.name }}
+                            <span class="ms-2">
+                                <i class="fas fa-tag me-1"></i> {{ assessment.get_assessment_type_display }}
+                            </span>
+                        </p>
+                        <p class="card-text">{{ assessment.description|truncatewords:20 }}</p>
+                        
+                        <div class="row text-center mb-3">
+                            <div class="col-4">
+                                <small class="text-muted">Created</small>
+                                <div class="fw-bold">{{ assessment.created_at|date:"M d, Y" }}</div>
+                            </div>
+                            <div class="col-4">
+                                <small class="text-muted">Valid Until</small>
+                                <div class="fw-bold {% if assessment.is_expired %}text-danger{% elif assessment.is_due_for_review %}text-warning{% endif %}">
+                                    {{ assessment.valid_until|date:"M d, Y" }}
+                                </div>
+                            </div>
+                            <div class="col-4">
+                                <small class="text-muted">Review Freq.</small>
+                                <div class="fw-bold">{{ assessment.review_frequency_months }}m</div>
+                            </div>
+                        </div>
+
+                        <!-- Status Indicators -->
+                        <div class="mb-3">
+                            {% if assessment.is_mandatory %}
+                            <span class="badge bg-warning me-1">
+                                <i class="fas fa-exclamation"></i> Mandatory
+                            </span>
+                            {% endif %}
+                            {% if assessment.requires_renewal %}
+                            <span class="badge bg-info me-1">
+                                <i class="fas fa-refresh"></i> Renewable
+                            </span>
+                            {% endif %}
+                            {% if assessment.is_expired %}
+                            <span class="badge bg-danger me-1">
+                                <i class="fas fa-times-circle"></i> Expired
+                            </span>
+                            {% elif assessment.is_due_for_review %}
+                            <span class="badge bg-warning me-1">
+                                <i class="fas fa-clock"></i> Due for Review
+                            </span>
+                            {% else %}
+                            <span class="badge bg-success me-1">
+                                <i class="fas fa-check-circle"></i> Active
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'booking:risk_assessment_detail' assessment.id %}" class="btn btn-primary btn-sm">
+                                <i class="fas fa-eye"></i> View Details
+                            </a>
+                            
+                            {% if user_assessments %}
+                                {% with user_assessment=user_assessments|get_item:assessment.id %}
+                                {% if user_assessment %}
+                                    {% if user_assessment.status == 'approved' %}
+                                    <span class="btn btn-success btn-sm disabled">
+                                        <i class="fas fa-check"></i> Completed
+                                    </span>
+                                    {% elif user_assessment.status == 'submitted' %}
+                                    <span class="btn btn-secondary btn-sm disabled">
+                                        <i class="fas fa-clock"></i> Under Review
+                                    </span>
+                                    {% elif user_assessment.status == 'in_progress' %}
+                                    <a href="{% url 'booking:risk_assessment_detail' assessment.id %}" class="btn btn-info btn-sm">
+                                        <i class="fas fa-edit"></i> Continue
+                                    </a>
+                                    {% else %}
+                                    <a href="{% url 'booking:start_risk_assessment' assessment.id %}" class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-play"></i> Start
+                                    </a>
+                                    {% endif %}
+                                {% else %}
+                                <a href="{% url 'booking:start_risk_assessment' assessment.id %}" class="btn btn-outline-primary btn-sm">
+                                    <i class="fas fa-play"></i> Start Assessment
+                                </a>
+                                {% endif %}
+                                {% endwith %}
+                            {% else %}
+                            <a href="{% url 'booking:start_risk_assessment' assessment.id %}" class="btn btn-outline-primary btn-sm">
+                                <i class="fas fa-play"></i> Start Assessment
+                            </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            <!-- Pagination -->
+            {% if is_paginated %}
+            <div class="col-12">
+                <div class="d-flex justify-content-center">
+                    <nav aria-label="Risk assessments pagination">
+                        <ul class="pagination">
+                            {% if page_obj.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page=1{{ request.GET|make_query_string }}">&laquo; First</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{{ request.GET|make_query_string }}">Previous</a>
+                                </li>
+                            {% endif %}
+
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                </span>
+                            </li>
+
+                            {% if page_obj.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{{ request.GET|make_query_string }}">Next</a>
+                                </li>
+                                <li class="page-item">
+                                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{{ request.GET|make_query_string }}">Last &raquo;</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                </div>
+            </div>
+            {% endif %}
+        {% else %}
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-body text-center py-5">
+                        <i class="fas fa-shield-alt fa-3x text-muted mb-3"></i>
+                        <h4 class="text-muted">No Risk Assessments Found</h4>
+                        <p class="text-muted">There are no risk assessments matching your criteria.</p>
+                        {% if request.GET.assessment_type or request.GET.risk_level or request.GET.status or request.GET.resource %}
+                        <a href="{% url 'booking:risk_assessments' %}" class="btn btn-primary">
+                            <i class="fas fa-filter"></i> Clear Filters
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-refresh every 5 minutes
+    setTimeout(function() {
+        location.reload();
+    }, 300000);
+    
+    // Add tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}

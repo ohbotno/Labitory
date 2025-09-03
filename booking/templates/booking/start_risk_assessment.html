@@ -1,0 +1,370 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Risk Assessment: {{ assessment.title }} - {{ lab_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.risk-level-low { border-left: 4px solid var(--bs-success); }
+.risk-level-medium { border-left: 4px solid var(--bs-warning); }
+.risk-level-high { border-left: 4px solid var(--bs-orange); }
+.risk-level-critical { border-left: 4px solid var(--bs-danger); }
+.assessment-progress {
+    background-color: var(--bs-info-bg-subtle);
+    border: 1px solid var(--bs-info-border-subtle);
+    border-radius: 0.375rem;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+[data-theme="dark"] .assessment-progress {
+    background-color: rgba(49, 130, 206, 0.15);
+    border-color: rgba(49, 130, 206, 0.3);
+}
+
+[data-theme="dark"] .form-control[type="file"]::-webkit-file-upload-button {
+    background-color: var(--bs-secondary);
+    border: 1px solid var(--bs-border-color);
+    color: var(--bs-body-color);
+}
+
+[data-theme="dark"] .form-control[type="file"]::file-selector-button {
+    background-color: var(--bs-secondary);
+    border: 1px solid var(--bs-border-color);
+    color: var(--bs-body-color);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-shield-alt me-2"></i>Risk Assessment</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:resources_list' %}">Resources</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:resource_detail' assessment.resource.id %}">{{ assessment.resource.name }}</a></li>
+                            <li class="breadcrumb-item active">Risk Assessment</li>
+                        </ol>
+                    </nav>
+                </div>
+                <a href="{% url 'booking:resource_detail' assessment.resource.id %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Resource
+                </a>
+            </div>
+
+            <!-- Assessment Progress -->
+            <div class="assessment-progress">
+                <div class="row align-items-center">
+                    <div class="col-md-8">
+                        <h5 class="mb-1">{{ assessment.title }}</h5>
+                        <p class="mb-1 text-muted">{{ assessment.resource.name }}</p>
+                        <small class="text-muted">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            Risk Level: <span class="badge bg-{% if assessment.risk_level == 'low' %}success{% elif assessment.risk_level == 'medium' %}warning{% elif assessment.risk_level == 'high' %}danger{% else %}dark{% endif %}">{{ assessment.get_risk_level_display }}</span>
+                        </small>
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <span class="badge bg-{% if user_assessment.status == 'not_started' %}secondary{% elif user_assessment.status == 'in_progress' %}warning{% elif user_assessment.status == 'submitted' %}info{% elif user_assessment.status == 'approved' %}success{% elif user_assessment.status == 'rejected' %}danger{% endif %} fs-6">
+                            {{ user_assessment.get_status_display }}
+                        </span>
+                        {% if user_assessment.started_at %}
+                        <br><small class="text-muted">Started: {{ user_assessment.started_at|date:"M j, Y g:i A" }}</small>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-lg-8">
+                    <!-- Assessment Form -->
+                    <div class="card risk-level-{{ assessment.risk_level }}" style="margin-bottom: 1.5rem;">
+                        <div class="card-header">
+                            <h5 class="mb-0">
+                                <i class="fas fa-clipboard-list me-2"></i>Assessment Details
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-4">
+                                <h6 class="text-muted">Description</h6>
+                                <div class="card">
+                                    <div class="card-body">
+                                        <p class="mb-0">{{ assessment.description }}</p>
+                                    </div>
+                                </div>
+                                <small class="text-muted">If you need to update this description, please contact your lab administrator.</small>
+                            </div>
+
+                            {% if assessment.hazards_identified %}
+                            <div class="mb-4">
+                                <h6 class="text-muted">Identified Hazards</h6>
+                                <div class="alert alert-warning">
+                                    <ul class="mb-0">
+                                        {% for hazard in assessment.hazards_identified %}
+                                        <li>{{ hazard }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% if assessment.control_measures %}
+                            <div class="mb-4">
+                                <h6 class="text-muted">Control Measures</h6>
+                                <div class="alert alert-info">
+                                    <ul class="mb-0">
+                                        {% for measure in assessment.control_measures %}
+                                        <li>{{ measure }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% if assessment.ppe_requirements %}
+                            <div class="mb-4">
+                                <h6 class="text-muted">PPE Requirements</h6>
+                                <div class="alert alert-success">
+                                    <ul class="mb-0">
+                                        {% for ppe in assessment.ppe_requirements %}
+                                        <li>{{ ppe }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            {% if assessment.emergency_procedures %}
+                            <div class="mb-4">
+                                <h6 class="text-muted">Emergency Procedures</h6>
+                                <div class="alert alert-danger">
+                                    <p class="mb-0">{{ assessment.emergency_procedures }}</p>
+                                </div>
+                            </div>
+                            {% endif %}
+
+                            <!-- Assessment Form -->
+                            <form method="post" enctype="multipart/form-data">
+                                {% csrf_token %}
+                                
+                                <!-- Display form errors -->
+                                {% if form.errors %}
+                                    <div class="alert alert-danger">
+                                        <h6><i class="fas fa-exclamation-triangle me-1"></i>Please correct the following errors:</h6>
+                                        <ul class="mb-0">
+                                            {% for field, errors in form.errors.items %}
+                                                {% for error in errors %}
+                                                    <li>{% if field != '__all__' %}{{ field|capfirst }}: {% endif %}{{ error }}</li>
+                                                {% endfor %}
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                {% endif %}
+
+                                <!-- Debug: Show form field names -->
+                                {% if request.user.is_staff %}
+                                    <div class="alert alert-info small">
+                                        <strong>Debug - Available form fields:</strong> {{ form.fields.keys }}
+                                    </div>
+                                {% endif %}
+
+                                <div class="mb-4">
+                                    <h6 class="text-muted">
+                                        <i class="fas fa-upload me-1"></i>Supporting Documents
+                                    </h6>
+                                    <p class="small text-muted">Upload any supporting documents such as completed Excel spreadsheets, additional risk assessments, or other relevant files:</p>
+                                    {{ form.risk_assessment_file }}
+                                    {% if form.risk_assessment_file.help_text %}
+                                        <div class="form-text">{{ form.risk_assessment_file.help_text }}</div>
+                                    {% endif %}
+                                    {% if user_assessment.assessment_file %}
+                                        <div class="mt-2">
+                                            <small class="text-success">
+                                                <i class="fas fa-file me-1"></i>
+                                                Current file: <a href="{{ user_assessment.assessment_file.url }}" target="_blank">{{ user_assessment.assessment_file.name }}</a>
+                                            </small>
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+
+                                <!-- Understanding Confirmation -->
+                                {% if form.understanding_confirmed %}
+                                <div class="mb-4">
+                                    <div class="form-check">
+                                        {{ form.understanding_confirmed }}
+                                        <label class="form-check-label" for="{{ form.understanding_confirmed.id_for_label }}">
+                                            {{ form.understanding_confirmed.label }}
+                                        </label>
+                                        {% if form.understanding_confirmed.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.understanding_confirmed.errors %}{{ error }}{% endfor %}
+                                            </div>
+                                        {% endif %}
+                                        {% if form.understanding_confirmed.help_text %}
+                                            <div class="form-text">{{ form.understanding_confirmed.help_text }}</div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                <div class="mb-4">
+                                    <h6 class="text-muted">Declaration <span class="text-danger">*</span></h6>
+                                    <p class="small text-muted">Please confirm your understanding and acceptance of the risk assessment:</p>
+                                    {{ form.user_declaration }}
+                                    {% if form.user_declaration.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {% for error in form.user_declaration.errors %}{{ error }}{% endfor %}
+                                        </div>
+                                    {% endif %}
+                                    {% if form.user_declaration.help_text %}
+                                        <div class="form-text">{{ form.user_declaration.help_text }}</div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'booking:resource_detail' assessment.resource.id %}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-times me-1"></i>Cancel
+                                    </a>
+                                    {% if user_assessment.status == 'submitted' %}
+                                    <div class="btn btn-success" disabled>
+                                        <i class="fas fa-check me-1"></i>Already Submitted
+                                    </div>
+                                    {% else %}
+                                    <button type="submit" class="btn btn-primary" id="submit-assessment-btn">
+                                        <i class="fas fa-paper-plane me-1"></i>Submit Risk Assessment
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <!-- Assessment Info Sidebar -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-info-circle me-2"></i>Assessment Information
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <small class="text-muted">Assessment Type</small>
+                                <div>{{ assessment.get_assessment_type_display }}</div>
+                            </div>
+                            
+                            <div class="mb-3">
+                                <small class="text-muted">Risk Level</small>
+                                <div>
+                                    <span class="badge bg-{% if assessment.risk_level == 'low' %}success{% elif assessment.risk_level == 'medium' %}warning{% elif assessment.risk_level == 'high' %}danger{% else %}dark{% endif %}">
+                                        {{ assessment.get_risk_level_display }}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <small class="text-muted">Valid Until</small>
+                                <div>{{ assessment.valid_until|date:"M j, Y" }}</div>
+                            </div>
+
+                            {% if assessment.requires_renewal %}
+                            <div class="mb-3">
+                                <small class="text-muted">Review Frequency</small>
+                                <div>Every {{ assessment.review_frequency_months }} months</div>
+                            </div>
+                            {% endif %}
+
+                            <div class="mb-3">
+                                <small class="text-muted">Created By</small>
+                                <div>{{ assessment.created_by.get_full_name|default:assessment.created_by.username }}</div>
+                            </div>
+
+                            <div class="mb-0">
+                                <small class="text-muted">Created</small>
+                                <div>{{ assessment.created_at|date:"M j, Y" }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Status History -->
+                    {% if user_assessment.status != 'not_started' %}
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h6 class="mb-0">
+                                <i class="fas fa-history me-2"></i>Status History
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            {% if user_assessment.started_at %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <small>Started</small>
+                                <small class="text-muted">{{ user_assessment.started_at|date:"M j, g:i A" }}</small>
+                            </div>
+                            {% endif %}
+                            
+                            {% if user_assessment.submitted_at %}
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <small>Submitted</small>
+                                <small class="text-muted">{{ user_assessment.submitted_at|date:"M j, g:i A" }}</small>
+                            </div>
+                            {% endif %}
+                            
+                            {% if user_assessment.completed_at %}
+                            <div class="d-flex justify-content-between align-items-center mb-0">
+                                <small>Completed</small>
+                                <small class="text-muted">{{ user_assessment.completed_at|date:"M j, g:i A" }}</small>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form[method="post"]');
+    const submitBtn = document.getElementById('submit-assessment-btn');
+    
+    if (form && submitBtn) {
+        console.log('Risk assessment form and submit button found');
+        
+        // Add form submit event listener
+        form.addEventListener('submit', function(e) {
+            console.log('Form submission triggered');
+            
+            // Check form validity
+            const userDeclaration = form.querySelector('[name="user_declaration"]');
+            console.log('User declaration field:', userDeclaration);
+            console.log('User declaration value:', userDeclaration ? userDeclaration.value : 'Field not found');
+            
+            // Log all form data
+            const formData = new FormData(form);
+            for (let [key, value] of formData.entries()) {
+                console.log(`Form field ${key}:`, value);
+            }
+        });
+        
+        // Add button click listener
+        submitBtn.addEventListener('click', function(e) {
+            console.log('Submit button clicked');
+        });
+    } else {
+        console.log('Form or submit button not found');
+        console.log('Form:', form);
+        console.log('Submit button:', submitBtn);
+    }
+});
+</script>
+{% endblock %}

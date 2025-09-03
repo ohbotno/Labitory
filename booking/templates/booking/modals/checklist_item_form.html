@@ -1,0 +1,190 @@
+<!-- Checklist Item Form Modal Content -->
+<form id="checklist-item-form" method="post">
+    {% csrf_token %}
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="{{ form.title.id_for_label }}" class="form-label">Title <span class="text-danger">*</span></label>
+                {{ form.title }}
+                {% if form.title.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.title.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <div class="form-text">Question or instruction text for the checklist item</div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="{{ form.category.id_for_label }}" class="form-label">Category <span class="text-danger">*</span></label>
+                {{ form.category }}
+                {% if form.category.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.category.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="mb-3">
+        <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+        {{ form.description }}
+        {% if form.description.errors %}
+            <div class="text-danger small mt-1">
+                {% for error in form.description.errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+        {% endif %}
+        <div class="form-text">Optional additional details or help text</div>
+    </div>
+    
+    <div class="row">
+        <div class="col-md-6">
+            <div class="mb-3">
+                <label for="{{ form.item_type.id_for_label }}" class="form-label">Input Type <span class="text-danger">*</span></label>
+                {{ form.item_type }}
+                {% if form.item_type.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.item_type.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="mb-3">
+                <div class="form-check">
+                    {{ form.is_required }}
+                    <label class="form-check-label" for="{{ form.is_required.id_for_label }}">
+                        Required Field
+                    </label>
+                </div>
+                {% if form.is_required.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.is_required.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+                <div class="form-text">Users must complete this item to proceed</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Conditional fields based on item type -->
+    <div id="options-field" class="mb-3" style="display: none;">
+        <label for="{{ form.options.id_for_label }}" class="form-label">Options <span class="text-danger">*</span></label>
+        {{ form.options }}
+        {% if form.options.errors %}
+            <div class="text-danger small mt-1">
+                {% for error in form.options.errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+        {% endif %}
+        <div class="form-text">Enter each option on a new line</div>
+    </div>
+    
+    <div id="number-fields" class="row" style="display: none;">
+        <div class="col-md-4">
+            <div class="mb-3">
+                <label for="{{ form.min_value.id_for_label }}" class="form-label">Minimum Value</label>
+                {{ form.min_value }}
+                {% if form.min_value.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.min_value.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="mb-3">
+                <label for="{{ form.max_value.id_for_label }}" class="form-label">Maximum Value</label>
+                {{ form.max_value }}
+                {% if form.max_value.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.max_value.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="col-md-4">
+            <div class="mb-3">
+                <label for="{{ form.max_length.id_for_label }}" class="form-label">Max Length</label>
+                {{ form.max_length }}
+                {% if form.max_length.errors %}
+                    <div class="text-danger small mt-1">
+                        {% for error in form.max_length.errors %}
+                            {{ error }}
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div id="text-fields" class="mb-3" style="display: none;">
+        <label for="{{ form.max_length.id_for_label }}" class="form-label">Maximum Length</label>
+        {{ form.max_length }}
+        {% if form.max_length.errors %}
+            <div class="text-danger small mt-1">
+                {% for error in form.max_length.errors %}
+                    {{ error }}
+                {% endfor %}
+            </div>
+        {% endif %}
+        <div class="form-text">Maximum number of characters allowed</div>
+    </div>
+</form>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const itemTypeField = document.getElementById('{{ form.item_type.id_for_label }}');
+    const optionsField = document.getElementById('options-field');
+    const numberFields = document.getElementById('number-fields');
+    const textFields = document.getElementById('text-fields');
+    
+    function toggleConditionalFields() {
+        const selectedType = itemTypeField.value;
+        
+        // Hide all conditional fields
+        optionsField.style.display = 'none';
+        numberFields.style.display = 'none';
+        textFields.style.display = 'none';
+        
+        // Show relevant fields based on selected type
+        switch (selectedType) {
+            case 'select':
+                optionsField.style.display = 'block';
+                break;
+            case 'number':
+                numberFields.style.display = 'block';
+                break;
+            case 'text':
+            case 'textarea':
+                textFields.style.display = 'block';
+                break;
+        }
+    }
+    
+    // Initialize and add event listener
+    toggleConditionalFields();
+    itemTypeField.addEventListener('change', toggleConditionalFields);
+});
+</script>

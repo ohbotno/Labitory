@@ -1,0 +1,88 @@
+<div class="row">
+    <div class="col-md-8">
+        <h6><i class="fas fa-wrench me-2"></i>{{ maintenance.title }}</h6>
+        {% if maintenance.description %}
+        <p class="text-muted">{{ maintenance.description }}</p>
+        {% endif %}
+        
+        <div class="row mb-3">
+            <div class="col-sm-6">
+                <strong>Resource:</strong><br>
+                <span class="badge bg-secondary">{{ maintenance.resource.name }}</span>
+            </div>
+            <div class="col-sm-6">
+                <strong>Type:</strong><br>
+                <span class="badge bg-primary">{{ maintenance.maintenance_type|title }}</span>
+            </div>
+        </div>
+        
+        <div class="row mb-3">
+            <div class="col-sm-6">
+                <strong>Start:</strong><br>
+                <small>{{ maintenance.start_time|date:"M j, Y" }} at {{ maintenance.start_time|time:"g:i A" }}</small>
+            </div>
+            <div class="col-sm-6">
+                <strong>End:</strong><br>
+                <small>{{ maintenance.end_time|date:"M j, Y" }} at {{ maintenance.end_time|time:"g:i A" }}</small>
+            </div>
+        </div>
+        
+        <div class="row mb-3">
+            <div class="col-sm-6">
+                <strong>Duration:</strong><br>
+                {% load booking_extras %}
+                <small>{{ maintenance.start_time|duration_to:maintenance.end_time }}</small>
+            </div>
+            <div class="col-sm-6">
+                <strong>Status:</strong><br>
+                {% now "Y-m-d H:i:s" as current_time %}
+                {% if maintenance.start_time > current_time %}
+                <span class="badge bg-info">Scheduled</span>
+                {% elif maintenance.end_time < current_time %}
+                <span class="badge bg-success">Completed</span>
+                {% else %}
+                <span class="badge bg-warning">In Progress</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card bg-light">
+            <div class="card-body">
+                <h6 class="card-title">Settings</h6>
+                <div class="mb-2">
+                    {% if maintenance.blocks_booking %}
+                    <i class="fas fa-ban text-warning me-2"></i>
+                    <small>Blocks new bookings</small>
+                    {% else %}
+                    <i class="fas fa-check text-success me-2"></i>
+                    <small>Allows bookings</small>
+                    {% endif %}
+                </div>
+                <div class="mb-2">
+                    {% if maintenance.is_recurring %}
+                    <i class="fas fa-sync text-info me-2"></i>
+                    <small>Recurring maintenance</small>
+                    {% if maintenance.recurring_pattern %}
+                    <br><small class="text-muted ms-3">{{ maintenance.recurring_pattern.frequency|title }} schedule</small>
+                    {% endif %}
+                    {% else %}
+                    <i class="fas fa-calendar text-secondary me-2"></i>
+                    <small>One-time maintenance</small>
+                    {% endif %}
+                </div>
+                
+                <hr>
+                <h6 class="card-title">Details</h6>
+                <small class="text-muted">
+                    <strong>Created by:</strong> {{ maintenance.created_by.get_full_name|default:maintenance.created_by.username }}<br>
+                    <strong>Created:</strong> {{ maintenance.created_at|date:"M j, Y g:i A" }}<br>
+                    {% if maintenance.updated_at != maintenance.created_at %}
+                    <strong>Modified:</strong> {{ maintenance.updated_at|date:"M j, Y g:i A" }}
+                    {% endif %}
+                </small>
+            </div>
+        </div>
+    </div>
+</div>

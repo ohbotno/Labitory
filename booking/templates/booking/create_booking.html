@@ -1,0 +1,407 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Create Booking - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-calendar-plus"></i> Create New Booking</h2>
+    <a href="{% url 'booking:calendar' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Calendar
+    </a>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 id="booking-form-title" class="mb-0">Booking Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'booking:create_booking' %}" id="create-booking-form" data-progress="true" 
+                      aria-labelledby="booking-form-title" {% if form.non_field_errors %}aria-describedby="form-errors"{% endif %}>
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger" role="alert" aria-live="polite" id="form-errors">
+                            <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                            <span class="visually-hidden">Form errors:</span>
+                            {% for error in form.non_field_errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <fieldset class="row mb-3">
+                        <legend class="visually-hidden">Basic Booking Information</legend>
+                        <div class="col-md-6">
+                            <label for="{{ form.resource.id_for_label }}" class="form-label">Resource *</label>
+                            {{ form.resource }}
+                            {% if form.resource.errors %}
+                                <div class="text-danger" role="alert" aria-live="polite" id="{{ form.resource.id_for_label }}-errors">
+                                    {% for error in form.resource.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.title.id_for_label }}" class="form-label">Booking Title *</label>
+                            {{ form.title }}
+                            {% if form.title.errors %}
+                                <div class="text-danger" role="alert" aria-live="polite" id="{{ form.title.id_for_label }}-errors">
+                                    {% for error in form.title.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </fieldset>
+
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                            <div class="text-danger">
+                                {% for error in form.description.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <fieldset class="row mb-3">
+                        <legend class="visually-hidden">Booking Time Period</legend>
+                        <div class="col-md-6">
+                            <label for="{{ form.start_time.id_for_label }}" class="form-label">Start Time *</label>
+                            {{ form.start_time }}
+                            {% if form.start_time.errors %}
+                                <div class="text-danger" role="alert" aria-live="polite" id="{{ form.start_time.id_for_label }}-errors">
+                                    {% for error in form.start_time.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.end_time.id_for_label }}" class="form-label">End Time *</label>
+                            {{ form.end_time }}
+                            {% if form.end_time.errors %}
+                                <div class="text-danger" role="alert" aria-live="polite" id="{{ form.end_time.id_for_label }}-errors">
+                                    {% for error in form.end_time.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </fieldset>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                {{ form.shared_with_group }}
+                                <label class="form-check-label" for="{{ form.shared_with_group.id_for_label }}">
+                                    Share with my group
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label">Notes</label>
+                        {{ form.notes }}
+                        {% if form.notes.errors %}
+                            <div class="text-danger">
+                                {% for error in form.notes.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Hidden fields for conflict override -->
+                    {{ form.override_conflicts }}
+                    {{ form.override_message }}
+
+                    <!-- Debug info (remove in production) -->
+                    {% if conflicts_detected %}
+                        <div class="alert alert-info">
+                            <small>
+                                Debug: conflicts_detected={{ conflicts_detected }}, can_override={{ can_override }}, 
+                                user.is_superuser={{ user.is_superuser }}, user.is_staff={{ user.is_staff }}
+                            </small>
+                        </div>
+                    {% endif %}
+
+                    <!-- Conflict Override Section -->
+                    {% if conflicts_detected and can_override %}
+                        <div class="alert alert-warning border-warning" id="conflict-alert">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Booking Conflict Detected
+                            </h6>
+                            <p class="mb-3">
+                                Your booking conflicts with existing reservations. As a privileged user, 
+                                you can override these conflicts, which will cancel the conflicting bookings 
+                                and notify the affected users.
+                            </p>
+                            
+                            <div class="mb-3">
+                                <strong>Conflicting Bookings:</strong>
+                                <ul class="mt-2">
+                                    {% for booking in conflicting_bookings %}
+                                        <li>
+                                            <strong>{{ booking.title }}</strong> by 
+                                            {{ booking.user.first_name }} {{ booking.user.last_name }}
+                                            <br>
+                                            <small class="text-muted">
+                                                {{ booking.start_time|date:"m/d H:i" }} - {{ booking.end_time|date:"H:i" }}
+                                            </small>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            
+                            <div class="form-check mb-3">
+                                <input type="checkbox" class="form-check-input" id="confirm-override" onchange="toggleOverrideMessage()">
+                                <label class="form-check-label" for="confirm-override">
+                                    <strong>I want to override these conflicts and notify the affected users</strong>
+                                </label>
+                            </div>
+                            
+                            <div id="override-message-section" style="display: none;">
+                                <label for="override-message-input" class="form-label">
+                                    <strong>Message to affected users:</strong>
+                                </label>
+                                <textarea 
+                                    id="override-message-input" 
+                                    class="form-control" 
+                                    rows="3" 
+                                    placeholder="Enter a message explaining why you're overriding their booking (required)..."
+                                    onchange="updateOverrideMessage()"
+                                ></textarea>
+                                <small class="form-text text-muted">
+                                    This message will be sent to users whose bookings are being overridden.
+                                </small>
+                            </div>
+                        </div>
+                    {% elif conflicts_detected %}
+                        <!-- Regular user conflict message -->
+                        <div class="alert alert-danger border-danger" id="conflict-alert">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-exclamation-triangle me-2"></i>Booking Conflict Detected
+                            </h6>
+                            <p class="mb-3">
+                                Your booking conflicts with existing reservations. Please choose a different time slot.
+                            </p>
+                            
+                            <div class="mb-3">
+                                <strong>Conflicting Bookings:</strong>
+                                <ul class="mt-2">
+                                    {% for booking in conflicting_bookings %}
+                                        <li>
+                                            <strong>{{ booking.title }}</strong> by 
+                                            {{ booking.user.first_name }} {{ booking.user.last_name }}
+                                            <br>
+                                            <small class="text-muted">
+                                                {{ booking.start_time|date:"m/d H:i" }} - {{ booking.end_time|date:"H:i" }}
+                                            </small>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    {% endif %}
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'booking:calendar' %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Create Booking
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">Booking Guidelines</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="bi bi-clock text-info"></i> Bookings must be between 09:00 and 18:00</li>
+                    <li><i class="bi bi-calendar-x text-warning"></i> Cannot book in the past</li>
+                    <li><i class="bi bi-person-check text-success"></i> Check resource training requirements</li>
+                    <li><i class="bi bi-shield-check text-primary"></i> Some resources require induction</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card mt-3" id="resource-info" style="display: none;">
+            <div class="card-header">
+                <h6 class="mb-0">Resource Information</h6>
+            </div>
+            <div class="card-body">
+                <div id="resource-details">
+                    <!-- Resource details will be populated by JavaScript -->
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Quick Actions</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{% url 'booking:create_from_template' %}" class="btn btn-outline-success btn-sm">
+                        <i class="bi bi-file-earmark-text"></i> Use Template
+                    </a>
+                    <button type="button" class="btn btn-outline-info btn-sm" onclick="setQuickTime(1)">
+                        <i class="bi bi-clock"></i> 1 Hour Booking
+                    </button>
+                    <button type="button" class="btn btn-outline-info btn-sm" onclick="setQuickTime(2)">
+                        <i class="bi bi-clock"></i> 2 Hour Booking
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const resourceSelect = document.querySelector('#create-booking-form [name="resource"]');
+    const startTimeInput = document.querySelector('#create-booking-form [name="start_time"]');
+    const endTimeInput = document.querySelector('#create-booking-form [name="end_time"]');
+    const resourceInfo = document.getElementById('resource-info');
+    const resourceDetails = document.getElementById('resource-details');
+    
+    // Set minimum datetime to current time
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(9, 0, 0, 0);
+    
+    const isoString = tomorrow.toISOString().slice(0, 16);
+    startTimeInput.value = isoString;
+    
+    // Auto-calculate end time when start time changes
+    startTimeInput.addEventListener('change', function() {
+        if (this.value && !endTimeInput.value) {
+            const startTime = new Date(this.value);
+            const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // Add 1 hour
+            endTimeInput.value = endTime.toISOString().slice(0, 16);
+        }
+    });
+    
+    // Resource selection handler
+    resourceSelect.addEventListener('change', function() {
+        const resourceId = this.value;
+        if (resourceId) {
+            // Fetch resource details via API
+            fetch(`/api/resources/${resourceId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    resourceInfo.style.display = 'block';
+                    resourceDetails.innerHTML = `
+                        <h6>${data.name}</h6>
+                        <p><strong>Type:</strong> ${data.resource_type}</p>
+                        <p><strong>Location:</strong> ${data.location}</p>
+                        <p><strong>Capacity:</strong> ${data.capacity}</p>
+                        ${data.max_booking_hours ? `<p><strong>Max Duration:</strong> ${data.max_booking_hours}h</p>` : ''}
+                        ${data.requires_induction ? '<p class="text-warning"><i class="bi bi-exclamation-triangle"></i> Requires induction</p>' : ''}
+                        <p><strong>Training Level:</strong> ${data.required_training_level}</p>
+                    `;
+                })
+                .catch(error => {
+                    console.error('Error fetching resource details:', error);
+                    resourceInfo.style.display = 'none';
+                });
+        } else {
+            resourceInfo.style.display = 'none';
+        }
+    });
+    
+    // Trigger initial load if resource is pre-selected
+    if (resourceSelect.value) {
+        resourceSelect.dispatchEvent(new Event('change'));
+    }
+});
+
+function setQuickTime(hours) {
+    const startTimeInput = document.querySelector('#create-booking-form [name="start_time"]');
+    const endTimeInput = document.querySelector('#create-booking-form [name="end_time"]');
+    
+    if (startTimeInput.value) {
+        const startTime = new Date(startTimeInput.value);
+        const endTime = new Date(startTime.getTime() + hours * 60 * 60 * 1000);
+        endTimeInput.value = endTime.toISOString().slice(0, 16);
+    }
+}
+
+// Conflict override functions
+function toggleOverrideMessage() {
+    const checkbox = document.getElementById('confirm-override');
+    const messageSection = document.getElementById('override-message-section');
+    const overrideConflictsInput = document.querySelector('[name="override_conflicts"]');
+    
+    if (checkbox.checked) {
+        messageSection.style.display = 'block';
+        overrideConflictsInput.value = 'true';
+    } else {
+        messageSection.style.display = 'none';
+        overrideConflictsInput.value = 'false';
+        document.getElementById('override-message-input').value = '';
+        updateOverrideMessage();
+    }
+}
+
+function updateOverrideMessage() {
+    const messageInput = document.getElementById('override-message-input');
+    const overrideMessageField = document.querySelector('[name="override_message"]');
+    
+    if (overrideMessageField) {
+        overrideMessageField.value = messageInput.value;
+    }
+}
+
+// Form submission validation for conflicts
+document.getElementById('create-booking-form').addEventListener('submit', function(e) {
+    const overrideConflictsInput = document.querySelector('[name="override_conflicts"]');
+    const confirmOverride = document.getElementById('confirm-override');
+    const overrideMessage = document.getElementById('override-message-input');
+    
+    // If conflicts detected and user wants to override
+    if (confirmOverride && confirmOverride.checked) {
+        if (!overrideMessage.value.trim()) {
+            e.preventDefault();
+            alert('Please provide a message to notify the affected users about the booking override.');
+            overrideMessage.focus();
+            return false;
+        }
+        
+        // Final confirmation
+        const confirmed = confirm(
+            'Are you sure you want to override the conflicting bookings? ' +
+            'This will cancel the existing bookings and notify the affected users.'
+        );
+        
+        if (!confirmed) {
+            e.preventDefault();
+            return false;
+        }
+    }
+});
+</script>
+{% endblock %}

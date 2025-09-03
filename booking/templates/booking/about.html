@@ -1,0 +1,197 @@
+{% extends "booking/base.html" %}
+{% load static %}
+
+{% block title %}{{ about_page.title }} - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            {% if about_page %}
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h1 class="card-title mb-0">
+                            <i class="fas fa-info-circle me-2"></i>{{ about_page.title }}
+                        </h1>
+                    </div>
+                    <div class="card-body">
+                        {% if about_page.facility_name %}
+                            <div class="alert alert-light border-start border-primary border-4 mb-4 persistent-alert">
+                                <h2 class="alert-heading h4 mb-0">
+                                    <i class="fas fa-building me-2"></i>{{ about_page.facility_name }}
+                                </h2>
+                            </div>
+                        {% endif %}
+
+                        <div class="row">
+                            <div class="col-lg-8">
+                                <div class="row">
+                                    {% if about_page.image %}
+                                        <div class="col-md-8">
+                                            <div class="content-section">
+                                                {{ about_page.content|linebreaks }}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-4">
+                                            <div class="about-image-container mb-4">
+                                                <img src="{{ about_page.image.url }}" alt="{{ about_page.facility_name|default:'About page image' }}" 
+                                                     class="img-fluid rounded shadow-sm">
+                                            </div>
+                                        </div>
+                                    {% else %}
+                                        <div class="col-12">
+                                            <div class="content-section">
+                                                {{ about_page.content|linebreaks }}
+                                            </div>
+                                        </div>
+                                    {% endif %}
+                                </div>
+
+                                {% if about_page.safety_information %}
+                                    <div class="alert alert-warning border-start border-warning border-4 mt-4 persistent-alert">
+                                        <h5 class="alert-heading">
+                                            <i class="fas fa-exclamation-triangle me-2"></i>Safety Information
+                                        </h5>
+                                        <div>{{ about_page.safety_information|linebreaks }}</div>
+                                    </div>
+                                {% endif %}
+
+                                {% if about_page.policies_url %}
+                                    <div class="mt-4">
+                                        <a href="{{ about_page.policies_url }}" target="_blank" class="btn btn-outline-primary">
+                                            <i class="fas fa-external-link-alt me-2"></i>View Detailed Policies
+                                        </a>
+                                    </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="col-lg-4">
+                                <div class="card bg-light">
+                                    <div class="card-header">
+                                        <h5 class="card-title mb-0">
+                                            <i class="fas fa-address-book me-2"></i>Contact Information
+                                        </h5>
+                                    </div>
+                                    <div class="card-body">
+                                        {% if about_page.contact_email %}
+                                            <div class="mb-3">
+                                                <i class="fas fa-envelope text-primary me-2"></i>
+                                                <strong>Email:</strong><br>
+                                                <a href="mailto:{{ about_page.contact_email }}">{{ about_page.contact_email }}</a>
+                                            </div>
+                                        {% endif %}
+
+                                        {% if about_page.contact_phone %}
+                                            <div class="mb-3">
+                                                <i class="fas fa-phone text-primary me-2"></i>
+                                                <strong>Phone:</strong><br>
+                                                <a href="tel:{{ about_page.contact_phone }}">{{ about_page.contact_phone }}</a>
+                                            </div>
+                                        {% endif %}
+
+                                        {% if about_page.address %}
+                                            <div class="mb-3">
+                                                <i class="fas fa-map-marker-alt text-primary me-2"></i>
+                                                <strong>Address:</strong><br>
+                                                {{ about_page.address|linebreaks }}
+                                            </div>
+                                        {% endif %}
+
+                                        {% if about_page.emergency_contact %}
+                                            <div class="alert alert-danger py-2 persistent-alert">
+                                                <i class="fas fa-exclamation-circle me-2"></i>
+                                                <strong>Emergency:</strong><br>
+                                                {{ about_page.emergency_contact }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+
+                                {% if about_page.operating_hours %}
+                                    <div class="card bg-light mt-3">
+                                        <div class="card-header">
+                                            <h5 class="card-title mb-0">
+                                                <i class="fas fa-clock me-2"></i>Operating Hours
+                                            </h5>
+                                        </div>
+                                        <div class="card-body">
+                                            {{ about_page.operating_hours|linebreaks }}
+                                        </div>
+                                    </div>
+                                {% endif %}
+
+                                <div class="mt-3">
+                                    {% if user.is_authenticated %}
+                                        {% if user.is_staff or user.userprofile.role in 'technician,sysadmin' %}
+                                            <a href="{% url 'booking:about_edit' %}" class="btn btn-outline-secondary w-100">
+                                                <i class="fas fa-edit me-2"></i>Edit This Page
+                                            </a>
+                                        {% endif %}
+                                    {% else %}
+                                        <a href="{% url 'login' %}" class="btn btn-primary w-100 mb-2">
+                                            <i class="fas fa-sign-in-alt me-2"></i>Login to Book Resources
+                                        </a>
+                                        <a href="{% url 'booking:register' %}" class="btn btn-outline-primary w-100">
+                                            <i class="fas fa-user-plus me-2"></i>Register Account
+                                        </a>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="alert alert-info text-center py-5 persistent-alert">
+                    <i class="fas fa-info-circle fa-3x mb-3"></i>
+                    <h4>Welcome to Labitory</h4>
+                    <p class="mb-4">The about page content is not yet configured.</p>
+                    {% if user.is_staff or user.userprofile.role in 'technician,sysadmin' %}
+                        <a href="{% url 'booking:about_edit' %}" class="btn btn-primary">
+                            <i class="fas fa-edit me-2"></i>Edit About Page
+                        </a>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<style>
+.content-section {
+    font-size: 1.1rem;
+    line-height: 1.7;
+}
+
+.content-section h1, .content-section h2, .content-section h3 {
+    margin-top: 2rem;
+    margin-bottom: 1rem;
+}
+
+.content-section h1:first-child, .content-section h2:first-child, .content-section h3:first-child {
+    margin-top: 0;
+}
+
+.content-section p {
+    margin-bottom: 1rem;
+}
+
+.content-section ul, .content-section ol {
+    margin-bottom: 1rem;
+    padding-left: 2rem;
+}
+
+.card-header {
+    border-bottom: 2px solid rgba(0,0,0,0.125);
+}
+
+.border-start {
+    border-left-width: 4px !important;
+}
+
+.about-image-container img {
+    max-height: 400px;
+    width: 100%;
+    object-fit: cover;
+}
+</style>
+{% endblock %}

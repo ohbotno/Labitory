@@ -1,0 +1,196 @@
+{% extends "booking/base.html" %}
+{% load static %}
+
+{% block title %}Waiting List - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>My Waiting List</h2>
+                <a href="{% url 'booking:calendar' %}" class="btn btn-primary">
+                    <i class="fas fa-calendar"></i> Browse Resources
+                </a>
+            </div>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <!-- Pending Notifications Section -->
+            {% if pending_notifications %}
+                <div class="card mb-4">
+                    <div class="card-header bg-warning text-dark">
+                        <h5 class="mb-0">
+                            <i class="fas fa-bell"></i> Pending Responses
+                            <span class="badge bg-dark ms-2">{{ pending_notifications.count }}</span>
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% for notification in pending_notifications %}
+                            <div class="alert alert-warning d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>{{ notification.waiting_list_entry.resource.name }}</strong><br>
+                                    <small>
+                                        Available: {{ notification.available_start_time|date:"M d, Y" }} 
+                                        {{ notification.available_start_time|time:"g:i A" }} - 
+                                        {{ notification.available_end_time|time:"g:i A" }}
+                                        <br>
+                                        Respond by: {{ notification.response_deadline|date:"M d, Y g:i A" }}
+                                    </small>
+                                </div>
+                                <div class="btn-group" role="group">
+                                    <form method="post" action="{% url 'booking:respond_to_availability' notification.id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="accept">
+                                        <button type="submit" class="btn btn-success btn-sm">
+                                            <i class="fas fa-check"></i> Accept
+                                        </button>
+                                    </form>
+                                    <form method="post" action="{% url 'booking:respond_to_availability' notification.id %}" class="d-inline">
+                                        {% csrf_token %}
+                                        <input type="hidden" name="action" value="decline">
+                                        <button type="submit" class="btn btn-danger btn-sm">
+                                            <i class="fas fa-times"></i> Decline
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Current Waiting List Entries -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list"></i> Current Waiting List Entries
+                        <span class="badge bg-primary ms-2">{{ waiting_list_entries.count }}</span>
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if waiting_list_entries %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>Resource</th>
+                                        <th>Preferred Time</th>
+                                        <th>Duration</th>
+                                        <th>Priority</th>
+                                        <th>Status</th>
+                                        <th>Created</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for entry in waiting_list_entries %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ entry.resource.name }}</strong><br>
+                                                <small class="text-muted">{{ entry.resource.location }}</small>
+                                            </td>
+                                            <td>
+                                                {{ entry.preferred_start_time|date:"M d, Y" }}<br>
+                                                <small>{{ entry.preferred_start_time|time:"g:i A" }} - {{ entry.preferred_end_time|time:"g:i A" }}</small>
+                                                {% if entry.flexible_start_time %}
+                                                    <br><small class="text-info"><i class="fas fa-clock"></i> Flexible timing</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {{ entry.preferred_duration }}<br>
+                                                {% if entry.flexible_duration %}
+                                                    <small class="text-muted">
+                                                        {{ entry.min_duration_minutes }}m - {{ entry.max_duration_minutes }}m
+                                                    </small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-priority-{{ entry.priority }}">
+                                                    {{ entry.get_priority_display }}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                <span class="badge badge-status-{{ entry.status }}">
+                                                    {{ entry.get_status_display }}
+                                                </span>
+                                                {% if entry.auto_book %}
+                                                    <br><small class="text-success"><i class="fas fa-magic"></i> Auto-book</small>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {{ entry.created_at|date:"M d, Y" }}<br>
+                                                <small>{{ entry.created_at|time:"g:i A" }}</small>
+                                            </td>
+                                            <td>
+                                                {% if entry.status == 'active' %}
+                                                    <a href="{% url 'booking:leave_waiting_list' entry.id %}" 
+                                                       class="btn btn-outline-danger btn-sm"
+                                                       onclick="return confirm('Are you sure you want to leave this waiting list?')">
+                                                        <i class="fas fa-trash"></i> Remove
+                                                    </a>
+                                                {% endif %}
+                                                {% if entry.notes %}
+                                                    <button type="button" class="btn btn-outline-info btn-sm" 
+                                                            data-bs-toggle="tooltip" title="{{ entry.notes }}">
+                                                        <i class="fas fa-info"></i>
+                                                    </button>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-list-ul fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No waiting list entries</h5>
+                            <p class="text-muted">You're not currently on any waiting lists.</p>
+                            <a href="{% url 'booking:calendar' %}" class="btn btn-primary">
+                                Browse Resources
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.badge-priority-normal { background-color: #6c757d; }
+.badge-priority-high { background-color: #fd7e14; }
+.badge-priority-urgent { background-color: #dc3545; }
+
+.badge-status-active { background-color: #198754; }
+.badge-status-notified { background-color: #0dcaf0; }
+.badge-status-expired { background-color: #6c757d; }
+.badge-status-fulfilled { background-color: #20c997; }
+.badge-status-cancelled { background-color: #adb5bd; }
+</style>
+
+<script>
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+
+// Auto-refresh pending notifications every 30 seconds
+setInterval(function() {
+    if (document.querySelector('.alert-warning')) {
+        location.reload();
+    }
+}, 30000);
+</script>
+{% endblock %}

@@ -1,0 +1,160 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Lab Admin Dashboard - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-tachometer-alt me-2"></i>Lab Admin Dashboard</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item active">Lab Administration</li>
+                        </ol>
+                    </nav>
+                </div>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-warning">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-key fa-2x me-3"></i>
+                                <div>
+                                    <h3 class="mb-0">{{ pending_access_requests }}</h3>
+                                    <small>Pending Access Requests</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <a href="{% url 'booking:lab_admin_access_requests' %}" class="text-white">
+                                View All <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-graduation-cap fa-2x me-3"></i>
+                                <div>
+                                    <h3 class="mb-0">{{ pending_training_requests }}</h3>
+                                    <small>Pending Training</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <a href="{% url 'booking:lab_admin_training' %}" class="text-white">
+                                View All <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-calendar-check fa-2x me-3"></i>
+                                <div>
+                                    <h3 class="mb-0">{{ upcoming_training }}</h3>
+                                    <small>Upcoming Sessions</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <a href="{% url 'booking:lab_admin_training' %}" class="text-white">
+                                View Schedule <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-3">
+                    <div class="card bg-warning">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-shield-check fa-2x me-3"></i>
+                                <div>
+                                    <h3 class="mb-0">{{ not_inducted_count }}</h3>
+                                    <small>Pending Inductions</small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-footer">
+                            <a href="{% url 'booking:lab_admin_inductions' %}" class="text-white">
+                                Manage Inductions <i class="fas fa-arrow-right"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if overdue_access_requests > 0 %}
+            <!-- Alerts -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="alert alert-danger persistent-alert" role="alert">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        <strong>Attention:</strong> {{ overdue_access_requests }} access request(s) are overdue (older than 3 days).
+                        <a href="{% url 'booking:lab_admin_access_requests' %}?status=pending" class="alert-link">Review now</a>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Quick Actions -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Quick Actions</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'booking:lab_admin_access_requests' %}" class="btn btn-outline-primary">
+                                    <i class="fas fa-key me-2"></i>Review Access Requests
+                                </a>
+                                <a href="{% url 'booking:lab_admin_training' %}" class="btn btn-outline-success">
+                                    <i class="fas fa-graduation-cap me-2"></i>Schedule Training
+                                </a>
+                                <a href="{% url 'booking:lab_admin_users' %}" class="btn btn-outline-info">
+                                    <i class="fas fa-users me-2"></i>Manage Users
+                                </a>
+                                <a href="{% url 'booking:lab_admin_inductions' %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-shield-alt me-2"></i>Lab Inductions
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Lab Admin Responsibilities</h5>
+                        </div>
+                        <div class="card-body">
+                            <ul class="list-unstyled mb-0">
+                                <li><i class="fas fa-check text-success me-2"></i>Approve user access requests</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Conduct safety training sessions</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Manage user permissions</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Oversee user onboarding</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Monitor compliance</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

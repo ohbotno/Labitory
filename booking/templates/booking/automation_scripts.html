@@ -1,0 +1,568 @@
+// Automation-specific JavaScript functionality
+
+// Get automation-specific elements
+const runAllSchedulesBtn = document.getElementById('runAllSchedulesBtn');
+const runAllSpinner = document.getElementById('runAllSpinner');
+const refreshAutomationStatusBtn = document.getElementById('refreshAutomationStatusBtn');
+const refreshAutomationSpinner = document.getElementById('refreshAutomationSpinner');
+const frequencySelect = document.getElementById('frequency');
+const dayOfWeekGroup = document.getElementById('dayOfWeekGroup');
+const dayOfMonthGroup = document.getElementById('dayOfMonthGroup');
+
+// Handle frequency change to show/hide day selection
+if (frequencySelect) {
+    frequencySelect.addEventListener('change', function() {
+        const frequency = this.value;
+        
+        if (frequency === 'weekly') {
+            dayOfWeekGroup.classList.remove('d-none');
+            dayOfMonthGroup.classList.add('d-none');
+        } else if (frequency === 'monthly') {
+            dayOfWeekGroup.classList.add('d-none');
+            dayOfMonthGroup.classList.remove('d-none');
+        } else {
+            dayOfWeekGroup.classList.add('d-none');
+            dayOfMonthGroup.classList.add('d-none');
+        }
+    });
+    
+    // Trigger on page load
+    frequencySelect.dispatchEvent(new Event('change'));
+}
+
+// Handle run all schedules
+if (runAllSchedulesBtn) {
+    runAllSchedulesBtn.addEventListener('click', function() {
+        runAllSpinner.classList.remove('d-none');
+        runAllSchedulesBtn.disabled = true;
+        
+        fetch('{% url "booking:site_admin_backup_automation_ajax" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({action: 'run_schedules'})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const results = data.results;
+                let message = `Scheduled backup run completed: ${results.successful}/${results.executed} successful`;
+                
+                if (results.executed === 0) {
+                    showAlert('info', 'No backups were scheduled to run at this time');
+                } else if (results.failed === 0) {
+                    showAlert('success', message);
+                    setTimeout(() => window.location.reload(), 2000);
+                } else {
+                    showAlert('warning', `${message}. ${results.failed} failed.`);
+                }
+            } else {
+                showAlert('danger', `Failed to run scheduled backups: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            console.error('Failed to run scheduled backups:', error);
+            showAlert('danger', 'Failed to run scheduled backups');
+        })
+        .finally(() => {
+            runAllSpinner.classList.add('d-none');
+            runAllSchedulesBtn.disabled = false;
+        });
+    });
+}
+
+// Handle refresh automation status
+if (refreshAutomationStatusBtn) {
+    refreshAutomationStatusBtn.addEventListener('click', function() {
+        refreshAutomationSpinner.classList.remove('d-none');
+        refreshAutomationStatusBtn.disabled = true;
+        
+        fetch('{% url "booking:site_admin_backup_automation_ajax" %}', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({action: 'get_status'})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('info', 'Status refreshed successfully');
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                showAlert('warning', `Failed to refresh status: ${data.error}`);
+            }
+        })
+        .catch(error => {
+            console.error('Status refresh failed:', error);
+            showAlert('warning', 'Failed to refresh status');
+        })
+        .finally(() => {
+            refreshAutomationSpinner.classList.add('d-none');
+            refreshAutomationStatusBtn.disabled = false;
+        });
+    });
+}
+
+// Global functions for schedule actions
+window.testSchedule = function(scheduleId) {
+    showAlert('info', 'Testing backup schedule...');
+    
+    fetch('{% url "booking:site_admin_backup_automation_ajax" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: 'test_schedule',
+            schedule_id: scheduleId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', `Test backup completed successfully: ${data.backup_name}`);
+        } else {
+            const errors = data.errors ? data.errors.join('; ') : 'Unknown error';
+            showAlert('danger', `Test backup failed: ${errors}`);
+        }
+    })
+    .catch(error => {
+        console.error('Test backup failed:', error);
+        showAlert('danger', 'Test backup failed');
+    });
+};
+
+window.toggleSchedule = function(scheduleId) {
+    fetch('{% url "booking:site_admin_backup_automation_ajax" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: 'toggle_schedule',
+            schedule_id: scheduleId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            setTimeout(() => window.location.reload(), 1000);
+        } else {
+            showAlert('danger', `Failed to toggle schedule: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Failed to toggle schedule:', error);
+        showAlert('danger', 'Failed to toggle schedule');
+    });
+};
+
+window.editSchedule = function(scheduleId) {
+    // Fetch schedule data and populate edit modal
+    fetch(`{% url "booking:site_admin_backup_schedule_detail_ajax" 0 %}`.replace('0', scheduleId), {
+        method: 'GET',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const schedule = data.schedule;
+            
+            // Populate form fields
+            document.getElementById('editScheduleId').value = schedule.id;
+            document.getElementById('editName').value = schedule.name;
+            document.getElementById('editFrequency').value = schedule.frequency;
+            document.getElementById('editBackupTime').value = schedule.backup_time;
+            document.getElementById('editDayOfWeek').value = schedule.day_of_week;
+            document.getElementById('editDayOfMonth').value = schedule.day_of_month;
+            document.getElementById('editEnabled').checked = schedule.enabled;
+            document.getElementById('editIncludeDatabase').checked = schedule.include_database;
+            document.getElementById('editIncludeMedia').checked = schedule.include_media;
+            document.getElementById('editIncludeConfiguration').checked = schedule.include_configuration;
+            document.getElementById('editMaxBackupsToKeep').value = schedule.max_backups_to_keep;
+            document.getElementById('editRetentionDays').value = schedule.retention_days;
+            document.getElementById('editNotificationEmail').value = schedule.notification_email || '';
+            
+            // Update frequency-dependent fields visibility
+            updateEditFrequencyFields();
+            
+            // Populate status information
+            const statusInfo = document.getElementById('scheduleStatusInfo');
+            if (schedule.total_runs > 0) {
+                statusInfo.classList.remove('d-none');
+                
+                document.getElementById('editLastRun').textContent = 
+                    schedule.last_run ? new Date(schedule.last_run).toLocaleString() : 'Never';
+                document.getElementById('editLastSuccess').textContent = 
+                    schedule.last_success ? new Date(schedule.last_success).toLocaleString() : 'Never';
+                document.getElementById('editSuccessRate').textContent = 
+                    `${schedule.success_rate}% (${schedule.total_successes}/${schedule.total_runs} runs)`;
+                document.getElementById('editNextRun').textContent = 
+                    schedule.next_run ? new Date(schedule.next_run).toLocaleString() : 'Not scheduled';
+                
+                // Show error if exists
+                const errorContainer = document.getElementById('editLastErrorContainer');
+                if (schedule.last_error) {
+                    errorContainer.style.display = 'block';
+                    document.getElementById('editLastError').textContent = schedule.last_error;
+                } else {
+                    errorContainer.style.display = 'none';
+                }
+            } else {
+                statusInfo.classList.add('d-none');
+            }
+            
+            // Show modal
+            new bootstrap.Modal(document.getElementById('editScheduleModal')).show();
+            
+        } else {
+            showAlert('danger', `Failed to load schedule data: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Failed to load schedule data:', error);
+        showAlert('danger', 'Failed to load schedule data');
+    });
+};
+
+// Handle edit frequency changes
+function updateEditFrequencyFields() {
+    const frequency = document.getElementById('editFrequency').value;
+    const editDayOfWeekGroup = document.getElementById('editDayOfWeekGroup');
+    const editDayOfMonthGroup = document.getElementById('editDayOfMonthGroup');
+    
+    if (frequency === 'weekly') {
+        editDayOfWeekGroup.classList.remove('d-none');
+        editDayOfMonthGroup.classList.add('d-none');
+    } else if (frequency === 'monthly') {
+        editDayOfWeekGroup.classList.add('d-none');
+        editDayOfMonthGroup.classList.remove('d-none');
+    } else {
+        editDayOfWeekGroup.classList.add('d-none');
+        editDayOfMonthGroup.classList.add('d-none');
+    }
+}
+
+// Bind edit frequency change handler
+const editFrequencySelect = document.getElementById('editFrequency');
+if (editFrequencySelect) {
+    editFrequencySelect.addEventListener('change', updateEditFrequencyFields);
+}
+
+// Handle edit form submission
+const editScheduleForm = document.getElementById('editScheduleForm');
+if (editScheduleForm) {
+    editScheduleForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Updating...';
+        submitBtn.disabled = true;
+        
+        const formData = new FormData(this);
+        
+        fetch('{% url "booking:site_admin_backup_automation" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            }
+        })
+        .then(response => {
+            if (response.ok) {
+                showAlert('success', 'Schedule updated successfully');
+                bootstrap.Modal.getInstance(document.getElementById('editScheduleModal')).hide();
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                return response.text().then(text => {
+                    throw new Error(`HTTP ${response.status}: ${text}`);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Failed to update schedule:', error);
+            showAlert('danger', 'Failed to update schedule');
+        })
+        .finally(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        });
+    });
+}
+
+// Bulk operations functionality
+const selectAllCheckbox = document.getElementById('selectAllSchedules');
+const scheduleCheckboxes = document.querySelectorAll('.schedule-checkbox');
+const bulkActionsBar = document.getElementById('bulkActionsBar');
+const selectedCountSpan = document.getElementById('selectedCount');
+
+// Handle select all checkbox
+if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', function() {
+        scheduleCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateBulkActionsBar();
+    });
+}
+
+// Handle individual checkboxes
+scheduleCheckboxes.forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        updateBulkActionsBar();
+        
+        // Update select all checkbox state
+        const checkedCount = document.querySelectorAll('.schedule-checkbox:checked').length;
+        const totalCount = scheduleCheckboxes.length;
+        
+        if (checkedCount === 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        } else if (checkedCount === totalCount) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = true;
+        }
+    });
+});
+
+// Update bulk actions bar visibility and count
+function updateBulkActionsBar() {
+    const checkedBoxes = document.querySelectorAll('.schedule-checkbox:checked');
+    const count = checkedBoxes.length;
+    
+    if (count > 0) {
+        bulkActionsBar.classList.remove('d-none');
+        selectedCountSpan.textContent = count;
+    } else {
+        bulkActionsBar.classList.add('d-none');
+    }
+}
+
+// Clear selection
+const clearSelectionBtn = document.getElementById('clearSelectionBtn');
+if (clearSelectionBtn) {
+    clearSelectionBtn.addEventListener('click', function() {
+        scheduleCheckboxes.forEach(checkbox => {
+            checkbox.checked = false;
+        });
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+        updateBulkActionsBar();
+    });
+}
+
+// Bulk enable
+const bulkEnableBtn = document.getElementById('bulkEnableBtn');
+if (bulkEnableBtn) {
+    bulkEnableBtn.addEventListener('click', function() {
+        const selectedIds = Array.from(document.querySelectorAll('.schedule-checkbox:checked')).map(cb => cb.value);
+        performBulkAction('enable', selectedIds, 'Enabling schedules...');
+    });
+}
+
+// Bulk disable
+const bulkDisableBtn = document.getElementById('bulkDisableBtn');
+if (bulkDisableBtn) {
+    bulkDisableBtn.addEventListener('click', function() {
+        const selectedIds = Array.from(document.querySelectorAll('.schedule-checkbox:checked')).map(cb => cb.value);
+        performBulkAction('disable', selectedIds, 'Disabling schedules...');
+    });
+}
+
+// Bulk delete
+const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+if (bulkDeleteBtn) {
+    bulkDeleteBtn.addEventListener('click', function() {
+        const selectedIds = Array.from(document.querySelectorAll('.schedule-checkbox:checked')).map(cb => cb.value);
+        const count = selectedIds.length;
+        
+        if (confirm(`Are you sure you want to delete ${count} schedule(s)? This action cannot be undone.`)) {
+            performBulkAction('delete', selectedIds, 'Deleting schedules...');
+        }
+    });
+}
+
+// Perform bulk action
+function performBulkAction(action, scheduleIds, loadingMessage) {
+    if (scheduleIds.length === 0) return;
+    
+    showAlert('info', loadingMessage);
+    
+    if (action === 'delete') {
+        // Handle bulk delete
+        const promises = scheduleIds.map(scheduleId => {
+            const formData = new FormData();
+            formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+            formData.append('action', 'delete_schedule');
+            formData.append('schedule_id', scheduleId);
+            
+            return fetch('{% url "booking:site_admin_backup_automation" %}', {
+                method: 'POST',
+                body: formData
+            });
+        });
+        
+        Promise.all(promises)
+            .then(responses => {
+                const successCount = responses.filter(r => r.ok).length;
+                const totalCount = responses.length;
+                
+                if (successCount === totalCount) {
+                    showAlert('success', `Successfully deleted ${successCount} schedule(s)`);
+                } else {
+                    showAlert('warning', `Deleted ${successCount}/${totalCount} schedule(s) successfully`);
+                }
+                
+                setTimeout(() => window.location.reload(), 1500);
+            })
+            .catch(error => {
+                console.error('Bulk delete failed:', error);
+                showAlert('danger', 'Failed to delete schedules');
+            });
+    } else {
+        // Handle bulk enable/disable - fetch current data first
+        const fetchPromises = scheduleIds.map(scheduleId => 
+            fetch(`{% url "booking:site_admin_backup_schedule_detail_ajax" 0 %}`.replace('0', scheduleId), {
+                method: 'GET',
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                }
+            }).then(response => response.json())
+        );
+        
+        Promise.all(fetchPromises)
+            .then(responses => {
+                const updatePromises = responses.map(data => {
+                    if (!data.success) return Promise.reject(new Error('Failed to fetch schedule data'));
+                    
+                    const schedule = data.schedule;
+                    const formData = new FormData();
+                    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+                    formData.append('action', 'update_schedule');
+                    formData.append('schedule_id', schedule.id);
+                    
+                    // Update only the enabled status, keep other settings
+                    formData.append('name', schedule.name);
+                    formData.append('frequency', schedule.frequency);
+                    formData.append('backup_time', schedule.backup_time);
+                    formData.append('day_of_week', schedule.day_of_week);
+                    formData.append('day_of_month', schedule.day_of_month);
+                    formData.append('enabled', action === 'enable' ? 'on' : '');
+                    if (schedule.include_database) formData.append('include_database', 'on');
+                    if (schedule.include_media) formData.append('include_media', 'on');
+                    if (schedule.include_configuration) formData.append('include_configuration', 'on');
+                    formData.append('max_backups_to_keep', schedule.max_backups_to_keep);
+                    formData.append('retention_days', schedule.retention_days);
+                    if (schedule.notification_email) formData.append('notification_email', schedule.notification_email);
+                    
+                    return fetch('{% url "booking:site_admin_backup_automation" %}', {
+                        method: 'POST',
+                        body: formData
+                    });
+                });
+                
+                return Promise.all(updatePromises);
+            })
+            .then(responses => {
+                const successCount = responses.filter(r => r.ok).length;
+                const totalCount = responses.length;
+                
+                if (successCount === totalCount) {
+                    showAlert('success', `Successfully ${action}d ${successCount} schedule(s)`);
+                } else {
+                    showAlert('warning', `${action}d ${successCount}/${totalCount} schedule(s) successfully`);
+                }
+                
+                setTimeout(() => window.location.reload(), 1500);
+            })
+            .catch(error => {
+                console.error(`Bulk ${action} failed:`, error);
+                showAlert('danger', `Failed to ${action} schedules`);
+            });
+    }
+}
+
+// Global function for delete confirmation
+window.confirmDeleteSchedule = function(scheduleId, scheduleName) {
+    // Set schedule name in modal
+    document.getElementById('deleteScheduleName').textContent = scheduleName;
+    
+    // Fetch schedule details
+    fetch(`{% url "booking:site_admin_backup_schedule_detail_ajax" 0 %}`.replace('0', scheduleId), {
+        method: 'GET',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const schedule = data.schedule;
+            const details = document.getElementById('deleteScheduleDetails');
+            
+            details.innerHTML = `
+                <li><strong>Frequency:</strong> ${schedule.frequency.charAt(0).toUpperCase() + schedule.frequency.slice(1)}</li>
+                <li><strong>Status:</strong> ${schedule.enabled ? 'Enabled' : 'Disabled'}</li>
+                <li><strong>Total Runs:</strong> ${schedule.total_runs}</li>
+                <li><strong>Success Rate:</strong> ${schedule.success_rate}%</li>
+                <li><strong>Next Run:</strong> ${schedule.next_run ? new Date(schedule.next_run).toLocaleString() : 'Not scheduled'}</li>
+            `;
+        }
+    })
+    .catch(error => {
+        console.error('Failed to load schedule details:', error);
+    });
+    
+    // Set up delete confirmation button
+    const confirmBtn = document.getElementById('confirmDeleteBtn');
+    confirmBtn.onclick = function() {
+        confirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Deleting...';
+        confirmBtn.disabled = true;
+        
+        // Create form data for deletion
+        const formData = new FormData();
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        formData.append('action', 'delete_schedule');
+        formData.append('schedule_id', scheduleId);
+        
+        fetch('{% url "booking:site_admin_backup_automation" %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => {
+            if (response.ok) {
+                showAlert('success', `Backup schedule "${scheduleName}" deleted successfully`);
+                bootstrap.Modal.getInstance(document.getElementById('deleteScheduleModal')).hide();
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                return response.text().then(text => {
+                    throw new Error(`HTTP ${response.status}: ${text}`);
+                });
+            }
+        })
+        .catch(error => {
+            console.error('Failed to delete schedule:', error);
+            showAlert('danger', `Failed to delete schedule: ${error.message}`);
+        })
+        .finally(() => {
+            confirmBtn.innerHTML = '<i class="fas fa-trash me-2"></i>Delete Schedule';
+            confirmBtn.disabled = false;
+        });
+    };
+    
+    // Show the modal
+    new bootstrap.Modal(document.getElementById('deleteScheduleModal')).show();
+};

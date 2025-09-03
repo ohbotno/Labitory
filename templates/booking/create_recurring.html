@@ -1,0 +1,167 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Create Recurring Booking - Labitory{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-10 mx-auto">
+        <div class="card shadow">
+            <div class="card-header bg-success text-white">
+                <h4 class="mb-0">
+                    <i class="bi bi-arrow-repeat"></i> Create Recurring Booking
+                </h4>
+            </div>
+            <div class="card-body">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <!-- Base booking info -->
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-info-circle"></i> Base Booking</h6>
+                    <strong>{{ base_booking.title }}</strong><br>
+                    {{ base_booking.resource.name }} - {{ base_booking.resource.location }}<br>
+                    {{ base_booking.start_time|date:"M d, Y H:i" }} - {{ base_booking.end_time|date:"H:i" }}
+                    ({{ base_booking.duration }})
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <ul class="mb-0">
+                                {% for field, errors in form.errors.items %}
+                                    {% for error in errors %}
+                                        <li>{{ error }}</li>
+                                    {% endfor %}
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.frequency.id_for_label }}" class="form-label">Frequency *</label>
+                                {{ form.frequency }}
+                                <div class="form-text">{{ form.frequency.help_text }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.interval.id_for_label }}" class="form-label">Interval *</label>
+                                {{ form.interval }}
+                                <div class="form-text">{{ form.interval.help_text }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.count.id_for_label }}" class="form-label">Number of Occurrences</label>
+                                {{ form.count }}
+                                <div class="form-text">{{ form.count.help_text }}</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.until.id_for_label }}" class="form-label">End Date</label>
+                                {{ form.until }}
+                                <div class="form-text">{{ form.until.help_text }}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3" id="weekdays-section" style="display: none;">
+                        <label class="form-label">Days of the Week (for weekly recurrence)</label>
+                        <div class="row">
+                            {% for choice in form.weekdays.field.choices %}
+                                <div class="col-md-3 col-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="weekdays" value="{{ choice.0 }}" id="weekday_{{ choice.0 }}">
+                                        <label class="form-check-label" for="weekday_{{ choice.0 }}">
+                                            {{ choice.1 }}
+                                        </label>
+                                    </div>
+                                </div>
+                            {% endfor %}
+                        </div>
+                        <div class="form-text">{{ form.weekdays.help_text }}</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ form.skip_conflicts }}
+                            <label class="form-check-label" for="{{ form.skip_conflicts.id_for_label }}">
+                                Skip conflicting dates
+                            </label>
+                            <div class="form-text">{{ form.skip_conflicts.help_text }}</div>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <strong>Important Notes:</strong>
+                        <ul class="mb-0">
+                            <li>All recurring bookings will have the same duration as the base booking</li>
+                            <li>Each booking will require individual approval if approval rules apply</li>
+                            <li>Conflicting dates will be skipped if the option is selected</li>
+                            <li>You can cancel individual bookings or the entire series later</li>
+                        </ul>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> Create Recurring Bookings
+                        </button>
+                        <a href="{% url 'booking:booking_detail' base_booking.pk %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancel
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const frequencySelect = document.getElementById('{{ form.frequency.id_for_label }}');
+    const weekdaysSection = document.getElementById('weekdays-section');
+    
+    function toggleWeekdays() {
+        if (frequencySelect.value === 'weekly') {
+            weekdaysSection.style.display = 'block';
+        } else {
+            weekdaysSection.style.display = 'none';
+        }
+    }
+    
+    frequencySelect.addEventListener('change', toggleWeekdays);
+    toggleWeekdays(); // Initial call
+    
+    // Count vs Until date logic
+    const countField = document.getElementById('{{ form.count.id_for_label }}');
+    const untilField = document.getElementById('{{ form.until.id_for_label }}');
+    
+    countField.addEventListener('input', function() {
+        if (this.value) {
+            untilField.value = '';
+        }
+    });
+    
+    untilField.addEventListener('input', function() {
+        if (this.value) {
+            countField.value = '';
+        }
+    });
+});
+</script>
+{% endblock %}

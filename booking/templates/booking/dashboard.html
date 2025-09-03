@@ -1,0 +1,379 @@
+<!-- booking/templates/booking/dashboard.html -->
+{% extends 'booking/base.html' %}
+
+{% block title %}Dashboard - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Dashboard</h1>
+</div>
+
+<div class="row">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Active Bookings
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="active-bookings-count">
+                            Loading...
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-calendar-check fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Pending Approvals
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="pending-bookings-count">
+                            Loading...
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-hourglass-split fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            This Week
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="week-bookings-count">
+                            Loading...
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-calendar-week fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Available Resources
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800" id="available-resources-count">
+                            Loading...
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="bi bi-gear fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Recent Bookings -->
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Recent Bookings</h6>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="recent-bookings-table">
+                        <thead>
+                            <tr>
+                                <th>Title</th>
+                                <th>Resource</th>
+                                <th>Start Time</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td colspan="5" class="text-center">Loading...</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Upcoming Bookings -->
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Upcoming Bookings</h6>
+            </div>
+            <div class="card-body">
+                <div id="upcoming-bookings">
+                    <div class="text-center">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Maintenance Alerts -->
+<div class="row">
+    <div class="col-12">
+        <div class="card shadow" id="maintenance-card" style="display: none;">
+            <div class="card-header py-3 bg-warning">
+                <h6 class="m-0 font-weight-bold text-dark">
+                    <i class="bi bi-exclamation-triangle"></i> Scheduled Maintenance
+                </h6>
+            </div>
+            <div class="card-body">
+                <div id="maintenance-alerts"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    loadDashboardData();
+    
+    function loadDashboardData() {
+        // Load booking counts
+        loadBookingCounts();
+        
+        // Load recent bookings
+        loadRecentBookings();
+        
+        // Load upcoming bookings
+        loadUpcomingBookings();
+        
+        // Load maintenance alerts
+        loadMaintenanceAlerts();
+        
+        // Load available resources count
+        loadResourcesCount();
+    }
+    
+    function loadBookingCounts() {
+        const now = new Date();
+        const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
+        const weekEnd = new Date(weekStart);
+        weekEnd.setDate(weekEnd.getDate() + 6);
+        
+        // Active bookings (approved, future)
+        fetch('/api/bookings/?status=approved')
+            .then(response => response.json())
+            .then(data => {
+                const activeCount = data.results.filter(booking => 
+                    new Date(booking.start_time) > new Date()
+                ).length;
+                document.getElementById('active-bookings-count').textContent = activeCount;
+            })
+            .catch(error => {
+                console.error('Error loading active bookings:', error);
+                document.getElementById('active-bookings-count').textContent = 'Error';
+            });
+        
+        // Pending bookings
+        fetch('/api/bookings/?status=pending')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('pending-bookings-count').textContent = data.count || data.results.length;
+            })
+            .catch(error => {
+                console.error('Error loading pending bookings:', error);
+                document.getElementById('pending-bookings-count').textContent = 'Error';
+            });
+        
+        // This week's bookings
+        fetch(`/api/bookings/?start_date=${weekStart.toISOString().split('T')[0]}&end_date=${weekEnd.toISOString().split('T')[0]}`)
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('week-bookings-count').textContent = data.count || data.results.length;
+            })
+            .catch(error => {
+                console.error('Error loading week bookings:', error);
+                document.getElementById('week-bookings-count').textContent = 'Error';
+            });
+    }
+    
+    function loadRecentBookings() {
+        fetch('/api/bookings/?ordering=-created_at')
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.querySelector('#recent-bookings-table tbody');
+                tbody.innerHTML = '';
+                
+                if (data.results && data.results.length > 0) {
+                    data.results.slice(0, 10).forEach(booking => {
+                        const row = document.createElement('tr');
+                        row.innerHTML = `
+                            <td>${booking.title}</td>
+                            <td>${booking.resource.name}</td>
+                            <td>${new Date(booking.start_time).toLocaleString()}</td>
+                            <td>
+                                <span class="badge bg-${getStatusColor(booking.status)}">${booking.status}</span>
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-outline-primary" onclick="viewBooking(${booking.id})">
+                                    View
+                                </button>
+                                ${booking.can_cancel ? `
+                                    <button class="btn btn-sm btn-outline-danger" onclick="cancelBooking(${booking.id})">
+                                        Cancel
+                                    </button>
+                                ` : ''}
+                            </td>
+                        `;
+                        tbody.appendChild(row);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5" class="text-center">No bookings found</td></tr>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading recent bookings:', error);
+                document.querySelector('#recent-bookings-table tbody').innerHTML = 
+                    '<tr><td colspan="5" class="text-center">Error loading bookings</td></tr>';
+            });
+    }
+    
+    function loadUpcomingBookings() {
+        const now = new Date().toISOString();
+        fetch(`/api/bookings/?start_time__gte=${now}&ordering=start_time`)
+            .then(response => response.json())
+            .then(data => {
+                const container = document.getElementById('upcoming-bookings');
+                container.innerHTML = '';
+                
+                if (data.results && data.results.length > 0) {
+                    data.results.slice(0, 5).forEach(booking => {
+                        const bookingEl = document.createElement('div');
+                        bookingEl.className = 'mb-2 p-2 border rounded';
+                        bookingEl.innerHTML = `
+                            <div class="d-flex justify-content-between align-items-center">
+                                <div>
+                                    <strong>${booking.title}</strong><br>
+                                    <small class="text-muted">${booking.resource.name}</small><br>
+                                    <small>${new Date(booking.start_time).toLocaleDateString()}</small>
+                                </div>
+                                <span class="badge bg-${getStatusColor(booking.status)}">${booking.status}</span>
+                            </div>
+                        `;
+                        container.appendChild(bookingEl);
+                    });
+                } else {
+                    container.innerHTML = '<div class="text-center text-muted">No upcoming bookings</div>';
+                }
+            })
+            .catch(error => {
+                console.error('Error loading upcoming bookings:', error);
+                document.getElementById('upcoming-bookings').innerHTML = 
+                    '<div class="text-center text-danger">Error loading bookings</div>';
+            });
+    }
+    
+    function loadMaintenanceAlerts() {
+        const now = new Date();
+        const nextWeek = new Date();
+        nextWeek.setDate(nextWeek.getDate() + 7);
+        
+        fetch(`/api/maintenance/?start_date=${now.toISOString().split('T')[0]}&end_date=${nextWeek.toISOString().split('T')[0]}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.results && data.results.length > 0) {
+                    const container = document.getElementById('maintenance-alerts');
+                    container.innerHTML = '';
+                    
+                    data.results.forEach(maintenance => {
+                        const alertEl = document.createElement('div');
+                        alertEl.className = 'alert alert-warning mb-2';
+                        alertEl.innerHTML = `
+                            <strong>${maintenance.title}</strong> - ${maintenance.resource.name}<br>
+                            <small>${new Date(maintenance.start_time).toLocaleString()} - ${new Date(maintenance.end_time).toLocaleString()}</small>
+                        `;
+                        container.appendChild(alertEl);
+                    });
+                    
+                    document.getElementById('maintenance-card').style.display = 'block';
+                }
+            })
+            .catch(error => console.error('Error loading maintenance alerts:', error));
+    }
+    
+    function loadResourcesCount() {
+        fetch('/api/resources/available/')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('available-resources-count').textContent = data.length;
+            })
+            .catch(error => {
+                console.error('Error loading resources count:', error);
+                document.getElementById('available-resources-count').textContent = 'Error';
+            });
+    }
+    
+    function getStatusColor(status) {
+        const colors = {
+            'pending': 'warning',
+            'approved': 'success',
+            'rejected': 'danger',
+            'cancelled': 'secondary',
+            'completed': 'info'
+        };
+        return colors[status] || 'primary';
+    }
+    
+});
+
+// Global functions for button actions
+function viewBooking(bookingId) {
+    window.location.href = `{% url 'booking:calendar' %}#booking-${bookingId}`;
+}
+
+function cancelBooking(bookingId) {
+    if (confirm('Are you sure you want to cancel this booking?')) {
+        const cancelBtn = document.querySelector(`[onclick="cancelBooking(${bookingId})"]`);
+        
+        FormProgressManager.ajaxWithProgress(`/api/bookings/${bookingId}/cancel/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCSRFToken()
+            }
+        }, {
+            overlayMessage: 'Cancelling booking...',
+            targetButton: cancelBtn,
+            buttonLoadingText: 'Cancelling...'
+        })
+        .then(response => response.json())
+        .then(data => {
+            location.reload(); // Refresh the dashboard
+        })
+        .catch(error => {
+            console.error('Error cancelling booking:', error);
+            alert('Error cancelling booking. Please try again.');
+        });
+    }
+}
+</script>
+{% endblock %}

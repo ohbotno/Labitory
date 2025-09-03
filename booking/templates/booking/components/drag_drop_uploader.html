@@ -1,0 +1,563 @@
+<!-- Drag and Drop File Upload Component -->
+<!-- Usage: Include this template and call initDragDropUploader(fileInputId) in your JavaScript -->
+
+<style>
+/* Drag and Drop Upload Styles */
+.drag-drop-container {
+    position: relative;
+    border: 2px dashed #cbd5e0;
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    background: #f8f9fa;
+    transition: all 0.3s ease;
+    cursor: pointer;
+    margin-bottom: 1rem;
+}
+
+.drag-drop-container:hover {
+    border-color: #3b82f6;
+    background: #eff6ff;
+    transform: translateY(-2px);
+}
+
+.drag-drop-container.drag-over {
+    border-color: #10b981;
+    background: #f0fdf4;
+    transform: scale(1.02);
+}
+
+.drag-drop-container.has-file {
+    border-color: #10b981;
+    background: #f0fdf4;
+}
+
+.drag-drop-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 1rem;
+}
+
+.drag-drop-icon {
+    font-size: 3rem;
+    color: #6b7280;
+    transition: color 0.3s ease;
+}
+
+.drag-drop-container:hover .drag-drop-icon,
+.drag-drop-container.drag-over .drag-drop-icon {
+    color: #3b82f6;
+}
+
+.drag-drop-container.has-file .drag-drop-icon {
+    color: #10b981;
+}
+
+.drag-drop-text {
+    font-size: 1.1rem;
+    color: #374151;
+    font-weight: 500;
+}
+
+.drag-drop-subtext {
+    font-size: 0.875rem;
+    color: #6b7280;
+}
+
+.file-preview {
+    display: none;
+    margin-top: 1rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.file-preview.show {
+    display: block;
+}
+
+.file-preview-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.file-preview-image {
+    max-width: 120px;
+    max-height: 120px;
+    border-radius: 8px;
+    object-fit: cover;
+    border: 2px solid #e5e7eb;
+}
+
+.file-preview-info {
+    flex: 1;
+}
+
+.file-preview-name {
+    font-weight: 600;
+    color: #374151;
+    margin-bottom: 0.25rem;
+}
+
+.file-preview-size {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-bottom: 0.5rem;
+}
+
+.file-preview-progress {
+    width: 100%;
+    height: 6px;
+    background: #e5e7eb;
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 0.5rem;
+}
+
+.file-preview-progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #10b981, #34d399);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+    width: 0%;
+}
+
+.file-preview-actions {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-file-action {
+    padding: 0.25rem 0.75rem;
+    font-size: 0.875rem;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-file-remove {
+    background: #fee2e2;
+    color: #dc2626;
+}
+
+.btn-file-remove:hover {
+    background: #fecaca;
+    transform: translateY(-1px);
+}
+
+.btn-file-retry {
+    background: #dbeafe;
+    color: #2563eb;
+}
+
+.btn-file-retry:hover {
+    background: #bfdbfe;
+    transform: translateY(-1px);
+}
+
+.upload-error {
+    color: #dc2626;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: #fee2e2;
+    border-radius: 6px;
+    border-left: 4px solid #dc2626;
+}
+
+.upload-success {
+    color: #059669;
+    font-size: 0.875rem;
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: #ecfdf5;
+    border-radius: 6px;
+    border-left: 4px solid #059669;
+}
+
+/* Hide the original file input */
+.drag-drop-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
+}
+
+/* Dark mode styles */
+[data-theme="dark"] .drag-drop-container {
+    background: #374151;
+    border-color: #6b7280;
+}
+
+[data-theme="dark"] .drag-drop-container:hover {
+    border-color: #60a5fa;
+    background: #1e3a8a;
+}
+
+[data-theme="dark"] .drag-drop-container.drag-over {
+    border-color: #34d399;
+    background: #064e3b;
+}
+
+[data-theme="dark"] .drag-drop-container.has-file {
+    border-color: #34d399;
+    background: #064e3b;
+}
+
+[data-theme="dark"] .drag-drop-text {
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] .drag-drop-subtext {
+    color: #9ca3af;
+}
+
+[data-theme="dark"] .file-preview {
+    background: #374151;
+    border-color: #6b7280;
+}
+
+[data-theme="dark"] .file-preview-name {
+    color: #e5e7eb;
+}
+
+[data-theme="dark"] .file-preview-size {
+    color: #9ca3af;
+}
+
+[data-theme="dark"] .file-preview-progress {
+    background: #4b5563;
+}
+
+[data-theme="dark"] .upload-error {
+    background: #7f1d1d;
+    color: #fca5a5;
+}
+
+[data-theme="dark"] .upload-success {
+    background: #064e3b;
+    color: #6ee7b7;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .drag-drop-container {
+        padding: 1.5rem;
+    }
+    
+    .drag-drop-icon {
+        font-size: 2rem;
+    }
+    
+    .file-preview-content {
+        flex-direction: column;
+        text-align: center;
+    }
+    
+    .file-preview-image {
+        max-width: 100px;
+        max-height: 100px;
+    }
+}
+</style>
+
+<script>
+class DragDropUploader {
+    constructor(fileInputId, options = {}) {
+        this.fileInput = document.getElementById(fileInputId);
+        if (!this.fileInput) {
+            console.error(`File input with ID "${fileInputId}" not found`);
+            return;
+        }
+        
+        this.options = {
+            allowedTypes: options.allowedTypes || ['image/*'],
+            maxSize: options.maxSize || 5 * 1024 * 1024, // 5MB default
+            showPreview: options.showPreview !== false,
+            validateOnSelect: options.validateOnSelect !== false,
+            ...options
+        };
+        
+        this.init();
+    }
+    
+    init() {
+        this.createDragDropContainer();
+        this.bindEvents();
+    }
+    
+    createDragDropContainer() {
+        // Create the drag-drop container
+        const container = document.createElement('div');
+        container.className = 'drag-drop-container';
+        container.innerHTML = `
+            <div class="drag-drop-content">
+                <i class="fas fa-cloud-upload-alt drag-drop-icon"></i>
+                <div class="drag-drop-text">Drag and drop your file here</div>
+                <div class="drag-drop-subtext">
+                    or <span style="color: #3b82f6; font-weight: 600;">browse files</span>
+                </div>
+                <div class="drag-drop-subtext">
+                    ${this.getAcceptedTypesText()} • Max size: ${this.formatFileSize(this.options.maxSize)}
+                </div>
+            </div>
+            <div class="file-preview" id="preview-${this.fileInput.id}">
+                <div class="file-preview-content">
+                    <img class="file-preview-image" style="display: none;" />
+                    <div class="file-preview-info">
+                        <div class="file-preview-name"></div>
+                        <div class="file-preview-size"></div>
+                        <div class="file-preview-progress">
+                            <div class="file-preview-progress-bar"></div>
+                        </div>
+                        <div class="file-preview-actions">
+                            <button type="button" class="btn-file-action btn-file-remove">
+                                <i class="fas fa-trash me-1"></i> Remove
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        // Insert the container before the file input
+        this.fileInput.parentNode.insertBefore(container, this.fileInput);
+        
+        // Hide the original input and add our custom class
+        this.fileInput.classList.add('drag-drop-input');
+        
+        this.container = container;
+        this.preview = container.querySelector('.file-preview');
+    }
+    
+    bindEvents() {
+        // Drag and drop events
+        this.container.addEventListener('dragover', this.handleDragOver.bind(this));
+        this.container.addEventListener('dragleave', this.handleDragLeave.bind(this));
+        this.container.addEventListener('drop', this.handleDrop.bind(this));
+        
+        // Click to browse
+        this.container.addEventListener('click', () => this.fileInput.click());
+        
+        // File input change
+        this.fileInput.addEventListener('change', this.handleFileSelect.bind(this));
+        
+        // Remove file button
+        const removeBtn = this.container.querySelector('.btn-file-remove');
+        removeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            this.removeFile();
+        });
+        
+        // Prevent clicks on the file input itself
+        this.fileInput.addEventListener('click', (e) => e.stopPropagation());
+    }
+    
+    handleDragOver(e) {
+        e.preventDefault();
+        this.container.classList.add('drag-over');
+    }
+    
+    handleDragLeave(e) {
+        e.preventDefault();
+        this.container.classList.remove('drag-over');
+    }
+    
+    handleDrop(e) {
+        e.preventDefault();
+        this.container.classList.remove('drag-over');
+        
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            this.processFile(files[0]);
+        }
+    }
+    
+    handleFileSelect(e) {
+        if (e.target.files.length > 0) {
+            this.processFile(e.target.files[0]);
+        }
+    }
+    
+    processFile(file) {
+        // Clear any previous errors
+        this.clearMessages();
+        
+        // Validate file
+        const validation = this.validateFile(file);
+        if (!validation.valid) {
+            this.showError(validation.error);
+            return;
+        }
+        
+        // Update the file input
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        this.fileInput.files = dt.files;
+        
+        // Show preview if enabled
+        if (this.options.showPreview) {
+            this.showPreview(file);
+        }
+        
+        // Update container state
+        this.container.classList.add('has-file');
+        
+        // Trigger change event for form validation
+        this.fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    
+    validateFile(file) {
+        // Check file type
+        const isValidType = this.options.allowedTypes.some(type => {
+            if (type.endsWith('/*')) {
+                return file.type.startsWith(type.replace('/*', '/'));
+            }
+            return file.type === type;
+        });
+        
+        if (!isValidType) {
+            return {
+                valid: false,
+                error: `File type not allowed. Please select: ${this.getAcceptedTypesText()}`
+            };
+        }
+        
+        // Check file size
+        if (file.size > this.options.maxSize) {
+            return {
+                valid: false,
+                error: `File size exceeds ${this.formatFileSize(this.options.maxSize)}. Please select a smaller file.`
+            };
+        }
+        
+        return { valid: true };
+    }
+    
+    showPreview(file) {
+        const preview = this.preview;
+        const image = preview.querySelector('.file-preview-image');
+        const nameEl = preview.querySelector('.file-preview-name');
+        const sizeEl = preview.querySelector('.file-preview-size');
+        const progressBar = preview.querySelector('.file-preview-progress-bar');
+        
+        // Update file info
+        nameEl.textContent = file.name;
+        sizeEl.textContent = this.formatFileSize(file.size);
+        
+        // Show image preview for image files
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                image.src = e.target.result;
+                image.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+        } else {
+            image.style.display = 'none';
+        }
+        
+        // Animate progress bar
+        progressBar.style.width = '0%';
+        setTimeout(() => {
+            progressBar.style.width = '100%';
+        }, 100);
+        
+        // Show preview
+        preview.classList.add('show');
+        
+        // Show success message after animation
+        setTimeout(() => {
+            this.showSuccess('File uploaded successfully!');
+        }, 500);
+    }
+    
+    removeFile() {
+        // Clear the file input
+        this.fileInput.value = '';
+        
+        // Hide preview
+        this.preview.classList.remove('show');
+        
+        // Update container state
+        this.container.classList.remove('has-file');
+        
+        // Clear messages
+        this.clearMessages();
+        
+        // Trigger change event
+        this.fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+    }
+    
+    showError(message) {
+        this.clearMessages();
+        const errorDiv = document.createElement('div');
+        errorDiv.className = 'upload-error';
+        errorDiv.innerHTML = `<i class="fas fa-exclamation-triangle me-2"></i>${message}`;
+        this.container.appendChild(errorDiv);
+    }
+    
+    showSuccess(message) {
+        this.clearMessages();
+        const successDiv = document.createElement('div');
+        successDiv.className = 'upload-success';
+        successDiv.innerHTML = `<i class="fas fa-check-circle me-2"></i>${message}`;
+        this.container.appendChild(successDiv);
+        
+        // Auto-hide success message after 3 seconds
+        setTimeout(() => {
+            if (successDiv.parentNode) {
+                successDiv.remove();
+            }
+        }, 3000);
+    }
+    
+    clearMessages() {
+        const messages = this.container.querySelectorAll('.upload-error, .upload-success');
+        messages.forEach(msg => msg.remove());
+    }
+    
+    getAcceptedTypesText() {
+        return this.options.allowedTypes
+            .map(type => type.replace('*', 'files'))
+            .join(', ')
+            .replace('image/files', 'images');
+    }
+    
+    formatFileSize(bytes) {
+        if (bytes === 0) return '0 Bytes';
+        const k = 1024;
+        const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+}
+
+// Global function to initialize drag-drop uploader
+function initDragDropUploader(fileInputId, options = {}) {
+    return new DragDropUploader(fileInputId, options);
+}
+
+// Auto-initialize if data attributes are present
+document.addEventListener('DOMContentLoaded', function() {
+    const autoInitInputs = document.querySelectorAll('[data-drag-drop="true"]');
+    autoInitInputs.forEach(input => {
+        const options = {};
+        
+        // Parse options from data attributes
+        if (input.dataset.allowedTypes) {
+            options.allowedTypes = input.dataset.allowedTypes.split(',');
+        }
+        if (input.dataset.maxSize) {
+            options.maxSize = parseInt(input.dataset.maxSize);
+        }
+        
+        initDragDropUploader(input.id, options);
+    });
+});
+</script>

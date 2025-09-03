@@ -1,0 +1,59 @@
+# Lab Booking System Requirements
+# This file is part of the Lab Booking System.
+# Copyright (C) 2025 Lab Booking System Contributors
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+
+# Core Django
+Django>=4.2,<5.0
+djangorestframework>=3.14.0
+django-cors-headers>=4.0.0
+
+# Database drivers
+mysqlclient>=2.1.0  # MySQL
+psycopg2-binary>=2.9.0  # PostgreSQL
+
+# Authentication & Security
+django-oauth-toolkit>=1.7.0  # For future OAuth integration
+cryptography>=41.0.0
+
+# API Documentation
+drf-spectacular>=0.26.0
+
+# Development & Testing
+pytest>=7.0.0
+pytest-django>=4.5.0
+pytest-cov>=4.0.0
+factory-boy>=3.2.0
+
+# Utilities
+python-decouple>=3.8  # Environment variable management
+python-dateutil>=2.8.0  # Recurring booking logic
+celery>=5.3.0  # Task queue for notifications
+django-extensions>=3.2.0  # Development utilities
+django-apscheduler>=0.6.2  # Scheduled tasks
+apscheduler>=3.10.0  # Advanced Python Scheduler
+Pillow>=10.0.0  # Image processing for resource images
+requests>=2.31.0  # HTTP client for licensing and update services
+pytz>=2023.3  # Timezone support
+
+# Email & Calendar
+icalendar>=5.0.0  # ICS calendar generation
+django-sendgrid-v5>=1.2.0  # Email backend (optional)
+
+# SMS & Push Notifications
+twilio>=8.10.0  # SMS notifications
+pywebpush>=1.14.0  # Web push notifications
+
+# Production
+gunicorn>=21.0.0  # WSGI server
+whitenoise>=6.5.0  # Static file serving
+sentry-sdk>=1.28.0  # Error tracking (optional)
+
+# Linting & Code Quality
+flake8>=6.0.0
+black>=23.0.0
+isort>=5.12.0

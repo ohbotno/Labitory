@@ -1,0 +1,555 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Audit Logs - Site Administration{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-list-alt me-2"></i>
+                    Audit Logs & System Monitoring
+                </h1>
+                <a href="{% url 'booking:site_admin_dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back to Admin Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activity Overview -->
+    <div class="row mb-4">
+        <div class="col-md-4 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ recent_bookings|length }}</h4>
+                            <p class="mb-0">Recent Bookings</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-calendar-check fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ recent_users|length }}</h4>
+                            <p class="mb-0">New Users</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-user-plus fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-4 mb-3">
+            <div class="card bg-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            <h4 class="mb-0">{{ recent_access_requests|length }}</h4>
+                            <p class="mb-0">Access Requests</p>
+                        </div>
+                        <div class="align-self-center">
+                            <i class="fas fa-key fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Recent Bookings -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-calendar-check me-2"></i>
+                        Recent Bookings (Last 50)
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>User</th>
+                                    <th>Resource</th>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for booking in recent_bookings %}
+                                <tr>
+                                    <td>
+                                        <small>
+                                            <strong>{{ booking.user.get_full_name|default:booking.user.username }}</strong><br>
+                                            <span class="text-muted">{{ booking.user.email }}</span>
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <small>
+                                            {{ booking.resource.name }}<br>
+                                            <span class="text-muted">{{ booking.resource.location }}</span>
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <small>
+                                            {{ booking.start_time|date:"M d, H:i" }}<br>
+                                            <span class="text-muted">Created: {{ booking.created_at|date:"M d, H:i" }}</span>
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if booking.status == 'confirmed' %}
+                                            <span class="badge bg-success">Confirmed</span>
+                                        {% elif booking.status == 'pending' %}
+                                            <span class="badge bg-warning">Pending</span>
+                                        {% elif booking.status == 'cancelled' %}
+                                            <span class="badge bg-danger">Cancelled</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ booking.status|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-3">
+                                        No recent bookings found
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent User Registrations -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-user-plus me-2"></i>
+                        Recent User Registrations
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>User</th>
+                                    <th>Role</th>
+                                    <th>Registered</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in recent_users %}
+                                <tr>
+                                    <td>
+                                        <small>
+                                            <strong>{{ user.get_full_name|default:user.username }}</strong><br>
+                                            <span class="text-muted">{{ user.email }}</span>
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if user.userprofile %}
+                                            <span class="badge bg-{% if user.userprofile.role == 'sysadmin' %}danger{% elif user.userprofile.role == 'technician' %}warning{% elif user.userprofile.role == 'lecturer' %}info{% elif user.userprofile.role == 'researcher' %}success{% else %}secondary{% endif %}">
+                                                {{ user.userprofile.get_role_display }}
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-light text-dark">No Profile</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>
+                                            {{ user.date_joined|date:"M d, Y H:i" }}
+                                        </small>
+                                    </td>
+                                    <td>
+                                        {% if user.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-3">
+                                        No recent user registrations
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Access Requests -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-key me-2"></i>
+                        Recent Access Requests
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>User</th>
+                                    <th>Resource</th>
+                                    <th>Requested</th>
+                                    <th>Justification</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for request in recent_access_requests %}
+                                <tr>
+                                    <td>
+                                        <small>
+                                            <strong>{{ request.user.get_full_name|default:request.user.username }}</strong><br>
+                                            <span class="text-muted">{{ request.user.email }}</span>
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <small>
+                                            {{ request.resource.name }}<br>
+                                            <span class="text-muted">{{ request.resource.location }}</span>
+                                        </small>
+                                    </td>
+                                    <td>
+                                        <small>{{ request.created_at|date:"M d, Y H:i" }}</small>
+                                    </td>
+                                    <td>
+                                        <small>{{ request.justification|truncatewords:10 }}</small>
+                                    </td>
+                                    <td>
+                                        {% if request.status == 'pending' %}
+                                            <span class="badge bg-warning">Pending</span>
+                                        {% elif request.status == 'approved' %}
+                                            <span class="badge bg-success">Approved</span>
+                                        {% elif request.status == 'rejected' %}
+                                            <span class="badge bg-danger">Rejected</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ request.status|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if request.status == 'pending' %}
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="{% url 'booking:access_request_detail' request.id %}" 
+                                                   class="btn btn-outline-primary btn-sm">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                            </div>
+                                        {% else %}
+                                            <small class="text-muted">
+                                                {{ request.reviewed_at|date:"M d" }}
+                                            </small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="6" class="text-center text-muted py-3">
+                                        No recent access requests found
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Logs -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-server me-2"></i>
+                        System Logs
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Log Filters -->
+                    <div class="row mb-3">
+                        <div class="col-md-3">
+                            <label for="log-source-filter" class="form-label">Source:</label>
+                            <select id="log-source-filter" class="form-select form-select-sm">
+                                <option value="">All Sources</option>
+                                {% for source in log_sources %}
+                                    <option value="{{ source.key }}">{{ source.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="log-level-filter" class="form-label">Level:</label>
+                            <select id="log-level-filter" class="form-select form-select-sm">
+                                <option value="">All Levels</option>
+                                <option value="ERROR">ERROR</option>
+                                <option value="WARNING">WARNING</option>
+                                <option value="INFO">INFO</option>
+                                <option value="DEBUG">DEBUG</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="log-hours-filter" class="form-label">Time:</label>
+                            <select id="log-hours-filter" class="form-select form-select-sm">
+                                <option value="1">Last Hour</option>
+                                <option value="6">Last 6 Hours</option>
+                                <option value="24" selected>Last 24 Hours</option>
+                                <option value="168">Last Week</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="log-search-filter" class="form-label">Search:</label>
+                            <input type="text" id="log-search-filter" class="form-control form-control-sm" placeholder="Search logs...">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button id="refresh-logs-btn" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-sync-alt me-1"></i>
+                                    Refresh
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Log Stats -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <div class="alert alert-info py-2">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <strong id="log-count">{{ system_logs|length }}</strong> log entries found
+                                    </div>
+                                    <div>
+                                        <small>Last updated: <span id="last-updated">{{ "now"|date:"Y-m-d H:i:s" }}</span></small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Log Entries -->
+                    <div id="log-entries" style="max-height: 500px; overflow-y: auto;">
+                        {% for log in system_logs %}
+                        <div class="log-entry border-start ps-3 mb-2 border-{{ log.get_level_color }}">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <span class="badge bg-{{ log.get_level_color }} me-2">{{ log.level }}</span>
+                                        <small class="text-muted me-2">{{ log.timestamp|date:"M d H:i:s" }}</small>
+                                        <small class="fw-bold text-primary">{{ log.source }}</small>
+                                    </div>
+                                    <div class="log-message">
+                                        <code style="font-size: 0.85em; background-color: #f8f9fa; padding: 0.25rem 0.5rem; border-radius: 0.25rem;">{{ log.message }}</code>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% empty %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-list-alt text-muted fa-2x mb-2"></i>
+                            <p class="text-muted">No system logs found. Try adjusting your filters.</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// System logs functionality
+function refreshSystemLogs() {
+    const logContainer = document.getElementById('log-entries');
+    const refreshBtn = document.getElementById('refresh-logs-btn');
+    
+    if (!logContainer || !refreshBtn) {
+        console.error('Required elements not found for log refresh');
+        return;
+    }
+    
+    // Show loading state
+    refreshBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Loading...';
+    refreshBtn.disabled = true;
+    
+    // Safely get filter values
+    const sourceFilter = document.getElementById('log-source-filter');
+    const levelFilter = document.getElementById('log-level-filter');
+    const hoursFilter = document.getElementById('log-hours-filter');
+    const searchFilter = document.getElementById('log-search-filter');
+    
+    const params = new URLSearchParams({
+        source: sourceFilter ? sourceFilter.value : '',
+        level: levelFilter ? levelFilter.value : '',
+        hours: hoursFilter ? hoursFilter.value : '24',
+        search: searchFilter ? searchFilter.value : '',
+        max_lines: 100
+    });
+    
+    fetch(`{% url 'booking:site_admin_logs_ajax' %}?${params.toString()}`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            displaySystemLogs(data.logs || []);
+            
+            // Safely update elements
+            const logCountEl = document.getElementById('log-count');
+            const lastUpdatedEl = document.getElementById('last-updated');
+            
+            if (logCountEl) {
+                logCountEl.textContent = data.total || 0;
+            }
+            if (lastUpdatedEl) {
+                lastUpdatedEl.textContent = new Date().toLocaleString();
+            }
+        })
+        .catch(error => {
+            console.error('Log loading error:', error);
+            logContainer.innerHTML = `
+                <div class="text-center py-4">
+                    <i class="fas fa-exclamation-triangle text-danger fa-2x mb-2"></i>
+                    <p class="text-danger">Error loading logs: ${error.message}</p>
+                    <small class="text-muted d-block mt-2">Check browser console for details</small>
+                    <button class="btn btn-sm btn-outline-primary mt-2" onclick="refreshSystemLogs()">
+                        <i class="fas fa-retry me-1"></i>Try Again
+                    </button>
+                </div>
+            `;
+        })
+        .finally(() => {
+            // Reset button state safely
+            if (refreshBtn) {
+                refreshBtn.innerHTML = '<i class="fas fa-sync-alt me-1"></i> Refresh';
+                refreshBtn.disabled = false;
+            }
+        });
+}
+
+function displaySystemLogs(logs) {
+    const logContainer = document.getElementById('log-entries');
+    
+    if (logs.length === 0) {
+        logContainer.innerHTML = `
+            <div class="text-center py-4">
+                <i class="fas fa-list-alt text-muted fa-2x mb-2"></i>
+                <p class="text-muted">No system logs found. Try adjusting your filters.</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const logHtml = logs.map(log => `
+        <div class="log-entry border-start ps-3 mb-2 border-${log.level_color}">
+            <div class="d-flex justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                    <div class="d-flex align-items-center mb-1">
+                        <span class="badge bg-${log.level_color} me-2">${log.level}</span>
+                        <small class="text-muted me-2">${new Date(log.timestamp).toLocaleString()}</small>
+                        <small class="fw-bold text-primary">${escapeHtml(log.source)}</small>
+                    </div>
+                    <div class="log-message">
+                        <code style="font-size: 0.85em; background-color: #f8f9fa; padding: 0.25rem 0.5rem; border-radius: 0.25rem;">${escapeHtml(log.message)}</code>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+    
+    logContainer.innerHTML = logHtml;
+}
+
+function escapeHtml(text) {
+    const map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
+    return text.replace(/[&<>"']/g, function(m) { return map[m]; });
+}
+
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    // Check if we're on the audit page with system logs
+    const refreshBtn = document.getElementById('refresh-logs-btn');
+    if (!refreshBtn) {
+        console.log('System logs not present on this page');
+        return;
+    }
+    
+    // Refresh button
+    refreshBtn.addEventListener('click', refreshSystemLogs);
+    
+    // Filter change events with existence checks
+    const sourceFilter = document.getElementById('log-source-filter');
+    const levelFilter = document.getElementById('log-level-filter');
+    const hoursFilter = document.getElementById('log-hours-filter');
+    const searchFilter = document.getElementById('log-search-filter');
+    
+    if (sourceFilter) {
+        sourceFilter.addEventListener('change', refreshSystemLogs);
+    }
+    if (levelFilter) {
+        levelFilter.addEventListener('change', refreshSystemLogs);
+    }
+    if (hoursFilter) {
+        hoursFilter.addEventListener('change', refreshSystemLogs);
+    }
+    
+    // Search with debounce
+    if (searchFilter) {
+        let searchTimeout;
+        searchFilter.addEventListener('input', function() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(refreshSystemLogs, 500);
+        });
+    }
+    
+    console.log('System logs functionality initialized');
+});
+</script>
+{% endblock %}

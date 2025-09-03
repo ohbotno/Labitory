@@ -1,0 +1,286 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Resolve Conflict - Labitory{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-tools"></i> Resolve Booking Conflict</h2>
+    <a href="{% url 'booking:conflicts' %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Conflicts
+    </a>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Conflict Overview -->
+<div class="card mb-4 border-danger">
+    <div class="card-header bg-danger text-white">
+        <h5 class="mb-0"><i class="bi bi-exclamation-triangle"></i> Conflict Details</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Overlap Information</h6>
+                <ul class="list-unstyled">
+                    <li><strong>Time:</strong> {{ conflict.overlap_start|date:"M d, Y H:i" }} - {{ conflict.overlap_end|date:"H:i" }}</li>
+                    <li><strong>Duration:</strong> {{ conflict.overlap_duration }}</li>
+                    <li><strong>Resource:</strong> {{ conflict.booking1.resource.name }}</li>
+                    <li><strong>Location:</strong> {{ conflict.booking1.resource.location }}</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6>Impact</h6>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> 
+                    Two bookings are scheduled for the same resource at overlapping times.
+                    One booking must be cancelled, rescheduled, or moved to a different resource.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Conflicting Bookings -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Booking 1</h5>
+            </div>
+            <div class="card-body">
+                <h6>{{ booking1.title }}</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <tr><td><strong>User:</strong></td><td>{{ booking1.user.get_full_name }}</td></tr>
+                        <tr><td><strong>Start:</strong></td><td>{{ booking1.start_time|date:"M d, Y H:i" }}</td></tr>
+                        <tr><td><strong>End:</strong></td><td>{{ booking1.end_time|date:"M d, Y H:i" }}</td></tr>
+                        <tr><td><strong>Status:</strong></td><td><span class="badge bg-{{ booking1.status }}">{{ booking1.get_status_display }}</span></td></tr>
+                        <tr><td><strong>Created:</strong></td><td>{{ booking1.created_at|date:"M d, Y H:i" }}</td></tr>
+                    </table>
+                </div>
+                
+                {% if booking1.description %}
+                    <p class="text-muted"><strong>Description:</strong> {{ booking1.description }}</p>
+                {% endif %}
+                
+                <div class="d-flex gap-2">
+                    <a href="{% url 'booking:booking_detail' booking1.pk %}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i> View Details
+                    </a>
+                    {% if booking1.can_be_cancelled %}
+                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                onclick="cancelBooking({{ booking1.pk }}, '{{ booking1.title }}')">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Booking 2</h5>
+            </div>
+            <div class="card-body">
+                <h6>{{ booking2.title }}</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <tr><td><strong>User:</strong></td><td>{{ booking2.user.get_full_name }}</td></tr>
+                        <tr><td><strong>Start:</strong></td><td>{{ booking2.start_time|date:"M d, Y H:i" }}</td></tr>
+                        <tr><td><strong>End:</strong></td><td>{{ booking2.end_time|date:"M d, Y H:i" }}</td></tr>
+                        <tr><td><strong>Status:</strong></td><td><span class="badge bg-{{ booking2.status }}">{{ booking2.get_status_display }}</span></td></tr>
+                        <tr><td><strong>Created:</strong></td><td>{{ booking2.created_at|date:"M d, Y H:i" }}</td></tr>
+                    </table>
+                </div>
+                
+                {% if booking2.description %}
+                    <p class="text-muted"><strong>Description:</strong> {{ booking2.description }}</p>
+                {% endif %}
+                
+                <div class="d-flex gap-2">
+                    <a href="{% url 'booking:booking_detail' booking2.pk %}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i> View Details
+                    </a>
+                    {% if booking2.can_be_cancelled %}
+                        <button type="button" class="btn btn-sm btn-outline-danger" 
+                                onclick="cancelBooking({{ booking2.pk }}, '{{ booking2.title }}')">
+                            <i class="bi bi-x-circle"></i> Cancel
+                        </button>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Resolution Options -->
+<div class="row">
+    {% if suggestions1 %}
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Alternative Times for Booking 1</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Suggested Time</th>
+                                <th>Reason</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for suggestion in suggestions1 %}
+                            <tr>
+                                <td>
+                                    {{ suggestion.start_time|date:"M d, H:i" }} - {{ suggestion.end_time|date:"H:i" }}
+                                </td>
+                                <td><small>{{ suggestion.reason }}</small></td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-success" 
+                                            onclick="rescheduleBooking({{ booking1.pk }}, '{{ suggestion.start_time|date:"Y-m-d\TH:i" }}', '{{ suggestion.end_time|date:"Y-m-d\TH:i" }}')">
+                                        <i class="bi bi-calendar"></i> Use
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if suggestions2 %}
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Alternative Times for Booking 2</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Suggested Time</th>
+                                <th>Reason</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for suggestion in suggestions2 %}
+                            <tr>
+                                <td>
+                                    {{ suggestion.start_time|date:"M d, H:i" }} - {{ suggestion.end_time|date:"H:i" }}
+                                </td>
+                                <td><small>{{ suggestion.reason }}</small></td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-success" 
+                                            onclick="rescheduleBooking({{ booking2.pk }}, '{{ suggestion.start_time|date:"Y-m-d\TH:i" }}', '{{ suggestion.end_time|date:"Y-m-d\TH:i" }}')">
+                                        <i class="bi bi-calendar"></i> Use
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% if alt_resources1 or alt_resources2 %}
+<div class="row mt-4">
+    {% if alt_resources1 %}
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Alternative Resources for Booking 1</h5>
+            </div>
+            <div class="card-body">
+                {% for alt in alt_resources1 %}
+                <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                    <div>
+                        <strong>{{ alt.resource.name }}</strong><br>
+                        <small class="text-muted">{{ alt.location }} | Capacity: {{ alt.capacity }}</small>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-arrow-right"></i> Move
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    {% if alt_resources2 %}
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Alternative Resources for Booking 2</h5>
+            </div>
+            <div class="card-body">
+                {% for alt in alt_resources2 %}
+                <div class="d-flex justify-content-between align-items-center mb-2 p-2 border rounded">
+                    <div>
+                        <strong>{{ alt.resource.name }}</strong><br>
+                        <small class="text-muted">{{ alt.location }} | Capacity: {{ alt.capacity }}</small>
+                    </div>
+                    <div>
+                        <button type="button" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-arrow-right"></i> Move
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endif %}
+
+<!-- Action Forms (Hidden) -->
+<form id="actionForm" method="post" style="display: none;">
+    {% csrf_token %}
+    <input type="hidden" name="action" id="actionType">
+    <input type="hidden" name="new_start_time" id="newStartTime">
+    <input type="hidden" name="new_end_time" id="newEndTime">
+</form>
+
+<script>
+function cancelBooking(bookingId, title) {
+    if (confirm(`Are you sure you want to cancel "${title}"? This action cannot be undone.`)) {
+        document.getElementById('actionType').value = 'cancel_booking' + (bookingId === {{ booking1.pk }} ? '1' : '2');
+        document.getElementById('actionForm').submit();
+    }
+}
+
+function rescheduleBooking(bookingId, startTime, endTime) {
+    if (confirm('Are you sure you want to reschedule this booking to the suggested time?')) {
+        document.getElementById('actionType').value = 'reschedule_booking' + (bookingId === {{ booking1.pk }} ? '1' : '2');
+        document.getElementById('newStartTime').value = startTime;
+        document.getElementById('newEndTime').value = endTime;
+        document.getElementById('actionForm').submit();
+    }
+}
+</script>
+{% endblock %}

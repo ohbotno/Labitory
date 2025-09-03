@@ -1,0 +1,1233 @@
+<!-- booking/templates/booking/calendar.html -->
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Calendar - {{ lab_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Basic Calendar Styling */
+.calendar-container {
+    margin-bottom: 2rem;
+}
+
+.calendar-wrapper {
+    background: white;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 1rem;
+}
+
+/* Uniform blue button styling */
+.btn {
+    margin-right: 0.5rem;
+}
+
+/* Make all buttons use blue color scheme */
+.btn-outline-secondary {
+    color: #0d6efd !important;
+    border-color: #0d6efd !important;
+}
+
+.btn-outline-secondary:hover,
+.btn-outline-secondary:focus,
+.btn-outline-secondary:active {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+    color: white !important;
+}
+
+.btn-info {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+}
+
+.btn-info:hover,
+.btn-info:focus,
+.btn-info:active {
+    background-color: #0b5ed7 !important;
+    border-color: #0a58ca !important;
+}
+
+.btn-primary {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+    color: white !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+    background-color: #0b5ed7 !important;
+    border-color: #0a58ca !important;
+    color: white !important;
+}
+
+.btn-danger {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+}
+
+.btn-danger:hover,
+.btn-danger:focus,
+.btn-danger:active {
+    background-color: #0b5ed7 !important;
+    border-color: #0a58ca !important;
+}
+
+/* FullCalendar basic customizations */
+.fc-toolbar {
+    margin-bottom: 1rem !important;
+}
+
+.fc-toolbar-title {
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
+    color: #212529 !important;
+}
+
+.fc-event {
+    border-radius: 0.25rem !important;
+    padding: 0.125rem 0.25rem !important;
+}
+
+/* Calendar text colors */
+.fc-col-header-cell-cushion {
+    color: #495057 !important;
+    font-weight: 600 !important;
+}
+
+.fc-daygrid-day-number {
+    color: #212529 !important;
+}
+
+.fc-timegrid-slot-label-cushion {
+    color: #6c757d !important;
+}
+
+.fc-button-primary {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+}
+
+.fc-button-primary:hover,
+.fc-button-primary:focus {
+    background-color: #0b5ed7 !important;
+    border-color: #0a58ca !important;
+}
+
+/* Basic responsive design */
+@media (max-width: 768px) {
+    .calendar-container {
+        padding: 0.5rem;
+    }
+}
+
+/* Maintenance Event Styling */
+.fc-event.maintenance-event {
+    background-image: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 2px,
+        rgba(255, 255, 255, 0.3) 2px,
+        rgba(255, 255, 255, 0.3) 4px
+    ) !important;
+    border-style: dashed !important;
+    border-width: 2px !important;
+    opacity: 0.9;
+}
+
+.fc-event.maintenance-event .fc-event-title {
+    font-weight: bold;
+    text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+}
+
+/* Maintenance legend/info styling */
+.maintenance-legend {
+    font-size: 0.875rem;
+    color: #6c757d;
+    margin-top: 0.5rem;
+}
+
+.maintenance-legend i {
+    margin-right: 0.25rem;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="calendar-container">
+    <!-- Header -->
+    <div class="mb-3">
+        <div class="d-flex justify-content-between align-items-center">
+            <h1><i class="bi bi-calendar3 me-2"></i>Booking Calendar</h1>
+            <div>
+                <button type="button" class="btn btn-outline-secondary" id="today-btn">Today</button>
+                <button type="button" class="btn btn-outline-secondary" id="prev-btn">
+                    <i class="bi bi-chevron-left"></i>
+                </button>
+                <button type="button" class="btn btn-outline-secondary" id="next-btn">
+                    <i class="bi bi-chevron-right"></i>
+                </button>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#bookingModal">
+                    <i class="bi bi-plus-circle me-1"></i>New Booking
+                </button>
+                <button type="button" class="btn btn-info" id="help-btn" title="Keyboard shortcuts">
+                    <i class="bi bi-question-circle"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <label class="form-label">Filter by Resource</label>
+                    <select class="form-select" id="resource-filter">
+                        <option value="">All Resources</option>
+                        {% for resource in resources %}
+                        <option value="{{ resource.id }}">{{ resource.name }} ({{ resource.get_resource_type_display }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Calendar View</label>
+                    <div class="btn-group w-100" role="group">
+                        <input type="radio" class="btn-check" name="view-mode" id="month-view" autocomplete="off" checked>
+                        <label class="btn btn-outline-primary" for="month-view">Month</label>
+                        
+                        <input type="radio" class="btn-check" name="view-mode" id="week-view" autocomplete="off">
+                        <label class="btn btn-outline-primary" for="week-view">Week</label>
+                        
+                        <input type="radio" class="btn-check" name="view-mode" id="day-view" autocomplete="off">
+                        <label class="btn btn-outline-primary" for="day-view">Day</label>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Display Options</label>
+                    <div class="form-check mt-2">
+                        <input class="form-check-input" type="checkbox" id="show-maintenance" checked>
+                        <label class="form-check-label" for="show-maintenance">
+                            <i class="fas fa-wrench me-1"></i>Show Maintenance Periods
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Calendar -->
+    <div class="calendar-wrapper">
+        <div id="calendar"></div>
+        
+        <!-- Legend -->
+        <div class="maintenance-legend text-center">
+            <small>
+                <i class="fas fa-square" style="color: #28a745;"></i> Bookings &nbsp;&nbsp;
+                <i class="fas fa-wrench" style="color: #007bff;"></i> Maintenance Periods &nbsp;&nbsp;
+                <span class="text-muted">• Striped patterns indicate maintenance that blocks bookings</span>
+            </small>
+        </div>
+    </div>
+</div>
+
+<!-- Booking Modal -->
+<div class="modal fade" id="bookingModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Create Booking</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="booking-form">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="title" class="form-label">Title *</label>
+                                <input type="text" class="form-control" id="title" name="title" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="resource_id" class="form-label">Resource *</label>
+                                <select class="form-select" id="resource_id" name="resource_id" required>
+                                    <option value="">Select Resource</option>
+                                    {% for resource in resources %}
+                                    <option value="{{ resource.id }}">{{ resource.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="start_time" class="form-label">Start Time *</label>
+                                <input type="datetime-local" class="form-control" id="start_time" name="start_time" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="end_time" class="form-label">End Time *</label>
+                                <input type="datetime-local" class="form-control" id="end_time" name="end_time" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="shared_with_group" name="shared_with_group">
+                        <label class="form-check-label" for="shared_with_group">
+                            Share with group members
+                        </label>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="notes" name="notes" rows="2"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="save-booking">Save Booking</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Booking Details Modal -->
+<div class="modal fade" id="bookingDetailsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Booking Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="booking-details-content">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="#" class="btn btn-success" id="download-booking-invitation" style="display: none;">
+                    <i class="fas fa-calendar-plus"></i> Add to Calendar
+                </a>
+                <a href="#" class="btn btn-primary" id="view-booking" style="display: none;">
+                    <i class="bi bi-eye"></i> View Details
+                </a>
+                <button type="button" class="btn btn-primary" id="edit-booking" style="display: none;">
+                    <i class="bi bi-pencil"></i> Edit
+                </button>
+                <button type="button" class="btn btn-info" id="duplicate-booking" style="display: none;">
+                    <i class="bi bi-files"></i> Duplicate
+                </button>
+                <button type="button" class="btn btn-danger" id="cancel-booking" style="display: none;">
+                    <i class="bi bi-trash"></i> Cancel
+                </button>
+                <a href="#" class="btn btn-outline-secondary" id="report-issue" style="display: none;">
+                    <i class="bi bi-exclamation-triangle"></i> Report Issue
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Booking Modal -->
+<div class="modal fade" id="editBookingModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Booking</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="edit-booking-form">
+                    {% csrf_token %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_title" class="form-label">Title *</label>
+                                <input type="text" class="form-control" id="edit_title" name="title" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_resource_id" class="form-label">Resource *</label>
+                                <select class="form-select" id="edit_resource_id" name="resource_id" required>
+                                    <option value="">Select Resource</option>
+                                    {% for resource in resources %}
+                                    <option value="{{ resource.id }}">{{ resource.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_start_time" class="form-label">Start Time *</label>
+                                <input type="datetime-local" class="form-control" id="edit_start_time" name="start_time" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="edit_end_time" class="form-label">End Time *</label>
+                                <input type="datetime-local" class="form-control" id="edit_end_time" name="end_time" required>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_description" class="form-label">Description</label>
+                        <textarea class="form-control" id="edit_description" name="description" rows="3"></textarea>
+                    </div>
+                    
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="edit_shared_with_group" name="shared_with_group">
+                        <label class="form-check-label" for="edit_shared_with_group">
+                            Share with group members
+                        </label>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="edit_notes" class="form-label">Notes</label>
+                        <textarea class="form-control" id="edit_notes" name="notes" rows="2"></textarea>
+                    </div>
+                    
+                    <div class="alert alert-info" id="edit-approval-notice" style="display: none;">
+                        <i class="bi bi-info-circle"></i> Changes to time or resource will require re-approval.
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="save-edit-booking">
+                    <i class="bi bi-check-circle"></i> Update Booking
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Maintenance Details Modal -->
+<div class="modal fade" id="maintenanceDetailsModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-wrench me-2"></i>Maintenance Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="maintenance-details-content">
+                <!-- Content will be loaded dynamically -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <a href="#" class="btn btn-success" id="download-maintenance-invitation" style="display: none;">
+                    <i class="fas fa-calendar-plus"></i> Add to Calendar
+                </a>
+                {% if user.userprofile.role in 'technician,sysadmin' or user.groups.all|length > 0 and 'Lab Admin' in user.groups.all|join:',' %}
+                <a href="#" class="btn btn-primary" id="edit-maintenance" style="display: none;">
+                    <i class="fas fa-edit"></i> Edit Maintenance
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Load external dependencies with multiple CDN fallbacks -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" 
+        onerror="this.onerror=null; this.src='https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js'"></script>
+<!-- Preload jsPDF from multiple CDNs for reliability -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" 
+        onerror="this.onerror=null; this.src='https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js'"></script>
+
+<!-- Load calendar enhancements -->
+<script src="{% static 'js/calendar-shortcuts.js' %}"></script>
+<script src="{% static 'js/calendar-pdf-export.js' %}"></script>
+<script src="{% static 'js/calendar-print-fallback.js' %}"></script>
+<script src="{% static 'js/calendar-view-persistence.js' %}"></script>
+<script src="{% static 'js/calendar-copy-paste.js' %}"></script>
+<script src="{% static 'js/calendar-timezone.js' %}"></script>
+<script src="{% static 'js/calendar-mini-widget.js' %}"></script>
+<script src="{% static 'js/calendar-sharing.js' %}"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const calendarEl = document.getElementById('calendar');
+    let calendar;
+    
+    // Initialize FullCalendar
+    calendar = new FullCalendar.Calendar(calendarEl, {
+        initialView: 'dayGridMonth',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+        },
+        selectable: true,
+        selectMirror: true,
+        dayMaxEvents: true,
+        weekends: true,
+        businessHours: {
+            startTime: '09:00',
+            endTime: '18:00'
+        },
+        slotMinTime: '09:00:00',
+        slotMaxTime: '18:00:00',
+        
+        // Load events from API
+        events: function(fetchInfo, successCallback, failureCallback) {
+            const resourceFilter = document.getElementById('resource-filter').value;
+            const showMaintenance = document.getElementById('show-maintenance')?.checked !== false;
+            
+            // Build URLs for both bookings and maintenance
+            let bookingsUrl = '/api/bookings/calendar/';
+            let maintenanceUrl = '/api/maintenance/calendar/';
+            
+            const params = new URLSearchParams();
+            if (resourceFilter) {
+                params.append('resource', resourceFilter);
+            }
+            params.append('start', fetchInfo.start.toISOString());
+            params.append('end', fetchInfo.end.toISOString());
+            
+            if (params.toString()) {
+                bookingsUrl += '?' + params.toString();
+                maintenanceUrl += '?' + params.toString();
+            }
+            
+            // Fetch both bookings and maintenance data
+            const promises = [
+                fetch(bookingsUrl).then(response => response.json())
+            ];
+            
+            if (showMaintenance) {
+                promises.push(
+                    fetch(maintenanceUrl).then(response => response.json())
+                );
+            }
+            
+            Promise.all(promises)
+                .then(results => {
+                    let allEvents = results[0]; // bookings
+                    if (results[1]) {
+                        allEvents = allEvents.concat(results[1]); // add maintenance
+                    }
+                    successCallback(allEvents);
+                })
+                .catch(error => {
+                    console.error('Error loading events:', error);
+                    failureCallback(error);
+                });
+        },
+        
+        // Handle date selection for new booking
+        select: function(selectionInfo) {
+            const modal = new bootstrap.Modal(document.getElementById('bookingModal'));
+            
+            // Calculate proper start and end times based on selection
+            const startDate = new Date(selectionInfo.start);
+            const endDate = new Date(selectionInfo.end);
+            
+            // Check if this is a multi-day selection
+            const isMultiDay = (endDate.getTime() - startDate.getTime()) > (24 * 60 * 60 * 1000);
+            
+            let startTime, endTime;
+            
+            const now = new Date();
+            
+            if (isMultiDay) {
+                // For multi-day selections, set start to 9 AM on first day and end to 6 PM on last day
+                startTime = new Date(startDate);
+                startTime.setHours(9, 0, 0, 0);
+                
+                // FullCalendar gives us day after selection ends, so subtract 1 day for actual end date
+                endTime = new Date(endDate);
+                endTime.setDate(endTime.getDate() - 1);
+                endTime.setHours(18, 0, 0, 0);
+                
+                // If start time is in the past, adjust only the time, keep the selected date
+                if (startTime < now && startTime.toDateString() === now.toDateString()) {
+                    // Only adjust if it's today and time has passed
+                    const nextHour = new Date(now);
+                    nextHour.setMinutes(0, 0, 0);
+                    nextHour.setHours(nextHour.getHours() + 1);
+                    
+                    if (nextHour.getHours() < 18) {
+                        startTime.setHours(nextHour.getHours(), 0, 0, 0);
+                    }
+                    // If it's past business hours today, keep 9 AM tomorrow as planned
+                }
+            } else {
+                // For single day selections
+                if (selectionInfo.allDay) {
+                    // All-day selection - set to business hours (9 AM - 6 PM)
+                    startTime = new Date(startDate);
+                    startTime.setHours(9, 0, 0, 0);
+                    
+                    endTime = new Date(startDate);
+                    endTime.setHours(18, 0, 0, 0);
+                    
+                    // If start time is in the past and it's today, adjust only the time
+                    if (startTime < now && startTime.toDateString() === now.toDateString()) {
+                        const nextHour = new Date(now);
+                        nextHour.setMinutes(0, 0, 0);
+                        nextHour.setHours(nextHour.getHours() + 1);
+                        
+                        if (nextHour.getHours() < 18) {
+                            startTime.setHours(nextHour.getHours(), 0, 0, 0);
+                            // Keep end time at 6 PM unless we need more time
+                            if (nextHour.getHours() >= 17) {
+                                endTime.setHours(nextHour.getHours() + 1, 0, 0, 0);
+                            }
+                        }
+                        // If it's past business hours today, keep the selected date with 9 AM start
+                    }
+                } else {
+                    // Time-specific selection (week/day view)
+                    startTime = new Date(selectionInfo.start);
+                    endTime = new Date(selectionInfo.end);
+                    
+                    // Only adjust if the selected time is in the past and it's today
+                    if (startTime < now && startTime.toDateString() === now.toDateString()) {
+                        const nextHour = new Date(now);
+                        nextHour.setMinutes(0, 0, 0);
+                        nextHour.setHours(nextHour.getHours() + 1);
+                        
+                        // Preserve the selected date, just adjust the time
+                        startTime.setHours(nextHour.getHours(), 0, 0, 0);
+                        endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // 1 hour later
+                    }
+                    
+                    // Ensure minimum 1-hour duration
+                    if (endTime.getTime() - startTime.getTime() < 60 * 60 * 1000) {
+                        endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+                    }
+                }
+            }
+            
+            // Format times for datetime-local input (YYYY-MM-DDTHH:MM)
+            const formatDateTime = (date) => {
+                return date.getFullYear() + '-' +
+                    String(date.getMonth() + 1).padStart(2, '0') + '-' +
+                    String(date.getDate()).padStart(2, '0') + 'T' +
+                    String(date.getHours()).padStart(2, '0') + ':' +
+                    String(date.getMinutes()).padStart(2, '0');
+            };
+            
+            // Set the form values
+            document.getElementById('start_time').value = formatDateTime(startTime);
+            document.getElementById('end_time').value = formatDateTime(endTime);
+            
+            // Optional: Show a message for multi-day selections
+            if (isMultiDay) {
+                const dayCount = Math.ceil((endTime.getTime() - startTime.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+                console.log(`Multi-day selection: ${dayCount} days from ${startTime.toDateString()} to ${endTime.toDateString()}`);
+            }
+            
+            modal.show();
+        },
+        
+        // Handle event click for details
+        eventClick: function(clickInfo) {
+            const event = clickInfo.event;
+            
+            // Check if this is a maintenance event
+            if (event.extendedProps?.type === 'maintenance') {
+                loadMaintenanceDetails(event.id);
+            } else {
+                // Regular booking event
+                loadBookingDetails(event.id);
+            }
+        },
+        
+        // Handle event resize
+        eventResize: function(resizeInfo) {
+            updateBookingTime(resizeInfo.event);
+        },
+        
+        // Handle event drag
+        eventDrop: function(dropInfo) {
+            updateBookingTime(dropInfo.event);
+        }
+    });
+    
+    calendar.render();
+    
+    // Initialize calendar enhancements
+    const shortcuts = new CalendarShortcuts(calendar);
+    const pdfExport = new CalendarPDFExport(calendar);
+    const printFallback = new CalendarPrintFallback(calendar);
+    const viewPersistence = new CalendarViewPersistence(calendar);
+    const copyPaste = new CalendarCopyPaste(calendar);
+    
+    // Initialize timezone support with user preferences
+    const userSettings = {
+        timezone: '{{ user.userprofile.timezone|default:"UTC" }}',
+        dateFormat: '{{ user.userprofile.date_format|default:"DD/MM/YYYY" }}',
+        role: '{{ user.userprofile.role|default:"" }}',
+        timeFormat: '{{ user.userprofile.time_format|default:"24h" }}'
+    };
+    calendarTimezone = new CalendarTimezone(calendar, userSettings);
+    
+    // Initialize mini calendar widget
+    const miniCalendarWidget = new MiniCalendarWidget(calendar);
+    
+    // Initialize calendar sharing
+    calendarSharing = new CalendarSharing(calendar);
+    
+    // Toolbar buttons
+    document.getElementById('today-btn').addEventListener('click', function() {
+        calendar.today();
+    });
+    
+    document.getElementById('prev-btn').addEventListener('click', function() {
+        calendar.prev();
+    });
+    
+    document.getElementById('next-btn').addEventListener('click', function() {
+        calendar.next();
+    });
+    
+    // View mode buttons
+    document.getElementById('month-view').addEventListener('click', function() {
+        calendar.changeView('dayGridMonth');
+    });
+    
+    document.getElementById('week-view').addEventListener('click', function() {
+        calendar.changeView('timeGridWeek');
+    });
+    
+    document.getElementById('day-view').addEventListener('click', function() {
+        calendar.changeView('timeGridDay');
+    });
+    
+    // Help button
+    document.getElementById('help-btn').addEventListener('click', function() {
+        shortcuts.toggleHelp();
+    });
+    
+    // Resource filter
+    document.getElementById('resource-filter').addEventListener('change', function() {
+        calendar.refetchEvents();
+    });
+    
+    // Maintenance display toggle
+    document.getElementById('show-maintenance').addEventListener('change', function() {
+        calendar.refetchEvents();
+    });
+    
+    // Save booking
+    document.getElementById('save-booking').addEventListener('click', function() {
+        saveBooking();
+    });
+    
+    // Save edit booking
+    document.getElementById('save-edit-booking').addEventListener('click', function() {
+        saveEditBooking();
+    });
+    
+    // Handle modal show event to set default times when opening without selection
+    document.getElementById('bookingModal').addEventListener('show.bs.modal', function(event) {
+        // Clear any existing errors when opening modal
+        clearFormErrors();
+        
+        const startTimeInput = document.getElementById('start_time');
+        const endTimeInput = document.getElementById('end_time');
+        
+        // Only set defaults if fields are empty (not triggered by calendar selection)
+        if (!startTimeInput.value || !endTimeInput.value) {
+            const now = new Date();
+            let defaultStart = new Date(now);
+            
+            // Set to next available hour
+            defaultStart.setMinutes(0, 0, 0);
+            defaultStart.setHours(defaultStart.getHours() + 1);
+            
+            // Ensure it's within business hours
+            if (defaultStart.getHours() < 9) {
+                defaultStart.setHours(9, 0, 0, 0);
+            } else if (defaultStart.getHours() >= 18) {
+                // Move to next day at 9 AM
+                defaultStart.setDate(defaultStart.getDate() + 1);
+                defaultStart.setHours(9, 0, 0, 0);
+            }
+            
+            const defaultEnd = new Date(defaultStart.getTime() + 60 * 60 * 1000); // 1 hour later
+            
+            // Format times for datetime-local input
+            const formatDateTime = (date) => {
+                return date.getFullYear() + '-' +
+                    String(date.getMonth() + 1).padStart(2, '0') + '-' +
+                    String(date.getDate()).padStart(2, '0') + 'T' +
+                    String(date.getHours()).padStart(2, '0') + ':' +
+                    String(date.getMinutes()).padStart(2, '0');
+            };
+            
+            startTimeInput.value = formatDateTime(defaultStart);
+            endTimeInput.value = formatDateTime(defaultEnd);
+        }
+    });
+    
+    // Helper function to get CSRF token from cookie
+    function getCSRFToken() {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, 10) === 'csrftoken=') {
+                    cookieValue = decodeURIComponent(cookie.substring(10));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    
+    function saveBooking() {
+        const form = document.getElementById('booking-form');
+        const formData = new FormData(form);
+        
+        // Clear any existing errors first
+        clearFormErrors();
+        
+        // Client-side validation for past dates
+        const startTime = new Date(document.getElementById('start_time').value);
+        const endTime = new Date(document.getElementById('end_time').value);
+        const now = new Date();
+        
+        // Check if booking is in the past (with 5 minute buffer) - only for non-sysadmin users
+        if (userSettings.role !== 'sysadmin') {
+            if (startTime < new Date(now.getTime() - 5 * 60 * 1000)) {
+                showModalError('Cannot book in the past. Please select a future date and time.');
+                return;
+            }
+        }
+        
+        // Check if end time is before start time
+        if (endTime <= startTime) {
+            showModalError('End time must be after start time.');
+            return;
+        }
+        
+        // Check business hours (only for non-sysadmin users)
+        if (userSettings.role !== 'sysadmin') {
+            if (startTime.getHours() < 9 || startTime.getHours() >= 18) {
+                showModalError('Booking start time must be between 09:00 and 18:00.');
+                return;
+            }
+            
+            if (endTime.getHours() > 18 || (endTime.getHours() === 18 && endTime.getMinutes() > 0)) {
+                showModalError('Booking must end by 18:00.');
+                return;
+            }
+        }
+        
+        // Check for maintenance conflicts
+        const resourceId = document.getElementById('resource_id').value;
+        if (resourceId && checkMaintenanceConflict(startTime, endTime, resourceId)) {
+            showModalError('Cannot book during scheduled maintenance period. Please select a different time.');
+            return;
+        }
+        
+        // Convert FormData to JSON
+        const data = {};
+        formData.forEach((value, key) => {
+            if (key === 'shared_with_group') {
+                data[key] = document.getElementById(key).checked;
+            } else {
+                data[key] = value;
+            }
+        });
+        
+        // Show loading state
+        const saveBtn = document.getElementById('save-booking');
+        const originalText = saveBtn.innerHTML;
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Creating...';
+        
+        fetch('/api/bookings/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => Promise.reject(err));
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (data.id) {
+                // Success
+                bootstrap.Modal.getInstance(document.getElementById('bookingModal')).hide();
+                calendar.refetchEvents();
+                form.reset();
+                
+                // Show success message on main page
+                showAlert('Booking created successfully!', 'success');
+            } else {
+                // Handle validation errors in modal
+                showFormErrors(data);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            
+            // Show user-friendly error messages in modal
+            if (error && typeof error === 'object') {
+                if (error.__all__ && error.__all__.includes('Cannot book in the past.')) {
+                    showModalError('Cannot book in the past. Please select a future date and time.');
+                } else if (error.non_field_errors) {
+                    showModalError(Array.isArray(error.non_field_errors) ? error.non_field_errors[0] : error.non_field_errors);
+                } else {
+                    showFormErrors(error);
+                }
+            } else {
+                showModalError('Error creating booking. Please try again.');
+            }
+        })
+        .finally(() => {
+            // Reset button state
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
+        });
+    }
+    
+    function loadBookingDetails(bookingId) {
+        fetch(`/api/bookings/${bookingId}/`)
+            .then(response => response.json())
+            .then(data => {
+                const content = document.getElementById('booking-details-content');
+                content.innerHTML = `
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Title:</strong></div>
+                        <div class="col-sm-8">${data.title}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Resource:</strong></div>
+                        <div class="col-sm-8">${data.resource.name}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-4"><strong>User:</strong></div>
+                        <div class="col-sm-8">${data.user.first_name} ${data.user.last_name}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Start:</strong></div>
+                        <div class="col-sm-8">${new Date(data.start_time).toLocaleString()}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-4"><strong>End:</strong></div>
+                        <div class="col-sm-8">${new Date(data.end_time).toLocaleString()}</div>
+                    </div>
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Status:</strong></div>
+                        <div class="col-sm-8">
+                            <span class="badge bg-${getStatusColor(data.status)}">${data.status}</span>
+                        </div>
+                    </div>
+                    ${data.description ? `
+                    <div class="row">
+                        <div class="col-sm-4"><strong>Description:</strong></div>
+                        <div class="col-sm-8">${data.description}</div>
+                    </div>
+                    ` : ''}
+                `;
+                
+                // Show/hide action buttons based on permissions
+                const viewBtn = document.getElementById('view-booking');
+                const editBtn = document.getElementById('edit-booking');
+                const duplicateBtn = document.getElementById('duplicate-booking');
+                const cancelBtn = document.getElementById('cancel-booking');
+                const invitationBtn = document.getElementById('download-booking-invitation');
+                const reportIssueBtn = document.getElementById('report-issue');
+                
+                // Always show view, duplicate, and invitation buttons
+                viewBtn.style.display = 'inline-block';
+                viewBtn.href = `/booking/${bookingId}/`;
+                
+                duplicateBtn.style.display = 'inline-block';
+                duplicateBtn.onclick = () => window.location.href = `/booking/${bookingId}/duplicate/`;
+                
+                invitationBtn.style.display = 'inline-block';
+                invitationBtn.href = `/booking/${bookingId}/invitation/`;
+                invitationBtn.download = `booking-${data.title.replace(/[^a-z0-9]/gi, '-')}.ics`;
+                
+                // Show edit button if user can edit
+                if (data.can_edit && ['pending', 'approved'].includes(data.status)) {
+                    editBtn.style.display = 'inline-block';
+                    editBtn.onclick = () => editBooking(data);
+                } else {
+                    editBtn.style.display = 'none';
+                }
+                
+                // Show cancel button if user can cancel
+                if (data.can_cancel) {
+                    cancelBtn.style.display = 'inline-block';
+                    cancelBtn.onclick = () => cancelBooking(bookingId);
+                } else {
+                    cancelBtn.style.display = 'none';
+                }
+                
+                // Always show report issue button for authenticated users
+                reportIssueBtn.style.display = 'inline-block';
+                reportIssueBtn.href = `/resources/${data.resource_id}/report-issue/?booking=${bookingId}`;
+                
+                const modal = new bootstrap.Modal(document.getElementById('bookingDetailsModal'));
+                modal.show();
+            })
+            .catch(error => {
+                console.error('Error loading booking details:', error);
+                showAlert('Error loading booking details.', 'danger');
+            });
+    }
+    
+    function updateBookingTime(event) {
+        const data = {
+            start_time: event.startStr,
+            end_time: event.endStr
+        };
+        
+        fetch(`/api/bookings/${event.id}/`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify(data)
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.id) {
+                // Revert on error
+                event.revert();
+                showAlert('Error updating booking time.', 'danger');
+            } else {
+                showAlert('Booking updated successfully!', 'success');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            event.revert();
+            showAlert('Error updating booking time.', 'danger');
+        });
+    }
+    
+    function cancelBooking(bookingId) {
+        if (confirm('Are you sure you want to cancel this booking?')) {
+            FormProgressManager.ajaxWithProgress(`/api/bookings/${bookingId}/cancel/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCSRFToken()
+                }
+            }, {
+                overlayMessage: 'Cancelling booking...',
+                showOverlay: true
+            })
+            .then(response => response.json())
+            .then(data => {
+                bootstrap.Modal.getInstance(document.getElementById('bookingDetailsModal')).hide();
+                calendar.refetchEvents();
+                showAlert('Booking cancelled successfully!', 'success');
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showAlert('Error cancelling booking.', 'danger');
+            });
+        }
+    }
+    
+    function getStatusColor(status) {
+        const colors = {
+            'pending': 'warning',
+            'approved': 'success',
+            'rejected': 'danger',
+            'cancelled': 'secondary',
+            'completed': 'info'
+        };
+        return colors[status] || 'primary';
+    }
+    
+    function showAlert(message, type) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+        alertDiv.innerHTML = `
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        const container = document.querySelector('.main-content');
+        container.insertBefore(alertDiv, container.firstChild);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+        }, 5000);
+    }
+    
+    function showFormErrors(errors) {
+        // Clear previous errors
+        clearFormErrors();
+        
+        // Show new errors
+        for (const [field, messages] of Object.entries(errors)) {
+            const input = document.getElementById(field);
+            if (input) {
+                input.classList.add('is-invalid');
+                const feedback = document.createElement('div');
+                feedback.className = 'invalid-feedback';
+                feedback.textContent = Array.isArray(messages) ? messages[0] : messages;
+                input.parentNode.appendChild(feedback);
+            }
+        }
+    }
+    
+    function clearFormErrors() {
+        // Clear previous errors
+        document.querySelectorAll('.is-invalid').forEach(el => {
+            el.classList.remove('is-invalid');
+        });
+        document.querySelectorAll('.invalid-feedback').forEach(el => {
+            el.remove();
+        });
+        
+        // Clear modal error messages
+        const modalError = document.getElementById('modal-error-message');
+        if (modalError) {
+            modalError.remove();
+        }
+    }
+    
+    function checkMaintenanceConflict(startTime, endTime, resourceId) {
+        // Get current maintenance events from the calendar
+        const events = calendar.getEvents();
+        
+        for (let event of events) {
+            // Check only maintenance events for the selected resource
+            if (event.extendedProps?.type === 'maintenance' && 
+                event.extendedProps?.resource && 
+                event.extendedProps?.blocks_booking) {
+                
+                // If resource filter is set, only check maintenance for that resource
+                if (resourceId) {
+                    // Get resource name from the select element
+                    const resourceSelect = document.getElementById('resource_id');
+                    const selectedOption = resourceSelect.options[resourceSelect.selectedIndex];
+                    const selectedResourceName = selectedOption.text.split(' (')[0]; // Remove type suffix
+                    
+                    if (event.extendedProps.resource !== selectedResourceName) {
+                        continue; // Skip maintenance for different resources
+                    }
+                }
+                
+                const maintenanceStart = new Date(event.start);
+                const maintenanceEnd = new Date(event.end);
+                
+                // Check for overlap: booking starts before maintenance ends AND booking ends after maintenance starts
+                if (startTime < maintenanceEnd && endTime > maintenanceStart) {
+                    return true; // Conflict found
+                }
+            }
+        }
+        
+        return false; // No conflicts
+    }
+    
+    function loadMaintenanceDetails(eventId) {
+        // Extract the maintenance ID from the event ID (format: 'maintenance-{id}')
+        const maintenanceId = eventId.replace('maintenance-', '');
+        
+        fetch(`/lab-admin/maintenance/${maintenanceId}/`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Populate modal with maintenance details
+                    document.getElementById('maintenance-details-content').innerHTML = data.html;
+                    
+                    // Show invitation button
+                    const invitationBtn = document.getElementById('download-maintenance-invitation');
+                    if (invitationBtn) {
+                        invitationBtn.style.display = 'inline-block';
+                        invitationBtn.href = `/maintenance/${maintenanceId}/invitation/`;
+                        invitationBtn.download = `maintenance-${data.maintenance.title.replace(/[^a-z0-9]/gi, '-')}.ics`;
+                    }
+                    
+                    // Show edit button for admins and set up the link
+                    const editBtn = document.getElementById('edit-maintenance');
+                    if (editBtn) {
+                        editBtn.style.display = 'inline-block';
+                        editBtn.href = `/lab-admin/maintenance/#edit-${maintenanceId}`;
+                        editBtn.onclick = (e) => {
+                            e.preventDefault();
+                            // Close the details modal
+                            bootstrap.Modal.getInstance(document.getElementById('maintenanceDetailsModal')).hide();
+                            // Navigate to maintenance management page
+                            window.location.href = `/lab-admin/maintenance/`;
+                        };
+                    }
+                    
+                    const modal = new bootstrap.Modal(document.getElementById('maintenanceDetailsModal'));
+                    modal.show();
+                } else {
+                    showAlert('Error loading maintenance details.', 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('Error loading maintenance details:', error);
+                showAlert('Error loading maintenance details.', 'danger');
+            });
+    }
+    
+    function showModalError(message) {
+        // Clear any existing modal error
+        const existingError = document.getElementById('modal-error-message');
+        if (existingError) {
+            existingError.remove();
+        }
+        
+        // Create error alert
+        const errorDiv = document.createElement('div');
+        errorDiv.id = 'modal-error-message';
+        errorDiv.className = 'alert alert-danger alert-dismissible fade show mb-3';
+        errorDiv.innerHTML = `
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        
+        // Insert at the top of the modal body
+        const modalBody = document.querySelector('#bookingModal .modal-body');
+        modalBody.insertBefore(errorDiv, modalBody.firstChild);
+        
+        // Auto-dismiss after 8 seconds
+        setTimeout(() => {
+            if (errorDiv.parentNode) {
+                const alert = new bootstrap.Alert(errorDiv);
+                alert.close();
+            }
+        }, 8000);
+    }
+});
+</script>
+{% endblock %}

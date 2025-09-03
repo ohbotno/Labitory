@@ -1,0 +1,172 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Cancel Recurring Series - Labitory{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card shadow">
+            <div class="card-header bg-warning text-dark">
+                <h4 class="mb-0">
+                    <i class="bi bi-exclamation-triangle"></i> Cancel Recurring Booking Series
+                </h4>
+            </div>
+            <div class="card-body">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <div class="alert alert-info">
+                    <h6><i class="bi bi-info-circle"></i> Booking Series Information</h6>
+                    <strong>{{ booking.title }}</strong><br>
+                    {{ booking.resource.name }} - {{ booking.resource.location }}<br>
+                    Series contains {{ series|length }} bookings total
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="card border-warning">
+                            <div class="card-body text-center">
+                                <h5 class="card-title text-warning">{{ future_count }}</h5>
+                                <p class="card-text">Future bookings that can be cancelled</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card border-danger">
+                            <div class="card-body text-center">
+                                <h5 class="card-title text-danger">{{ total_count }}</h5>
+                                <p class="card-text">Total bookings that can be cancelled</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-4">
+                        <h6>Cancellation Options</h6>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="cancel_option" id="cancel_future" value="future" checked>
+                            <label class="form-check-label" for="cancel_future">
+                                <strong>Cancel future bookings only</strong><br>
+                                <small class="text-muted">Cancel {{ future_count }} upcoming bookings. Past and current bookings remain unchanged.</small>
+                            </label>
+                        </div>
+                        
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="radio" name="cancel_option" id="cancel_all" value="all">
+                            <label class="form-check-label" for="cancel_all">
+                                <strong>Cancel entire series</strong><br>
+                                <small class="text-muted">Cancel all {{ total_count }} bookings in the series that can be cancelled.</small>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Preview of bookings to be cancelled -->
+                    <div class="mb-4">
+                        <h6>Bookings in Series</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Time</th>
+                                        <th>Status</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for series_booking in series %}
+                                    {% now "Y-m-d H:i:s" as current_time %}
+                                    <tr>
+                                        <td>{{ series_booking.start_time|date:"M d, Y" }}</td>
+                                        <td>{{ series_booking.start_time|date:"H:i" }} - {{ series_booking.end_time|date:"H:i" }}</td>
+                                        <td>
+                                            <span class="badge bg-{{ series_booking.status|default:'secondary' }}">
+                                                {{ series_booking.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if series_booking.can_be_cancelled %}
+                                                {% if series_booking.start_time > current_time|date:"Y-m-d H:i:s"|add:"+0" %}
+                                                    <span class="text-warning future-booking">Will cancel (future)</span>
+                                                    <span class="text-danger all-booking" style="display: none;">Will cancel (all)</span>
+                                                {% else %}
+                                                    <span class="text-muted future-booking">Keep (past/current)</span>
+                                                    <span class="text-danger all-booking" style="display: none;">Will cancel (all)</span>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">Cannot cancel</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                    <div class="alert alert-danger">
+                        <strong>Warning:</strong> This action cannot be undone. Cancelled bookings will be permanently cancelled and cannot be restored.
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-danger" onclick="return confirmCancellation()">
+                            <i class="bi bi-x-circle"></i> Cancel Selected Bookings
+                        </button>
+                        <a href="{% url 'booking:booking_detail' booking.pk %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Go Back
+                        </a>
+                    </div>
+                    
+                    <input type="hidden" name="cancel_future_only" id="cancel_future_only" value="on">
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const futureRadio = document.getElementById('cancel_future');
+    const allRadio = document.getElementById('cancel_all');
+    const cancelFutureOnlyInput = document.getElementById('cancel_future_only');
+    const futureBookings = document.querySelectorAll('.future-booking');
+    const allBookings = document.querySelectorAll('.all-booking');
+    
+    function updateDisplay() {
+        if (futureRadio.checked) {
+            cancelFutureOnlyInput.value = 'on';
+            futureBookings.forEach(el => el.style.display = 'inline');
+            allBookings.forEach(el => el.style.display = 'none');
+        } else {
+            cancelFutureOnlyInput.value = '';
+            futureBookings.forEach(el => el.style.display = 'none');
+            allBookings.forEach(el => el.style.display = 'inline');
+        }
+    }
+    
+    futureRadio.addEventListener('change', updateDisplay);
+    allRadio.addEventListener('change', updateDisplay);
+    
+    updateDisplay(); // Initial call
+});
+
+function confirmCancellation() {
+    const futureRadio = document.getElementById('cancel_future');
+    const count = futureRadio.checked ? {{ future_count }} : {{ total_count }};
+    const type = futureRadio.checked ? 'future' : 'all';
+    
+    return confirm(`Are you sure you want to cancel ${count} ${type} bookings? This action cannot be undone.`);
+}
+</script>
+{% endblock %}

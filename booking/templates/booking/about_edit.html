@@ -1,0 +1,357 @@
+{% extends "booking/base.html" %}
+{% load static %}
+
+{% block title %}{% if is_new %}Create{% else %}Edit{% endif %} About Page - {{ lab_name }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    .field-help {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-top: 0.25rem;
+    }
+    
+    .required-field {
+        color: #dc3545;
+        font-weight: bold;
+    }
+    
+    .form-section {
+        background: #f8f9fa;
+        border-left: 4px solid #007bff;
+        padding: 1.5rem;
+        margin-bottom: 2rem;
+        border-radius: 0 0.375rem 0.375rem 0;
+    }
+    
+    .form-section h5 {
+        color: #007bff;
+        margin-bottom: 1rem;
+        font-weight: 600;
+    }
+    
+    .content-textarea {
+        min-height: 300px;
+        font-size: 16px;
+        line-height: 1.6;
+        resize: vertical;
+    }
+    
+    .btn-group-actions {
+        position: sticky;
+        top: 70px;
+        z-index: 1000;
+        background: white;
+        padding: 1rem 0;
+        border-bottom: 1px solid #dee2e6;
+        margin-bottom: 2rem;
+    }
+    
+    .preview-notice {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        margin-bottom: 2rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <!-- Action Buttons -->
+            <div class="btn-group-actions">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h1 class="h3 mb-0">
+                            <i class="fas fa-edit me-2"></i>
+                            {% if is_new %}Create About Page{% else %}Edit About Page{% endif %}
+                        </h1>
+                        <p class="text-muted mb-0">Configure your facility's about page content</p>
+                    </div>
+                    <div>
+                        <a href="{% url 'booking:about' %}" class="btn btn-outline-secondary me-2">
+                            <i class="fas fa-eye me-2"></i>Preview
+                        </a>
+                        <button type="submit" form="about-form" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Save Changes
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="post" enctype="multipart/form-data" id="about-form">
+                {% csrf_token %}
+
+                <!-- Basic Information Section -->
+                <div class="form-section">
+                    <h5><i class="fas fa-info-circle me-2"></i>Basic Information</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.title.id_for_label }}" class="form-label">
+                                    Page Title {% if form.title.field.required %}<span class="required-field">*</span>{% endif %}
+                                </label>
+                                {{ form.title }}
+                                {% if form.title.help_text %}
+                                    <div class="field-help">{{ form.title.help_text }}</div>
+                                {% endif %}
+                                {% if form.title.errors %}
+                                    <div class="text-danger">{{ form.title.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.facility_name.id_for_label }}" class="form-label">
+                                    Facility Name {% if form.facility_name.field.required %}<span class="required-field">*</span>{% endif %}
+                                </label>
+                                {{ form.facility_name }}
+                                {% if form.facility_name.help_text %}
+                                    <div class="field-help">{{ form.facility_name.help_text }}</div>
+                                {% endif %}
+                                {% if form.facility_name.errors %}
+                                    <div class="text-danger">{{ form.facility_name.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Main Content Section -->
+                <div class="form-section">
+                    <h5><i class="fas fa-file-alt me-2"></i>Main Content</h5>
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label for="{{ form.content.id_for_label }}" class="form-label">
+                                    Page Content {% if form.content.field.required %}<span class="required-field">*</span>{% endif %}
+                                </label>
+                                {{ form.content }}
+                                {% if form.content.help_text %}
+                                    <div class="field-help">{{ form.content.help_text }}</div>
+                                {% endif %}
+                                {% if form.content.errors %}
+                                    <div class="text-danger">{{ form.content.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="{{ form.image.id_for_label }}" class="form-label">
+                                    Page Image {% if form.image.field.required %}<span class="required-field">*</span>{% endif %}
+                                </label>
+                                
+                                <!-- Include drag-drop uploader component -->
+                                {% include 'booking/components/drag_drop_uploader.html' %}
+                                
+                                {{ form.image }}
+                                {% if form.image.help_text %}
+                                    <div class="field-help">{{ form.image.help_text }}</div>
+                                {% endif %}
+                                {% if form.image.errors %}
+                                    <div class="text-danger">{{ form.image.errors.0 }}</div>
+                                {% endif %}
+                                
+                                {% if about_page.image %}
+                                    <div class="mt-3">
+                                        <label class="form-label">Current Image:</label>
+                                        <div class="current-image-preview">
+                                            <img src="{{ about_page.image.url }}" alt="Current about page image" 
+                                                 class="img-thumbnail" style="max-width: 200px; max-height: 200px;">
+                                        </div>
+                                        <div class="field-help mt-1">Upload a new image to replace the current one</div>
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Information Section -->
+                <div class="form-section">
+                    <h5><i class="fas fa-address-book me-2"></i>Contact Information</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.contact_email.id_for_label }}" class="form-label">
+                                    Contact Email {% if form.contact_email.field.required %}<span class="required-field">*</span>{% endif %}
+                                </label>
+                                {{ form.contact_email }}
+                                {% if form.contact_email.help_text %}
+                                    <div class="field-help">{{ form.contact_email.help_text }}</div>
+                                {% endif %}
+                                {% if form.contact_email.errors %}
+                                    <div class="text-danger">{{ form.contact_email.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.contact_phone.id_for_label }}" class="form-label">
+                                    Contact Phone {% if form.contact_phone.field.required %}<span class="required-field">*</span>{% endif %}
+                                </label>
+                                {{ form.contact_phone }}
+                                {% if form.contact_phone.help_text %}
+                                    <div class="field-help">{{ form.contact_phone.help_text }}</div>
+                                {% endif %}
+                                {% if form.contact_phone.errors %}
+                                    <div class="text-danger">{{ form.contact_phone.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.address.id_for_label }}" class="form-label">
+                                    Address {% if form.address.field.required %}<span class="required-field">*</span>{% endif %}
+                                </label>
+                                {{ form.address }}
+                                {% if form.address.help_text %}
+                                    <div class="field-help">{{ form.address.help_text }}</div>
+                                {% endif %}
+                                {% if form.address.errors %}
+                                    <div class="text-danger">{{ form.address.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.emergency_contact.id_for_label }}" class="form-label">
+                                    Emergency Contact {% if form.emergency_contact.field.required %}<span class="required-field">*</span>{% endif %}
+                                </label>
+                                {{ form.emergency_contact }}
+                                {% if form.emergency_contact.help_text %}
+                                    <div class="field-help">{{ form.emergency_contact.help_text }}</div>
+                                {% endif %}
+                                {% if form.emergency_contact.errors %}
+                                    <div class="text-danger">{{ form.emergency_contact.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Operational Information Section -->
+                <div class="form-section">
+                    <h5><i class="fas fa-clock me-2"></i>Operational Information</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.operating_hours.id_for_label }}" class="form-label">
+                                    Operating Hours {% if form.operating_hours.field.required %}<span class="required-field">*</span>{% endif %}
+                                </label>
+                                {{ form.operating_hours }}
+                                {% if form.operating_hours.help_text %}
+                                    <div class="field-help">{{ form.operating_hours.help_text }}</div>
+                                {% endif %}
+                                {% if form.operating_hours.errors %}
+                                    <div class="text-danger">{{ form.operating_hours.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.policies_url.id_for_label }}" class="form-label">
+                                    Policies URL {% if form.policies_url.field.required %}<span class="required-field">*</span>{% endif %}
+                                </label>
+                                {{ form.policies_url }}
+                                {% if form.policies_url.help_text %}
+                                    <div class="field-help">{{ form.policies_url.help_text }}</div>
+                                {% endif %}
+                                {% if form.policies_url.errors %}
+                                    <div class="text-danger">{{ form.policies_url.errors.0 }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.safety_information.id_for_label }}" class="form-label">
+                            Safety Information {% if form.safety_information.field.required %}<span class="required-field">*</span>{% endif %}
+                        </label>
+                        {{ form.safety_information }}
+                        {% if form.safety_information.help_text %}
+                            <div class="field-help">{{ form.safety_information.help_text }}</div>
+                        {% endif %}
+                        {% if form.safety_information.errors %}
+                            <div class="text-danger">{{ form.safety_information.errors.0 }}</div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Final Submit Section -->
+                <div class="text-center py-4">
+                    <button type="submit" class="btn btn-primary btn-lg me-3">
+                        <i class="fas fa-save me-2"></i>Save About Page
+                    </button>
+                    <a href="{% url 'booking:about' %}" class="btn btn-outline-secondary btn-lg">
+                        <i class="fas fa-times me-2"></i>Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const contentField = document.getElementById('{{ form.content.id_for_label }}');
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl+S to save
+        if (e.ctrlKey && e.key === 's') {
+            e.preventDefault();
+            document.getElementById('about-form').submit();
+        }
+        
+        // Ctrl+P to preview
+        if (e.ctrlKey && e.key === 'p') {
+            e.preventDefault();
+            window.open('{% url "booking:about" %}', '_blank');
+        }
+    });
+
+    // Add character count
+    if (contentField) {
+        const charCountDiv = document.createElement('div');
+        charCountDiv.className = 'field-help mt-2';
+        charCountDiv.style.textAlign = 'right';
+        contentField.parentNode.appendChild(charCountDiv);
+
+        function updateCharCount() {
+            const text = contentField.value;
+            const chars = text.length;
+            const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+            charCountDiv.textContent = `${chars} characters, ${words} words`;
+        }
+
+        contentField.addEventListener('input', updateCharCount);
+        updateCharCount(); // Initial count
+    }
+    
+    // Initialize drag-drop uploader for about page image
+    if (document.getElementById('{{ form.image.id_for_label }}')) {
+        initDragDropUploader('{{ form.image.id_for_label }}', {
+            allowedTypes: ['image/*'],
+            maxSize: 10 * 1024 * 1024, // 10MB for about page images
+            showPreview: true
+        });
+    }
+});
+</script>
+{% endblock %}

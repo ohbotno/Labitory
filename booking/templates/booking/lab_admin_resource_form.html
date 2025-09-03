@@ -1,0 +1,726 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12 col-lg-8 mx-auto">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-cog me-2"></i>{{ title }}</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_dashboard' %}">Lab Admin</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_resources' %}">Resources</a></li>
+                            <li class="breadcrumb-item active">{{ action }}</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{% url 'booking:lab_admin_resources' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Resources
+                    </a>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">{{ title }}</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <!-- Basic Information -->
+                            <div class="col-md-6">
+                                <h6 class="text-muted mb-3">Basic Information</h6>
+                                
+                                <div class="mb-3">
+                                    <label for="{{ form.name.id_for_label }}" class="form-label">
+                                        {{ form.name.label }} <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.name }}
+                                    {% if form.name.help_text %}
+                                    <small class="form-text text-muted">{{ form.name.help_text }}</small>
+                                    {% endif %}
+                                    {% if form.name.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.name.errors %}
+                                        <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.resource_type.id_for_label }}" class="form-label">
+                                        {{ form.resource_type.label }} <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.resource_type }}
+                                    {% if form.resource_type.help_text %}
+                                    <small class="form-text text-muted">{{ form.resource_type.help_text }}</small>
+                                    {% endif %}
+                                    {% if form.resource_type.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.resource_type.errors %}
+                                        <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.location.id_for_label }}" class="form-label">
+                                        {{ form.location.label }} <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.location }}
+                                    {% if form.location.help_text %}
+                                    <small class="form-text text-muted">{{ form.location.help_text }}</small>
+                                    {% endif %}
+                                    {% if form.location.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.location.errors %}
+                                        <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.description.id_for_label }}" class="form-label">
+                                        {{ form.description.label }}
+                                    </label>
+                                    {{ form.description }}
+                                    {% if form.description.help_text %}
+                                    <small class="form-text text-muted">{{ form.description.help_text }}</small>
+                                    {% endif %}
+                                    {% if form.description.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.description.errors %}
+                                        <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.image.id_for_label }}" class="form-label">
+                                        {{ form.image.label }}
+                                    </label>
+                                    
+                                    <!-- Include drag-drop uploader component -->
+                                    {% include 'booking/components/drag_drop_uploader.html' %}
+                                    
+                                    {{ form.image }}
+                                    {% if form.image.help_text %}
+                                    <small class="form-text text-muted">{{ form.image.help_text }}</small>
+                                    {% endif %}
+                                    {% if form.image.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.image.errors %}
+                                        <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                    {% if resource and resource.image %}
+                                    <div class="mt-2">
+                                        <small class="text-muted">Current image:</small><br>
+                                        <img src="{{ resource.image.url }}" alt="{{ resource.name }}" class="img-thumbnail" style="max-width: 150px; max-height: 150px;">
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <!-- Configuration -->
+                            <div class="col-md-6">
+                                <h6 class="text-muted mb-3">Configuration</h6>
+                                
+                                <div class="mb-3">
+                                    <label for="{{ form.capacity.id_for_label }}" class="form-label">
+                                        {{ form.capacity.label }} <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.capacity }}
+                                    {% if form.capacity.help_text %}
+                                    <small class="form-text text-muted">{{ form.capacity.help_text }}</small>
+                                    {% endif %}
+                                    {% if form.capacity.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.capacity.errors %}
+                                        <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.required_training_level.id_for_label }}" class="form-label">
+                                        {{ form.required_training_level.label }} <span class="text-danger">*</span>
+                                    </label>
+                                    {{ form.required_training_level }}
+                                    {% if form.required_training_level.help_text %}
+                                    <small class="form-text text-muted">{{ form.required_training_level.help_text }}</small>
+                                    {% endif %}
+                                    {% if form.required_training_level.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.required_training_level.errors %}
+                                        <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="{{ form.max_booking_hours.id_for_label }}" class="form-label">
+                                        {{ form.max_booking_hours.label }}
+                                    </label>
+                                    {{ form.max_booking_hours }}
+                                    {% if form.max_booking_hours.help_text %}
+                                    <small class="form-text text-muted">{{ form.max_booking_hours.help_text }}</small>
+                                    {% endif %}
+                                    {% if form.max_booking_hours.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.max_booking_hours.errors %}
+                                        <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        {{ form.requires_induction }}
+                                        <label class="form-check-label" for="{{ form.requires_induction.id_for_label }}">
+                                            {{ form.requires_induction.label }}
+                                        </label>
+                                    </div>
+                                    {% if form.requires_induction.help_text %}
+                                    <small class="form-text text-muted">{{ form.requires_induction.help_text }}</small>
+                                    {% endif %}
+                                    {% if form.requires_induction.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.requires_induction.errors %}
+                                        <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        {{ form.requires_risk_assessment }}
+                                        <label class="form-check-label" for="{{ form.requires_risk_assessment.id_for_label }}">
+                                            {{ form.requires_risk_assessment.label }}
+                                        </label>
+                                    </div>
+                                    {% if form.requires_risk_assessment.help_text %}
+                                    <small class="form-text text-muted">{{ form.requires_risk_assessment.help_text }}</small>
+                                    {% endif %}
+                                    {% if form.requires_risk_assessment.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.requires_risk_assessment.errors %}
+                                        <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mb-3">
+                                    <div class="form-check">
+                                        {{ form.is_active }}
+                                        <label class="form-check-label" for="{{ form.is_active.id_for_label }}">
+                                            {{ form.is_active.label }}
+                                        </label>
+                                    </div>
+                                    {% if form.is_active.help_text %}
+                                    <small class="form-text text-muted">{{ form.is_active.help_text }}</small>
+                                    {% endif %}
+                                    {% if form.is_active.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.is_active.errors %}
+                                        <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Training Requirements Configuration -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h6 class="text-muted mb-3 border-bottom pb-2">
+                                    <i class="fas fa-graduation-cap me-2"></i>Training Requirements
+                                </h6>
+                                
+                                <div class="row">
+                                    <div class="col-md-12">
+                                        <p class="text-muted">Configure which training courses users must complete before accessing this resource.</p>
+                                        
+                                        {% if resource and resource.pk %}
+                                            <!-- Current Training Requirements -->
+                                            <div id="trainingRequirementsList">
+                                                {% if training_requirements %}
+                                                    <div class="mb-3">
+                                                        <h6 class="small text-muted mb-2">Current Requirements</h6>
+                                                        <div class="list-group" id="trainingRequirementsContainer">
+                                                            {% for req in training_requirements %}
+                                                            <div class="list-group-item d-flex align-items-center" data-requirement-id="{{ req.id }}" data-order="{{ req.order }}">
+                                                                <div class="me-2">
+                                                                    <i class="fas fa-grip-vertical text-muted" style="cursor: move;"></i>
+                                                                </div>
+                                                                <div class="flex-grow-1">
+                                                                    <strong>{{ req.training_course.title }}</strong>
+                                                                    <small class="text-muted d-block">
+                                                                        Code: {{ req.training_course.code }} | 
+                                                                        Type: {{ req.training_course.get_course_type_display }} |
+                                                                        Duration: {{ req.training_course.duration_hours }}h
+                                                                    </small>
+                                                                </div>
+                                                                <div class="ms-2">
+                                                                    {% if req.is_mandatory %}
+                                                                        <span class="badge bg-danger">Mandatory</span>
+                                                                    {% else %}
+                                                                        <span class="badge bg-secondary">Optional</span>
+                                                                    {% endif %}
+                                                                </div>
+                                                                <div class="ms-2">
+                                                                    <button type="button" class="btn btn-sm btn-outline-danger remove-training-req" 
+                                                                            data-requirement-id="{{ req.id }}" 
+                                                                            data-course-name="{{ req.training_course.title }}">
+                                                                        <i class="fas fa-times"></i>
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                            {% endfor %}
+                                                        </div>
+                                                    </div>
+                                                {% else %}
+                                                    <div class="alert alert-info" id="noTrainingRequirementsAlert">
+                                                        <i class="fas fa-info-circle me-2"></i>
+                                                        No training requirements configured for this resource yet.
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                            
+                                            <!-- Add Training Requirement -->
+                                            <div class="card bg-light mt-3">
+                                                <div class="card-body">
+                                                    <h6 class="card-title small">Add Training Requirement</h6>
+                                                    <div class="row align-items-end">
+                                                        <div class="col-md-6">
+                                                            <label for="newTrainingCourse" class="form-label small">Select Training Course</label>
+                                                            <select class="form-select" id="newTrainingCourse">
+                                                                <option value="">-- Select a course --</option>
+                                                                {% for course in available_courses %}
+                                                                    {% if course.id not in assigned_course_ids %}
+                                                                    <option value="{{ course.id }}">
+                                                                        {{ course.title }} ({{ course.code }})
+                                                                    </option>
+                                                                    {% endif %}
+                                                                {% endfor %}
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <label for="newTrainingMandatory" class="form-label small">Requirement Type</label>
+                                                            <select class="form-select" id="newTrainingMandatory">
+                                                                <option value="true">Mandatory</option>
+                                                                <option value="false">Optional</option>
+                                                            </select>
+                                                        </div>
+                                                        <div class="col-md-3">
+                                                            <button type="button" class="btn btn-primary w-100" id="addTrainingRequirement">
+                                                                <i class="fas fa-plus me-1"></i> Add Requirement
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        {% else %}
+                                            <div class="alert alert-warning">
+                                                <i class="fas fa-exclamation-triangle me-2"></i>
+                                                <strong>Save the resource first</strong> to configure training requirements.
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Checkout Checklist Configuration -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <h6 class="text-muted mb-3 border-bottom pb-2">
+                                    <i class="fas fa-clipboard-check me-2"></i>Checkout Checklist Configuration
+                                </h6>
+                                
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <div class="mb-3">
+                                            <div class="form-check">
+                                                {{ form.requires_checkout_checklist }}
+                                                <label class="form-check-label" for="{{ form.requires_checkout_checklist.id_for_label }}">
+                                                    <strong>{{ form.requires_checkout_checklist.label }}</strong>
+                                                </label>
+                                            </div>
+                                            {% if form.requires_checkout_checklist.help_text %}
+                                            <small class="form-text text-muted">{{ form.requires_checkout_checklist.help_text }}</small>
+                                            {% endif %}
+                                            {% if form.requires_checkout_checklist.errors %}
+                                            <div class="text-danger">
+                                                {% for error in form.requires_checkout_checklist.errors %}
+                                                <small>{{ error }}</small>
+                                                {% endfor %}
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        {% if resource and resource.pk %}
+                                            {% with checklist_count=resource.active_checklist_items_count %}
+                                            {% if checklist_count > 0 %}
+                                            <div class="card border-info">
+                                                <div class="card-body py-2">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas fa-info-circle text-info me-2"></i>
+                                                        <div class="flex-grow-1">
+                                                            <strong>{{ checklist_count }} checklist items</strong> configured
+                                                            <br><small class="text-muted">Items are ready for this resource</small>
+                                                        </div>
+                                                        <a href="{% url 'booking:lab_admin_resource_checklist' resource.pk %}" class="btn btn-sm btn-outline-primary">
+                                                            <i class="fas fa-cog me-1"></i>Manage
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% else %}
+                                            <div class="card border-warning">
+                                                <div class="card-body py-2">
+                                                    <div class="d-flex align-items-center">
+                                                        <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                                                        <div class="flex-grow-1">
+                                                            <strong>No checklist items</strong> configured yet
+                                                            <br><small class="text-muted">Add items to create a checkout checklist</small>
+                                                        </div>
+                                                        <a href="{% url 'booking:lab_admin_resource_checklist' resource.pk %}" class="btn btn-sm btn-primary">
+                                                            <i class="fas fa-plus me-1"></i>Add Items
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                            {% endwith %}
+                                        {% else %}
+                                        <div class="card border-secondary">
+                                            <div class="card-body py-2">
+                                                <div class="d-flex align-items-center">
+                                                    <i class="fas fa-info-circle text-secondary me-2"></i>
+                                                    <div>
+                                                        <strong>Save first</strong> to configure checklist items
+                                                        <br><small class="text-muted">Resource must be saved before adding checklist items</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                
+                                <div id="checklistConfig" style="display: {% if form.requires_checkout_checklist.value %}block{% else %}none{% endif %};">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="{{ form.checkout_checklist_title.id_for_label }}" class="form-label">
+                                                    {{ form.checkout_checklist_title.label }}
+                                                </label>
+                                                {{ form.checkout_checklist_title }}
+                                                {% if form.checkout_checklist_title.help_text %}
+                                                <small class="form-text text-muted">{{ form.checkout_checklist_title.help_text }}</small>
+                                                {% endif %}
+                                                {% if form.checkout_checklist_title.errors %}
+                                                <div class="text-danger">
+                                                    {% for error in form.checkout_checklist_title.errors %}
+                                                    <small>{{ error }}</small>
+                                                    {% endfor %}
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="{{ form.checkout_checklist_description.id_for_label }}" class="form-label">
+                                                    {{ form.checkout_checklist_description.label }}
+                                                </label>
+                                                {{ form.checkout_checklist_description }}
+                                                {% if form.checkout_checklist_description.help_text %}
+                                                <small class="form-text text-muted">{{ form.checkout_checklist_description.help_text }}</small>
+                                                {% endif %}
+                                                {% if form.checkout_checklist_description.errors %}
+                                                <div class="text-danger">
+                                                    {% for error in form.checkout_checklist_description.errors %}
+                                                    <small>{{ error }}</small>
+                                                    {% endfor %}
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+
+                        <!-- Form Actions -->
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="border-top pt-3">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            <small class="text-muted">
+                                                <span class="text-danger">*</span> Required fields
+                                            </small>
+                                        </div>
+                                        <div>
+                                            <a href="{% url 'booking:lab_admin_resources' %}" class="btn btn-outline-secondary me-2">Cancel</a>
+                                            <button type="submit" class="btn btn-primary">
+                                                <i class="fas fa-save me-1"></i> {{ action }} Resource
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize drag-drop uploader for resource image
+    if (document.getElementById('{{ form.image.id_for_label }}')) {
+        initDragDropUploader('{{ form.image.id_for_label }}', {
+            allowedTypes: ['image/*'],
+            maxSize: 5 * 1024 * 1024, // 5MB
+            showPreview: true
+        });
+    }
+    
+    // Toggle checklist configuration visibility
+    const checklistCheckbox = document.getElementById('{{ form.requires_checkout_checklist.id_for_label }}');
+    const checklistConfig = document.getElementById('checklistConfig');
+    
+    if (checklistCheckbox && checklistConfig) {
+        checklistCheckbox.addEventListener('change', function() {
+            if (this.checked) {
+                checklistConfig.style.display = 'block';
+            } else {
+                checklistConfig.style.display = 'none';
+            }
+        });
+    }
+    
+    // Training Requirements Management
+    {% if resource and resource.pk %}
+    const resourceId = {{ resource.pk }};
+    
+    // Add training requirement
+    document.getElementById('addTrainingRequirement').addEventListener('click', function() {
+        const courseSelect = document.getElementById('newTrainingCourse');
+        const mandatorySelect = document.getElementById('newTrainingMandatory');
+        
+        const courseId = courseSelect.value;
+        const isMandatory = mandatorySelect.value === 'true';
+        
+        if (!courseId) {
+            alert('Please select a training course');
+            return;
+        }
+        
+        // Get course details from selected option
+        const selectedOption = courseSelect.options[courseSelect.selectedIndex];
+        const courseTitle = selectedOption.text;
+        
+        // Disable button during request
+        this.disabled = true;
+        const originalText = this.innerHTML;
+        this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Adding...';
+        
+        fetch(`/lab-admin/resources/${resourceId}/training-requirements/add/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                course_id: courseId,
+                is_mandatory: isMandatory
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Add the new requirement to the list
+                addRequirementToList(data.requirement);
+                
+                // Remove the course from the dropdown
+                courseSelect.remove(courseSelect.selectedIndex);
+                courseSelect.value = '';
+                
+                // Hide the "no requirements" alert if it exists
+                const noReqAlert = document.getElementById('noTrainingRequirementsAlert');
+                if (noReqAlert) {
+                    noReqAlert.style.display = 'none';
+                }
+                
+                // Show success message
+                showToast('Success', 'Training requirement added successfully', 'success');
+            } else {
+                showToast('Error', data.error || 'Failed to add training requirement', 'error');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('Error', 'An error occurred while adding the requirement', 'error');
+        })
+        .finally(() => {
+            // Re-enable button
+            this.disabled = false;
+            this.innerHTML = originalText;
+        });
+    });
+    
+    // Remove training requirement
+    document.addEventListener('click', function(e) {
+        if (e.target.closest('.remove-training-req')) {
+            const button = e.target.closest('.remove-training-req');
+            const requirementId = button.dataset.requirementId;
+            const courseName = button.dataset.courseName;
+            
+            if (confirm(`Are you sure you want to remove the training requirement for "${courseName}"?`)) {
+                button.disabled = true;
+                
+                fetch(`/lab-admin/resources/${resourceId}/training-requirements/${requirementId}/remove/`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': '{{ csrf_token }}'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Remove the requirement from the list
+                        const listItem = button.closest('.list-group-item');
+                        listItem.remove();
+                        
+                        // Add the course back to the dropdown
+                        const courseSelect = document.getElementById('newTrainingCourse');
+                        const option = document.createElement('option');
+                        option.value = data.course_id;
+                        option.textContent = `${data.course_name} (${data.course_code})`;
+                        courseSelect.appendChild(option);
+                        
+                        // Check if list is empty
+                        const container = document.getElementById('trainingRequirementsContainer');
+                        if (!container || container.children.length === 0) {
+                            document.getElementById('trainingRequirementsList').innerHTML = 
+                                '<div class="alert alert-info" id="noTrainingRequirementsAlert">' +
+                                '<i class="fas fa-info-circle me-2"></i>' +
+                                'No training requirements configured for this resource yet.' +
+                                '</div>';
+                        }
+                        
+                        showToast('Success', data.message || 'Training requirement removed', 'success');
+                    } else {
+                        showToast('Error', data.error || 'Failed to remove training requirement', 'error');
+                        button.disabled = false;
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('Error', 'An error occurred while removing the requirement', 'error');
+                    button.disabled = false;
+                });
+            }
+        }
+    });
+    
+    // Helper function to add requirement to list
+    function addRequirementToList(requirement) {
+        let container = document.getElementById('trainingRequirementsContainer');
+        
+        // Create container if it doesn't exist
+        if (!container) {
+            const listDiv = document.getElementById('trainingRequirementsList');
+            listDiv.innerHTML = 
+                '<div class="mb-3">' +
+                '<h6 class="small text-muted mb-2">Current Requirements</h6>' +
+                '<div class="list-group" id="trainingRequirementsContainer"></div>' +
+                '</div>';
+            container = document.getElementById('trainingRequirementsContainer');
+        }
+        
+        const listItem = document.createElement('div');
+        listItem.className = 'list-group-item d-flex align-items-center';
+        listItem.dataset.requirementId = requirement.id;
+        listItem.dataset.order = requirement.order;
+        
+        listItem.innerHTML = `
+            <div class="me-2">
+                <i class="fas fa-grip-vertical text-muted" style="cursor: move;"></i>
+            </div>
+            <div class="flex-grow-1">
+                <strong>${requirement.course_title}</strong>
+                <small class="text-muted d-block">
+                    Code: ${requirement.course_code} | 
+                    Type: ${requirement.course_type} |
+                    Duration: ${requirement.duration}h
+                </small>
+            </div>
+            <div class="ms-2">
+                ${requirement.is_mandatory 
+                    ? '<span class="badge bg-danger">Mandatory</span>' 
+                    : '<span class="badge bg-secondary">Optional</span>'}
+            </div>
+            <div class="ms-2">
+                <button type="button" class="btn btn-sm btn-outline-danger remove-training-req" 
+                        data-requirement-id="${requirement.id}" 
+                        data-course-name="${requirement.course_title}">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        `;
+        
+        container.appendChild(listItem);
+    }
+    
+    // Toast notification helper
+    function showToast(title, message, type) {
+        // Simple implementation - you can replace with your preferred toast library
+        const alertClass = type === 'error' ? 'alert-danger' : 'alert-success';
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `alert ${alertClass} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+        alertDiv.style.zIndex = '9999';
+        alertDiv.innerHTML = `
+            <strong>${title}:</strong> ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(alertDiv);
+        
+        // Auto-dismiss after 5 seconds
+        setTimeout(() => {
+            alertDiv.remove();
+        }, 5000);
+    }
+    {% endif %}
+});
+</script>
+{% endblock %}

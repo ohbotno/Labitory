@@ -1,0 +1,448 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Email Configuration - Site Administration{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-envelope-open-text me-2"></i>
+                    Email Configuration
+                </h1>
+                <div>
+                    <a href="{% url 'booking:site_admin_dashboard' %}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Back to Admin Dashboard
+                    </a>
+                    <a href="{% url 'booking:site_admin_email_config_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>
+                        Add Email Configuration
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Active Configuration Alert -->
+    {% if active_config %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-success">
+                <h6><i class="fas fa-check-circle me-2"></i>Active Email Configuration</h6>
+                <p class="mb-0">
+                    <strong>{{ active_config.name }}</strong> is currently active.
+                    {% if active_config.is_validated %}
+                        <span class="badge bg-success ms-2">Validated</span>
+                    {% else %}
+                        <span class="badge bg-warning ms-2">Not Tested</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-warning">
+                <h6><i class="fas fa-exclamation-triangle me-2"></i>No Active Email Configuration</h6>
+                <p class="mb-0">No email configuration is currently active. Create and activate a configuration to enable email functionality.</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Quick Setup Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-rocket me-2"></i>
+                        Quick Setup
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">Get started quickly with pre-configured settings for popular email providers:</p>
+                    <div class="row">
+                        {% for config in common_configs %}
+                        <div class="col-md-4 mb-3">
+                            <div class="card border-primary">
+                                <div class="card-body text-center">
+                                    <h6 class="card-title">{{ config.name }}</h6>
+                                    <p class="card-text small text-muted">{{ config.description }}</p>
+                                    <a href="{% url 'booking:site_admin_email_config_create' %}?preset={{ config.name|lower|cut:' '|cut:'/' }}" 
+                                       class="btn btn-outline-primary btn-sm">
+                                        <i class="fas fa-magic me-1"></i>
+                                        Use Template
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Email Configurations List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Email Configurations
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if configurations %}
+                        <div class="table-responsive">
+                            <table class="table table-hover">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Backend</th>
+                                        <th>Host</th>
+                                        <th>From Email</th>
+                                        <th>Status</th>
+                                        <th>Last Test</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for config in configurations %}
+                                    <tr{% if config.is_active %} class="table-success"{% endif %}>
+                                        <td>
+                                            <strong>{{ config.name }}</strong>
+                                            {% if config.is_active %}
+                                                <span class="badge bg-success ms-2">Active</span>
+                                            {% endif %}
+                                            {% if config.description %}
+                                                <br><small class="text-muted">{{ config.description|truncatechars:50 }}</small>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-secondary">
+                                                {{ config.get_email_backend_display|cut:"Email Backend"|cut:"(" }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if config.email_host %}
+                                                {{ config.email_host }}:{{ config.email_port }}
+                                                <br><small class="text-muted">
+                                                    {% if config.email_use_tls %}TLS{% elif config.email_use_ssl %}SSL{% else %}Plain{% endif %}
+                                                </small>
+                                            {% else %}
+                                                <span class="text-muted">N/A</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ config.default_from_email }}</td>
+                                        <td>
+                                            {% if config.is_validated %}
+                                                <span class="badge bg-success">
+                                                    <i class="fas fa-check me-1"></i>Validated
+                                                </span>
+                                            {% else %}
+                                                <span class="badge bg-warning">
+                                                    <i class="fas fa-question me-1"></i>Not Tested
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if config.last_test_date %}
+                                                <small>{{ config.last_test_date|date:"M d, Y H:i" }}</small>
+                                                {% if config.last_test_result %}
+                                                    <br><small class="text-muted">{{ config.last_test_result|truncatechars:30 }}</small>
+                                                {% endif %}
+                                            {% else %}
+                                                <span class="text-muted">Never</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button type="button" class="btn btn-sm btn-outline-primary dropdown-toggle" 
+                                                        data-bs-toggle="dropdown" aria-expanded="false">
+                                                    Actions
+                                                </button>
+                                                <ul class="dropdown-menu">
+                                                    <li>
+                                                        <button class="dropdown-item test-config-btn" 
+                                                                data-config-id="{{ config.id }}"
+                                                                data-config-name="{{ config.name }}">
+                                                            <i class="fas fa-vial me-2"></i>Test Configuration
+                                                        </button>
+                                                    </li>
+                                                    {% if not config.is_active %}
+                                                    <li>
+                                                        <button class="dropdown-item activate-config-btn"
+                                                                data-config-id="{{ config.id }}"
+                                                                data-config-name="{{ config.name }}">
+                                                            <i class="fas fa-power-off me-2"></i>Activate
+                                                        </button>
+                                                    </li>
+                                                    {% else %}
+                                                    <li>
+                                                        <button class="dropdown-item text-warning deactivate-config-btn"
+                                                                data-config-id="{{ config.id }}"
+                                                                data-config-name="{{ config.name }}">
+                                                            <i class="fas fa-pause me-2"></i>Deactivate
+                                                        </button>
+                                                    </li>
+                                                    {% endif %}
+                                                    <li><hr class="dropdown-divider"></li>
+                                                    <li>
+                                                        <a class="dropdown-item" 
+                                                           href="{% url 'booking:site_admin_email_config_edit' config.id %}">
+                                                            <i class="fas fa-edit me-2"></i>Edit
+                                                        </a>
+                                                    </li>
+                                                    {% if not config.is_active %}
+                                                    <li>
+                                                        <button class="dropdown-item text-danger delete-config-btn"
+                                                                data-config-id="{{ config.id }}"
+                                                                data-config-name="{{ config.name }}">
+                                                            <i class="fas fa-trash me-2"></i>Delete
+                                                        </button>
+                                                    </li>
+                                                    {% endif %}
+                                                </ul>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-envelope fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No Email Configurations</h5>
+                            <p class="text-muted">Create your first email configuration to get started.</p>
+                            <a href="{% url 'booking:site_admin_email_config_create' %}" class="btn btn-primary">
+                                <i class="fas fa-plus me-2"></i>Create Email Configuration
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% csrf_token %}
+
+<!-- Test Configuration Modal -->
+<div class="modal fade" id="testConfigModal" tabindex="-1" aria-labelledby="testConfigModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="testConfigModalLabel">
+                    <i class="fas fa-vial me-2"></i>
+                    Test Email Configuration
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="testConfigForm">
+                    <div class="mb-3">
+                        <label for="testEmail" class="form-label">Test Email Address</label>
+                        <input type="email" class="form-control" id="testEmail" 
+                               placeholder="test@example.com" required>
+                        <div class="form-text">Email address to send the test email to</div>
+                    </div>
+                    <div id="testResults" class="mt-3" style="display: none;"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="sendTestBtn">
+                    <i class="fas fa-paper-plane me-2"></i>
+                    Send Test Email
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    let currentConfigId = null;
+    let currentConfigName = null;
+    
+    // Test configuration buttons
+    document.querySelectorAll('.test-config-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            currentConfigId = this.dataset.configId;
+            currentConfigName = this.dataset.configName;
+            
+            document.getElementById('testConfigModalLabel').innerHTML = 
+                '<i class="fas fa-vial me-2"></i>Test Email Configuration: ' + currentConfigName;
+            
+            // Reset form and results
+            document.getElementById('testConfigForm').reset();
+            document.getElementById('testResults').style.display = 'none';
+            
+            const modal = new bootstrap.Modal(document.getElementById('testConfigModal'));
+            modal.show();
+        });
+    });
+    
+    // Send test email
+    document.getElementById('sendTestBtn').addEventListener('click', function() {
+        const btn = this;
+        const originalText = btn.innerHTML;
+        const testEmail = document.getElementById('testEmail').value;
+        
+        if (!testEmail) {
+            alert('Please enter a test email address.');
+            return;
+        }
+        
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Sending Test...';
+        btn.disabled = true;
+        
+        fetch('{% url "booking:site_admin_email_config" %}?action=test', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `config_id=${currentConfigId}&test_email=${encodeURIComponent(testEmail)}`
+        })
+        .then(response => response.json())
+        .then(data => {
+            const resultsDiv = document.getElementById('testResults');
+            const alertClass = data.success ? 'alert-success' : 'alert-danger';
+            const icon = data.success ? 'fa-check-circle' : 'fa-times-circle';
+            
+            resultsDiv.innerHTML = `
+                <div class="alert ${alertClass}">
+                    <h6><i class="fas ${icon} me-2"></i>Test Result</h6>
+                    <p class="mb-0">${data.message}</p>
+                </div>
+            `;
+            resultsDiv.style.display = 'block';
+            
+            if (data.success) {
+                // Reload page after a delay to show updated validation status
+                setTimeout(() => {
+                    location.reload();
+                }, 2000);
+            }
+        })
+        .catch(error => {
+            const resultsDiv = document.getElementById('testResults');
+            resultsDiv.innerHTML = `
+                <div class="alert alert-danger">
+                    <h6><i class="fas fa-times-circle me-2"></i>Test Failed</h6>
+                    <p class="mb-0">Error: ${error.message}</p>
+                </div>
+            `;
+            resultsDiv.style.display = 'block';
+        })
+        .finally(() => {
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+        });
+    });
+    
+    // Activate configuration buttons
+    document.querySelectorAll('.activate-config-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const configId = this.dataset.configId;
+            const configName = this.dataset.configName;
+            
+            if (confirm(`Are you sure you want to activate "${configName}"? This will deactivate the current active configuration.`)) {
+                fetch('{% url "booking:site_admin_email_config" %}?action=activate', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `config_id=${configId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error.message);
+                });
+            }
+        });
+    });
+    
+    // Deactivate configuration buttons
+    document.querySelectorAll('.deactivate-config-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const configId = this.dataset.configId;
+            const configName = this.dataset.configName;
+            
+            if (confirm(`Are you sure you want to deactivate "${configName}"? Email functionality will be disabled until another configuration is activated.`)) {
+                fetch('{% url "booking:site_admin_email_config" %}?action=deactivate', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `config_id=${configId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error.message);
+                });
+            }
+        });
+    });
+    
+    // Delete configuration buttons
+    document.querySelectorAll('.delete-config-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const configId = this.dataset.configId;
+            const configName = this.dataset.configName;
+            
+            if (confirm(`Are you sure you want to delete "${configName}"? This action cannot be undone.`)) {
+                fetch('{% url "booking:site_admin_email_config" %}?action=delete', {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: `config_id=${configId}`
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.message);
+                    }
+                })
+                .catch(error => {
+                    alert('Error: ' + error.message);
+                });
+            }
+        });
+    });
+});
+</script>
+{% endblock %}

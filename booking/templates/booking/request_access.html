@@ -1,0 +1,300 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Request Access to {{ resource.name }} - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8 col-xl-6">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="bi bi-key me-2"></i>Request Access</h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb mb-0">
+                        <li class="breadcrumb-item"><a href="{% url 'booking:calendar' %}">Home</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'booking:resources_list' %}">Resources</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'booking:resource_detail' resource.id %}">{{ resource.name }}</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Request Access</li>
+                    </ol>
+                </nav>
+            </div>
+
+            <!-- Resource Summary Card -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-auto">
+                            {% if resource.image %}
+                                <img src="{{ resource.image.url }}" alt="{{ resource.name }}" class="rounded" style="width: 80px; height: 80px; object-fit: cover;">
+                            {% else %}
+                                <div class="d-flex align-items-center justify-content-center rounded bg-light" style="width: 80px; height: 80px;">
+                                    {% if resource.resource_type == 'robot' %}
+                                        <i class="bi bi-robot text-muted" style="font-size: 2rem;"></i>
+                                    {% elif resource.resource_type == 'instrument' %}
+                                        <i class="bi bi-tools text-muted" style="font-size: 2rem;"></i>
+                                    {% elif resource.resource_type == 'room' %}
+                                        <i class="bi bi-door-open text-muted" style="font-size: 2rem;"></i>
+                                    {% elif resource.resource_type == 'safety_cabinet' %}
+                                        <i class="bi bi-shield-check text-muted" style="font-size: 2rem;"></i>
+                                    {% else %}
+                                        <i class="bi bi-box text-muted" style="font-size: 2rem;"></i>
+                                    {% endif %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col">
+                            <h5 class="mb-1">{{ resource.name }}</h5>
+                            <p class="text-muted mb-1">{{ resource.get_resource_type_display }} • {{ resource.location }}</p>
+                            {% if resource.description %}
+                                <p class="text-muted mb-0 small">{{ resource.description|truncatewords:15 }}</p>
+                            {% endif %}
+                        </div>
+                        <div class="col-auto">
+                            <span class="badge bg-primary">{{ resource.get_resource_type_display }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Access Request Form -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-form me-2"></i>Access Request Form
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- Access Type -->
+                        <div class="mb-3">
+                            <label for="access_type" class="form-label">Access Type <span class="text-danger">*</span></label>
+                            <select class="form-select" id="access_type" name="access_type" required>
+                                <option value="view">View Only - I want to see the calendar and resource information</option>
+                                <option value="book" selected>View and Book - I want to book time slots on this resource</option>
+                            </select>
+                            <div class="form-text">
+                                Select the level of access you need. Most users will need "View and Book" access.
+                            </div>
+                        </div>
+
+                        <!-- Justification -->
+                        <div class="mb-3">
+                            <label for="justification" class="form-label">Justification <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="justification" name="justification" rows="4" required 
+                                      placeholder="Please explain why you need access to this resource. Include details about your research, project, or academic requirements."></textarea>
+                            <div class="form-text">
+                                Provide a clear explanation of why you need access to this resource. This will help the resource manager make an informed decision.
+                            </div>
+                        </div>
+
+                        <!-- Requested Duration -->
+                        <div class="mb-3">
+                            <label for="requested_duration_days" class="form-label">Requested Duration</label>
+                            <select class="form-select" id="requested_duration_days" name="requested_duration_days">
+                                <option value="">Permanent access (no expiration)</option>
+                                <option value="30">30 days</option>
+                                <option value="60">60 days</option>
+                                <option value="90" selected>90 days</option>
+                                <option value="180">180 days</option>
+                                <option value="365">1 year</option>
+                            </select>
+                            <div class="form-text">
+                                How long do you need access to this resource? You can request an extension later if needed.
+                            </div>
+                        </div>
+
+                        <!-- Supervisor Information (Students Only) -->
+                        {% if is_student %}
+                        <div class="mb-4">
+                            <div class="alert alert-info">
+                                <h6><i class="bi bi-mortarboard-fill me-2"></i>Student Supervisor Information</h6>
+                                <p class="mb-0">As a student, you are required to provide your academic supervisor's details. Your supervisor may be contacted regarding this access request.</p>
+                            </div>
+                            
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="supervisor_name" class="form-label">Supervisor Name <span class="text-danger">*</span></label>
+                                    <input type="text" class="form-control" id="supervisor_name" name="supervisor_name" required 
+                                           placeholder="Dr. Jane Smith">
+                                    <div class="form-text">
+                                        Full name of your academic supervisor
+                                    </div>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="supervisor_email" class="form-label">Supervisor Email <span class="text-danger">*</span></label>
+                                    <input type="email" class="form-control" id="supervisor_email" name="supervisor_email" required 
+                                           placeholder="supervisor@university.edu">
+                                    <div class="form-text">
+                                        Email address of your academic supervisor
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Training Verification -->
+                        {% if resource.required_training_level > user.userprofile.training_level %}
+                        <div class="mb-3">
+                            <label class="form-label">Training Verification <span class="text-danger">*</span></label>
+                            <div class="alert alert-warning">
+                                <h6><i class="bi bi-exclamation-triangle-fill me-2"></i>Training Required</h6>
+                                <p class="mb-2">This resource requires training level {{ resource.required_training_level }} or higher. Your current training level is {{ user.userprofile.training_level }}.</p>
+                            </div>
+                            
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="radio" id="has_training_yes" name="has_training" value="yes" required>
+                                <label class="form-check-label" for="has_training_yes">
+                                    <strong>I have completed the required training for this resource</strong>
+                                </label>
+                            </div>
+                            
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" id="has_training_no" name="has_training" value="no" required>
+                                <label class="form-check-label" for="has_training_no">
+                                    <strong>I need training for this resource</strong>
+                                </label>
+                            </div>
+                            
+                            <div class="form-text mt-2">
+                                If you have completed training, please select the first option. If you need training, training information will be sent to you.
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Requirements Information -->
+                        {% if resource.required_training_level > 1 or resource.requires_induction %}
+                        <div class="alert alert-info">
+                            <h6><i class="bi bi-info-circle-fill me-2"></i>Resource Requirements</h6>
+                            <ul class="mb-0">
+                                {% if resource.required_training_level > 1 %}
+                                <li>This resource requires training level {{ resource.required_training_level }} or higher</li>
+                                {% endif %}
+                                {% if resource.requires_induction %}
+                                <li>This resource requires completion of a safety induction</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                        {% endif %}
+
+                        <!-- Action Buttons -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'booking:resource_detail' resource.id %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-1"></i>Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-send me-1"></i>Submit Request
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Help Information -->
+            <div class="card mt-4">
+                <div class="card-body">
+                    <h6><i class="bi bi-question-circle me-2"></i>What happens next?</h6>
+                    <ol class="mb-0">
+                        <li>Your access request will be sent to the resource manager for review</li>
+                        <li>You will receive an email notification when your request is reviewed</li>
+                        <li>If approved, you will be able to view the calendar and book this resource</li>
+                        <li>If rejected, you will receive feedback and can submit a new request if appropriate</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-resize textarea
+    const textarea = document.getElementById('justification');
+    textarea.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = (this.scrollHeight) + 'px';
+    });
+
+    // Training radio button interaction
+    const hasTrainingYes = document.getElementById('has_training_yes');
+    const hasTrainingNo = document.getElementById('has_training_no');
+    const submitButton = document.querySelector('button[type="submit"]');
+    
+    function updateSubmitButton() {
+        if (hasTrainingYes && hasTrainingYes.checked) {
+            submitButton.innerHTML = '<i class="bi bi-send me-1"></i>Submit Training Verification';
+            submitButton.className = 'btn btn-primary';
+        } else if (hasTrainingNo && hasTrainingNo.checked) {
+            submitButton.innerHTML = '<i class="bi bi-book me-1"></i>Request Training';
+            submitButton.className = 'btn btn-info';
+        } else {
+            submitButton.innerHTML = '<i class="bi bi-send me-1"></i>Submit Request';
+            submitButton.className = 'btn btn-primary';
+        }
+    }
+    
+    if (hasTrainingYes) {
+        hasTrainingYes.addEventListener('change', updateSubmitButton);
+    }
+    if (hasTrainingNo) {
+        hasTrainingNo.addEventListener('change', updateSubmitButton);
+    }
+
+    // Form validation
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        const justification = document.getElementById('justification').value.trim();
+        
+        if (justification.length < 20) {
+            e.preventDefault();
+            alert('Please provide a more detailed justification (at least 20 characters).');
+            document.getElementById('justification').focus();
+            return false;
+        }
+        
+        // Supervisor fields validation for students
+        {% if is_student %}
+        const supervisorName = document.getElementById('supervisor_name').value.trim();
+        const supervisorEmail = document.getElementById('supervisor_email').value.trim();
+        
+        if (!supervisorName) {
+            e.preventDefault();
+            alert('Please provide your supervisor\'s name.');
+            document.getElementById('supervisor_name').focus();
+            return false;
+        }
+        
+        if (!supervisorEmail) {
+            e.preventDefault();
+            alert('Please provide your supervisor\'s email address.');
+            document.getElementById('supervisor_email').focus();
+            return false;
+        }
+        
+        // Basic email validation
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(supervisorEmail)) {
+            e.preventDefault();
+            alert('Please provide a valid email address for your supervisor.');
+            document.getElementById('supervisor_email').focus();
+            return false;
+        }
+        {% endif %}
+        
+        // Training verification confirmation
+        if (hasTrainingYes && hasTrainingYes.checked) {
+            const confirmed = confirm(
+                'Are you sure you have completed the required training? ' +
+                'False declarations may result in access being denied.'
+            );
+            if (!confirmed) {
+                e.preventDefault();
+                return false;
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

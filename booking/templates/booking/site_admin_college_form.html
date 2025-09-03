@@ -1,0 +1,149 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}{{ action }} College - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-building me-2"></i>
+                    {{ action }} College
+                </h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'booking:site_admin_dashboard' %}">Site Admin</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'booking:site_admin_academic_hierarchy' %}">Academic Hierarchy</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'booking:site_admin_colleges' %}">Colleges</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">{{ action }}</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-building me-2"></i>
+                        College Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="faculty" class="form-label">Faculty <span class="text-danger">*</span></label>
+                                <select id="faculty" name="faculty" class="form-select" required>
+                                    <option value="">Select Faculty</option>
+                                    {% for faculty in faculties %}
+                                        <option value="{{ faculty.id }}" 
+                                                {% if college and college.faculty.id == faculty.id %}selected{% endif %}>
+                                            {{ faculty.name }} ({{ faculty.code }})
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Select the faculty this college belongs to.</div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label for="name" class="form-label">College Name <span class="text-danger">*</span></label>
+                                <input type="text" 
+                                       id="name" 
+                                       name="name" 
+                                       class="form-control" 
+                                       value="{% if college %}{{ college.name }}{% endif %}"
+                                       placeholder="e.g., College of Engineering and Computer Science"
+                                       required>
+                                <div class="form-text">Enter the full name of the college.</div>
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="code" class="form-label">College Code <span class="text-danger">*</span></label>
+                                <input type="text" 
+                                       id="code" 
+                                       name="code" 
+                                       class="form-control text-uppercase" 
+                                       value="{% if college %}{{ college.code }}{% endif %}"
+                                       placeholder="e.g., CECS"
+                                       style="text-transform: uppercase;"
+                                       maxlength="10"
+                                       required>
+                                <div class="form-text">Short code for the college (max 10 characters).</div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-12 mb-3">
+                                <div class="form-check">
+                                    <input type="checkbox" 
+                                           id="is_active" 
+                                           name="is_active" 
+                                           class="form-check-input"
+                                           {% if not college or college.is_active %}checked{% endif %}>
+                                    <label for="is_active" class="form-check-label">
+                                        Active College
+                                    </label>
+                                    <div class="form-text">Inactive colleges will not be available for selection in new records.</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if college and college.departments.exists %}
+                            <div class="row">
+                                <div class="col-12 mb-3">
+                                    <div class="alert alert-info">
+                                        <h6 class="alert-heading">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            Related Departments
+                                        </h6>
+                                        <p class="mb-2">This college contains the following departments:</p>
+                                        <ul class="mb-0">
+                                            {% for department in college.departments.all %}
+                                                <li>{{ department.name }} ({{ department.code }})</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        {% endif %}
+
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'booking:site_admin_colleges' %}" class="btn btn-secondary">
+                                        <i class="fas fa-arrow-left me-2"></i>
+                                        Back to Colleges
+                                    </a>
+                                    <button type="submit" class="btn btn-success">
+                                        <i class="fas fa-save me-2"></i>
+                                        {% if college %}Update College{% else %}Create College{% endif %}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-uppercase the code field
+    const codeField = document.getElementById('code');
+    codeField.addEventListener('input', function() {
+        this.value = this.value.toUpperCase();
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,136 @@
+# Docker Compose for Labitory Production Deployment
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  db:
+    image: postgres:15-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-aperture_booking}
+      POSTGRES_USER: ${DB_USER:-aperture_booking}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backups/db:/backups
+    networks:
+      - aperture_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-aperture_booking}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    networks:
+      - aperture_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Labitory Application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      # Database settings
+      DB_NAME: ${DB_NAME:-aperture_booking}
+      DB_USER: ${DB_USER:-aperture_booking}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_HOST: db
+      DB_PORT: 5432
+      
+      # Redis settings
+      REDIS_URL: redis://redis:6379/0
+      
+      # Django settings
+      SECRET_KEY: ${SECRET_KEY}
+      DEBUG: ${DEBUG:-False}
+      ALLOWED_HOSTS: ${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      
+      # HTTPS settings
+      USE_HTTPS: ${USE_HTTPS:-False}
+      
+      # Email settings
+      EMAIL_HOST: ${EMAIL_HOST:-localhost}
+      EMAIL_PORT: ${EMAIL_PORT:-587}
+      EMAIL_USE_TLS: ${EMAIL_USE_TLS:-True}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER:-}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD:-}
+      DEFAULT_FROM_EMAIL: ${DEFAULT_FROM_EMAIL:-noreply@aperature-booking.com}
+      
+      # Timezone
+      TIME_ZONE: ${TIME_ZONE:-UTC}
+      LANGUAGE_CODE: ${LANGUAGE_CODE:-en-gb}
+      
+      # Admin settings
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-admin@aperature-booking.com}
+    volumes:
+      - static_files:/app/staticfiles
+      - media_files:/app/media
+      - app_logs:/app/logs
+      - app_backups:/app/backups
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - aperture_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # Backup service (optional)
+  backup:
+    image: postgres:15-alpine
+    restart: "no"
+    environment:
+      PGPASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data:ro
+      - ./backups/db:/backups
+      - ./deploy/backup-cron.sh:/usr/local/bin/backup-cron.sh
+    networks:
+      - aperture_network
+    depends_on:
+      - db
+    entrypoint: /usr/local/bin/backup-cron.sh
+    profiles:
+      - backup
+
+# Named volumes for persistent data
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  static_files:
+    driver: local
+  media_files:
+    driver: local
+  app_logs:
+    driver: local
+  app_backups:
+    driver: local
+
+# Custom network
+networks:
+  aperture_network:
+    driver: bridge

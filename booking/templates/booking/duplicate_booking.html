@@ -1,0 +1,277 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Duplicate Booking - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-files"></i> Duplicate Booking</h2>
+    <a href="{% url 'booking:booking_detail' original_booking.pk %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Original
+    </a>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">New Booking Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="post" id="duplicate-booking-form">
+                    {% csrf_token %}
+                    
+                    {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {% for error in form.non_field_errors %}
+                                <div>{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.resource.id_for_label }}" class="form-label">Resource *</label>
+                            {{ form.resource }}
+                            {% if form.resource.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.resource.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.title.id_for_label }}" class="form-label">Booking Title *</label>
+                            {{ form.title }}
+                            {% if form.title.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.title.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                            <div class="text-danger">
+                                {% for error in form.description.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label for="{{ form.start_time.id_for_label }}" class="form-label">Start Time *</label>
+                            {{ form.start_time }}
+                            {% if form.start_time.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.start_time.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-6">
+                            <label for="{{ form.end_time.id_for_label }}" class="form-label">End Time *</label>
+                            {{ form.end_time }}
+                            {% if form.end_time.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.end_time.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <div class="form-check">
+                                {{ form.shared_with_group }}
+                                <label class="form-check-label" for="{{ form.shared_with_group.id_for_label }}">
+                                    Share with my group
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.notes.id_for_label }}" class="form-label">Notes</label>
+                        {{ form.notes }}
+                        {% if form.notes.errors %}
+                            <div class="text-danger">
+                                {% for error in form.notes.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'booking:booking_detail' original_booking.pk %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-check-circle"></i> Create Duplicate Booking
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0">Original Booking</h6>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless">
+                    <tr>
+                        <td><strong>Title:</strong></td>
+                        <td>{{ original_booking.title }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Resource:</strong></td>
+                        <td>{{ original_booking.resource.name }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Start:</strong></td>
+                        <td>{{ original_booking.start_time|date:"M d, Y H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>End:</strong></td>
+                        <td>{{ original_booking.end_time|date:"M d, Y H:i" }}</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Duration:</strong></td>
+                        <td>
+                            {% with duration=original_booking.duration %}
+                                {{ duration.seconds|floatformat:0|add:0|div:3600|floatformat:1 }}h
+                            {% endwith %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Status:</strong></td>
+                        <td><span class="badge bg-{{ original_booking.status }}">{{ original_booking.get_status_display }}</span></td>
+                    </tr>
+                </table>
+                
+                <div class="mt-3">
+                    <a href="{% url 'booking:booking_detail' original_booking.pk %}" class="btn btn-sm btn-outline-primary">
+                        <i class="bi bi-eye"></i> View Original
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Duplication Notes</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="bi bi-info-circle text-info"></i> Default time set to tomorrow at same hour</li>
+                    <li><i class="bi bi-copy text-primary"></i> All details copied from original</li>
+                    <li><i class="bi bi-person text-success"></i> You will be the owner of the new booking</li>
+                    <li><i class="bi bi-clock-history text-warning"></i> New booking will start as "Pending"</li>
+                </ul>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Quick Time Adjustments</h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-outline-info btn-sm" onclick="adjustTime('today')">
+                        <i class="bi bi-calendar-day"></i> Set to Today
+                    </button>
+                    <button type="button" class="btn btn-outline-info btn-sm" onclick="adjustTime('next_week')">
+                        <i class="bi bi-calendar-week"></i> Next Week
+                    </button>
+                    <button type="button" class="btn btn-outline-info btn-sm" onclick="adjustTime('next_month')">
+                        <i class="bi bi-calendar-month"></i> Next Month
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const startTimeInput = document.querySelector('#duplicate-booking-form [name="start_time"]');
+    const endTimeInput = document.querySelector('#duplicate-booking-form [name="end_time"]');
+    
+    // Auto-calculate end time when start time changes
+    startTimeInput.addEventListener('change', function() {
+        if (this.value) {
+            // Calculate duration from original booking
+            const originalStart = new Date('{{ original_booking.start_time|date:"Y-m-d\TH:i" }}');
+            const originalEnd = new Date('{{ original_booking.end_time|date:"Y-m-d\TH:i" }}');
+            const duration = originalEnd.getTime() - originalStart.getTime();
+            
+            const newStart = new Date(this.value);
+            const newEnd = new Date(newStart.getTime() + duration);
+            endTimeInput.value = newEnd.toISOString().slice(0, 16);
+        }
+    });
+});
+
+function adjustTime(period) {
+    const startTimeInput = document.querySelector('#duplicate-booking-form [name="start_time"]');
+    const endTimeInput = document.querySelector('#duplicate-booking-form [name="end_time"]');
+    
+    const originalStart = new Date('{{ original_booking.start_time|date:"Y-m-d\TH:i" }}');
+    const originalEnd = new Date('{{ original_booking.end_time|date:"Y-m-d\TH:i" }}');
+    const duration = originalEnd.getTime() - originalStart.getTime();
+    
+    let newStart;
+    const now = new Date();
+    
+    switch(period) {
+        case 'today':
+            newStart = new Date(now);
+            newStart.setHours(originalStart.getHours(), originalStart.getMinutes(), 0, 0);
+            // If time has passed, move to next day
+            if (newStart <= now) {
+                newStart.setDate(newStart.getDate() + 1);
+            }
+            break;
+            
+        case 'next_week':
+            newStart = new Date(now);
+            newStart.setDate(now.getDate() + (7 - now.getDay()) + 1); // Next Monday
+            newStart.setHours(originalStart.getHours(), originalStart.getMinutes(), 0, 0);
+            break;
+            
+        case 'next_month':
+            newStart = new Date(now);
+            newStart.setMonth(now.getMonth() + 1, 1); // First of next month
+            newStart.setHours(originalStart.getHours(), originalStart.getMinutes(), 0, 0);
+            break;
+    }
+    
+    const newEnd = new Date(newStart.getTime() + duration);
+    
+    startTimeInput.value = newStart.toISOString().slice(0, 16);
+    endTimeInput.value = newEnd.toISOString().slice(0, 16);
+}
+</script>
+{% endblock %}

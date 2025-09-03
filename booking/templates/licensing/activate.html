@@ -1,0 +1,134 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Activate License - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="fas fa-key me-2"></i>Activate License</h1>
+                <a href="{% url 'booking:license_status' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Status
+                </a>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-certificate me-2"></i>License Activation
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-4">
+                        Enter your commercial license key to unlock additional features and remove GPL licensing requirements.
+                    </p>
+
+                    <form method="post" data-progress="true">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger">
+                                {% for error in form.non_field_errors %}
+                                    <div>{{ error }}</div>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label for="{{ form.license_key.id_for_label }}" class="form-label">
+                                License Key *
+                            </label>
+                            {{ form.license_key }}
+                            {% if form.license_key.errors %}
+                                <div class="text-danger">
+                                    {% for error in form.license_key.errors %}
+                                        <small>{{ error }}</small>
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                            <div class="form-text">
+                                Enter the license key provided with your commercial license purchase.
+                            </div>
+                        </div>
+
+                        {% if form.licensee_name %}
+                            <div class="mb-3">
+                                <label for="{{ form.licensee_name.id_for_label }}" class="form-label">
+                                    Organization Name
+                                </label>
+                                {{ form.licensee_name }}
+                                {% if form.licensee_name.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.licensee_name.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        {% if form.licensee_email %}
+                            <div class="mb-3">
+                                <label for="{{ form.licensee_email.id_for_label }}" class="form-label">
+                                    Contact Email
+                                </label>
+                                {{ form.licensee_email }}
+                                {% if form.licensee_email.errors %}
+                                    <div class="text-danger">
+                                        {% for error in form.licensee_email.errors %}
+                                            <small>{{ error }}</small>
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'booking:license_status' %}" class="btn btn-secondary">
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-key me-1"></i>Activate License
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- License Information -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>About Commercial Licenses
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Benefits of Commercial Licensing</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success me-2"></i>Remove GPL licensing requirements</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Professional support included</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Priority feature requests</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Custom branding options</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Enterprise integrations</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Need a License?</h6>
+                            <p class="text-muted mb-3">
+                                Commercial licenses are available for organizations that cannot comply with GPL-3.0 requirements.
+                            </p>
+                            <a href="https://labitory.com/commercial" target="_blank" class="btn btn-outline-primary">
+                                <i class="fas fa-external-link-alt me-1"></i>Purchase License
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

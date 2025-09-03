@@ -1,0 +1,289 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Register - {{ app_title }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-8 col-lg-6">
+        <div class="card shadow">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0">
+                    <img src="{% if logo_url %}{{ logo_url }}{% else %}{% static 'images/logo.png' %}{% endif %}" alt="{{ app_title }}" style="height: 24px; width: auto; margin-right: 8px;">
+                    Register for {{ app_title }}
+                </h4>
+                <small class="text-muted">{{ lab_name }} v{{ version }}</small>
+            </div>
+            <div class="card-body">
+                <form method="post" data-progress="true">
+                    {% csrf_token %}
+                    
+                    {% if form.errors %}
+                        <div class="alert alert-danger">
+                            <ul class="mb-0">
+                                {% for field, errors in form.errors.items %}
+                                    {% for error in errors %}
+                                        <li>{{ error }}</li>
+                                    {% endfor %}
+                                {% endfor %}
+                            </ul>
+                        </div>
+                    {% endif %}
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name *</label>
+                                {{ form.first_name }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name *</label>
+                                {{ form.last_name }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.email.id_for_label }}" class="form-label">{{ form.email.label }} *</label>
+                        {{ form.email }}
+                        <div class="form-text">{{ form.email.help_text }}</div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.password1.id_for_label }}" class="form-label">Password *</label>
+                                {{ form.password1 }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.password2.id_for_label }}" class="form-label">Confirm Password *</label>
+                                {{ form.password2 }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h5 class="mb-3">Profile Information</h5>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.role.id_for_label }}" class="form-label">Role *</label>
+                                {{ form.role }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.phone.id_for_label }}" class="form-label">Phone Number</label>
+                                {{ form.phone }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Academic Structure -->
+                    <h6 class="mb-2">Academic Structure</h6>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="{{ form.faculty.id_for_label }}" class="form-label">Faculty</label>
+                                {{ form.faculty }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="{{ form.college.id_for_label }}" class="form-label">College</label>
+                                {{ form.college }}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="{{ form.department.id_for_label }}" class="form-label">Department</label>
+                                {{ form.department }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="{{ form.group.id_for_label }}" class="form-label">Group</label>
+                        {{ form.group }}
+                        <div class="form-text">{{ form.group.help_text }}</div>
+                    </div>
+
+                    <!-- Role-specific fields -->
+                    <div id="student-fields" class="role-specific-fields" style="display: none;">
+                        <h6 class="mb-2">Student Information</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.student_id.id_for_label }}" class="form-label">Student ID *</label>
+                                    {{ form.student_id }}
+                                    <div class="form-text">{{ form.student_id.help_text }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="{{ form.student_level.id_for_label }}" class="form-label">Student Level *</label>
+                                    {{ form.student_level }}
+                                    <div class="form-text">{{ form.student_level.help_text }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="staff-fields" class="role-specific-fields" style="display: none;">
+                        <h6 class="mb-2">Staff Information</h6>
+                        <div class="mb-3">
+                            <label for="{{ form.staff_number.id_for_label }}" class="form-label">Staff Number *</label>
+                            {{ form.staff_number }}
+                            <div class="form-text">{{ form.staff_number.help_text }}</div>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">Register</button>
+                    </div>
+                </form>
+
+                <hr>
+                <div class="text-center">
+                    <p class="mb-0">Already have an account? <a href="{% url 'login' %}">Sign in here</a></p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const roleField = document.getElementById('id_role');
+    const facultyField = document.getElementById('id_faculty');
+    const collegeField = document.getElementById('id_college');
+    const departmentField = document.getElementById('id_department');
+    
+    // Function to show/hide role-specific fields
+    function toggleRoleFields() {
+        const role = roleField.value;
+        const studentFields = document.getElementById('student-fields');
+        const staffFields = document.getElementById('staff-fields');
+        
+        // Hide all role-specific fields first
+        document.querySelectorAll('.role-specific-fields').forEach(function(field) {
+            field.style.display = 'none';
+        });
+        
+        // Show appropriate fields based on role
+        if (role === 'student') {
+            studentFields.style.display = 'block';
+        } else if (['researcher', 'academic', 'technician'].includes(role)) {
+            staffFields.style.display = 'block';
+        }
+    }
+    
+    // Function to load colleges based on faculty selection
+    function loadColleges() {
+        const facultyId = facultyField.value;
+        
+        // Clear existing options
+        collegeField.innerHTML = '<option value="">Select College</option>';
+        departmentField.innerHTML = '<option value="">Select Department</option>';
+        
+        if (facultyId) {
+            fetch(`/ajax/load-colleges/?faculty_id=${facultyId}`)
+                .then(response => response.json())
+                .then(data => {
+                    data.colleges.forEach(function(college) {
+                        const option = new Option(college.name, college.id);
+                        collegeField.add(option);
+                    });
+                })
+                .catch(error => console.error('Error loading colleges:', error));
+        }
+    }
+    
+    // Function to load departments based on college selection
+    function loadDepartments() {
+        const collegeId = collegeField.value;
+        
+        // Clear existing options
+        departmentField.innerHTML = '<option value="">Select Department</option>';
+        
+        if (collegeId) {
+            fetch(`/ajax/load-departments/?college_id=${collegeId}`)
+                .then(response => response.json())
+                .then(data => {
+                    data.departments.forEach(function(department) {
+                        const option = new Option(department.name, department.id);
+                        departmentField.add(option);
+                    });
+                })
+                .catch(error => console.error('Error loading departments:', error));
+        }
+    }
+    
+    // Event listeners
+    roleField.addEventListener('change', toggleRoleFields);
+    facultyField.addEventListener('change', loadColleges);
+    collegeField.addEventListener('change', loadDepartments);
+    
+    // Initial setup - show appropriate fields based on current selection
+    toggleRoleFields();
+    
+    // Form validation
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        const role = roleField.value;
+        let isValid = true;
+        
+        // Clear previous validation states
+        document.querySelectorAll('.is-invalid').forEach(el => el.classList.remove('is-invalid'));
+        document.querySelectorAll('.invalid-feedback').forEach(el => el.remove());
+        
+        // Role-specific validation
+        if (role === 'student') {
+            const studentId = document.getElementById('id_student_id');
+            const studentLevel = document.getElementById('id_student_level');
+            
+            if (!studentId.value.trim()) {
+                showValidationError(studentId, 'Student ID is required for students.');
+                isValid = false;
+            }
+            
+            if (!studentLevel.value) {
+                showValidationError(studentLevel, 'Student level is required for students.');
+                isValid = false;
+            }
+        } else if (['researcher', 'academic', 'technician'].includes(role)) {
+            const staffNumber = document.getElementById('id_staff_number');
+            
+            if (!staffNumber.value.trim()) {
+                showValidationError(staffNumber, 'Staff number is required for staff members.');
+                isValid = false;
+            }
+        }
+        
+        if (!isValid) {
+            e.preventDefault();
+            // Scroll to first error
+            const firstError = document.querySelector('.is-invalid');
+            if (firstError) {
+                firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+    });
+    
+    function showValidationError(field, message) {
+        field.classList.add('is-invalid');
+        const feedback = document.createElement('div');
+        feedback.className = 'invalid-feedback';
+        feedback.textContent = message;
+        field.parentNode.appendChild(feedback);
+    }
+});
+</script>
+{% endblock %}

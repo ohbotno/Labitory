@@ -1,0 +1,263 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Booking Details - Labitory{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 mx-auto">
+        <div class="card shadow">
+            <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                <h4 class="mb-0">
+                    <i class="bi bi-calendar-event"></i> {{ booking.title }}
+                    {% if booking.is_recurring %}
+                        <span class="badge bg-warning text-dark">Recurring</span>
+                    {% endif %}
+                </h4>
+                <span class="badge bg-{{ booking.status|default:'secondary' }}">
+                    {{ booking.get_status_display }}
+                </span>
+            </div>
+            <div class="card-body">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Booking Details</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Resource:</strong></td>
+                                <td>{{ booking.resource.name }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Type:</strong></td>
+                                <td>{{ booking.resource.get_resource_type_display }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Location:</strong></td>
+                                <td>{{ booking.resource.location }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Booked by:</strong></td>
+                                <td>{{ booking.user.get_full_name }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Duration:</strong></td>
+                                <td>{{ booking.duration }}</td>
+                            </tr>
+                        </table>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Schedule</h6>
+                        <table class="table table-sm">
+                            <tr>
+                                <td><strong>Start:</strong></td>
+                                <td>{{ booking.start_time|date:"M d, Y H:i" }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>End:</strong></td>
+                                <td>{{ booking.end_time|date:"M d, Y H:i" }}</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Created:</strong></td>
+                                <td>{{ booking.created_at|date:"M d, Y H:i" }}</td>
+                            </tr>
+                            {% if booking.approved_by %}
+                            <tr>
+                                <td><strong>Approved by:</strong></td>
+                                <td>{{ booking.approved_by.get_full_name }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                </div>
+
+                {% if booking.description %}
+                <div class="mb-3">
+                    <h6>Description</h6>
+                    <p class="text-muted">{{ booking.description }}</p>
+                </div>
+                {% endif %}
+
+                {% if booking.notes %}
+                <div class="mb-3">
+                    <h6>Notes</h6>
+                    <p class="text-muted">{{ booking.notes }}</p>
+                </div>
+                {% endif %}
+
+                {% if booking.shared_with_group %}
+                <div class="alert alert-info">
+                    <i class="bi bi-people"></i> This booking is shared with the group
+                </div>
+                {% endif %}
+
+                <!-- Action buttons -->
+                <div class="d-flex gap-2 mb-3">
+                    {% if booking.user == request.user or user.userprofile.role in 'technician,sysadmin' %}
+                        {% if booking.can_be_cancelled %}
+                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#cancelModal">
+                                <i class="bi bi-x-circle"></i> Cancel Booking
+                            </button>
+                        {% endif %}
+                        
+                        {% if not booking.is_recurring and user.userprofile.can_create_recurring %}
+                            <a href="{% url 'booking:create_recurring' booking.pk %}" class="btn btn-success">
+                                <i class="bi bi-arrow-repeat"></i> Make Recurring
+                            </a>
+                        {% endif %}
+                        
+                        {% if booking.is_recurring %}
+                            <a href="{% url 'booking:cancel_recurring' booking.pk %}" class="btn btn-secondary">
+                                <i class="bi bi-x-square"></i> Cancel Series
+                            </a>
+                        {% endif %}
+                    {% endif %}
+                    
+                    {% if user.userprofile.role in 'technician,sysadmin' and booking.status == 'pending' %}
+                        <button type="button" class="btn btn-success" onclick="approveBooking()">
+                            <i class="bi bi-check-circle"></i> Approve
+                        </button>
+                        <button type="button" class="btn btn-danger" onclick="rejectBooking()">
+                            <i class="bi bi-x-circle"></i> Reject
+                        </button>
+                    {% endif %}
+                </div>
+
+                <!-- Recurring series display -->
+                {% if recurring_series %}
+                <div class="mt-4">
+                    <h6>Recurring Series ({{ recurring_series|length }} bookings)</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Time</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for series_booking in recurring_series %}
+                                <tr {% if series_booking.pk == booking.pk %}class="table-active"{% endif %}>
+                                    <td>{{ series_booking.start_time|date:"M d, Y" }}</td>
+                                    <td>{{ series_booking.start_time|date:"H:i" }} - {{ series_booking.end_time|date:"H:i" }}</td>
+                                    <td>
+                                        <span class="badge bg-{{ series_booking.status|default:'secondary' }}">
+                                            {{ series_booking.get_status_display }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if series_booking.pk != booking.pk %}
+                                            <a href="{% url 'booking:booking_detail' series_booking.pk %}" class="btn btn-sm btn-outline-primary">
+                                                View
+                                            </a>
+                                        {% else %}
+                                            <span class="text-muted">Current</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="mt-3">
+                    <a href="{% url 'booking:manage_bookings' %}" class="btn btn-outline-secondary">
+                        <i class="bi bi-arrow-left"></i> Back to Bookings
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Booking Modal -->
+<div class="modal fade" id="cancelModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Cancel Booking</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to cancel this booking?</p>
+                <p><strong>{{ booking.title }}</strong><br>
+                {{ booking.start_time|date:"M d, Y H:i" }} - {{ booking.end_time|date:"H:i" }}</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Keep Booking</button>
+                <button type="button" class="btn btn-danger" onclick="cancelBooking()">Cancel Booking</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function cancelBooking() {
+    fetch(`/api/bookings/{{ booking.pk }}/cancel/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        location.reload();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error cancelling booking');
+    });
+}
+
+function approveBooking() {
+    fetch(`/api/bookings/{{ booking.pk }}/approve/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}',
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        location.reload();
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error approving booking');
+    });
+}
+
+function rejectBooking() {
+    if (confirm('Are you sure you want to reject this booking?')) {
+        fetch(`/api/bookings/{{ booking.pk }}/reject/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}',
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            location.reload();
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error rejecting booking');
+        });
+    }
+}
+</script>
+{% endblock %}

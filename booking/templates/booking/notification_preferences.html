@@ -1,0 +1,342 @@
+{% extends "booking/base.html" %}
+{% load static %}
+{% load notification_tags %}
+
+{% block title %}Notification Preferences - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-10">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-cog"></i> Notification Preferences</h2>
+                <a href="{% url 'booking:notifications' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-bell"></i> View Notifications
+                </a>
+            </div>
+
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Configure how you receive notifications</h5>
+                    <small class="text-muted">Choose which notifications you want to receive and how you want to receive them</small>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 40%;">Notification Type</th>
+                                        <th class="text-center" style="width: 20%;">
+                                            <i class="fas fa-envelope"></i><br>Email
+                                        </th>
+                                        <th class="text-center" style="width: 20%;">
+                                            <i class="fas fa-mobile-alt"></i><br>SMS
+                                        </th>
+                                        <th class="text-center" style="width: 20%;">
+                                            <i class="fas fa-bell"></i><br>In-App
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for type_code, type_display in notification_types %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ type_display }}</strong>
+                                                <br>
+                                                <small class="text-muted">
+                                                    {% if type_code == 'booking_confirmed' %}
+                                                        When your booking is confirmed
+                                                    {% elif type_code == 'booking_cancelled' %}
+                                                        When a booking is cancelled
+                                                    {% elif type_code == 'booking_reminder' %}
+                                                        Reminders before your bookings
+                                                    {% elif type_code == 'approval_request' %}
+                                                        When your approval is needed
+                                                    {% elif type_code == 'approval_decision' %}
+                                                        When your booking is approved/rejected
+                                                    {% elif type_code == 'maintenance_alert' %}
+                                                        Maintenance affecting your bookings
+                                                    {% elif type_code == 'conflict_detected' %}
+                                                        When booking conflicts are found
+                                                    {% elif type_code == 'quota_warning' %}
+                                                        When approaching usage limits
+                                                    {% elif type_code == 'waitlist_joined' %}
+                                                        Confirmation when joining waiting lists
+                                                    {% elif type_code == 'waitlist_availability' %}
+                                                        When waiting list slots become available
+                                                    {% elif type_code == 'waitlist_cancelled' %}
+                                                        When leaving waiting lists
+                                                    {% elif type_code == 'access_request_submitted' %}
+                                                        When you submit access requests
+                                                    {% elif type_code == 'access_request_approved' %}
+                                                        When your access is granted
+                                                    {% elif type_code == 'access_request_rejected' %}
+                                                        When your access is denied
+                                                    {% elif type_code == 'training_request_submitted' %}
+                                                        When you submit training requests
+                                                    {% elif type_code == 'training_request_scheduled' %}
+                                                        When your training is scheduled
+                                                    {% elif type_code == 'training_request_completed' %}
+                                                        When you complete training
+                                                    {% elif type_code == 'training_request_cancelled' %}
+                                                        When training is cancelled
+                                                    {% endif %}
+                                                </small>
+                                            </td>
+                                            
+                                            {% for method_code, method_display in delivery_methods %}
+                                                <td class="text-center">
+                                                    {% with pref_key=type_code|add:"_"|add:method_code %}
+                                                        <div class="form-check d-flex justify-content-center mb-2">
+                                                            <input class="form-check-input" 
+                                                                   type="checkbox" 
+                                                                   name="{{ type_code }}_{{ method_code }}_enabled"
+                                                                   id="{{ type_code }}_{{ method_code }}_enabled"
+                                                                   {% if current_preferences|get_item:pref_key.enabled %}checked{% endif %}
+                                                                   {% if method_code == 'sms' %}disabled{% endif %}>
+                                                        </div>
+                                                        <select class="form-select form-select-sm" 
+                                                                name="{{ type_code }}_{{ method_code }}_frequency"
+                                                                {% if method_code == 'sms' %}disabled{% endif %}>
+                                                            {% for freq_value, freq_display in frequency_choices %}
+                                                            <option value="{{ freq_value }}" 
+                                                                    {% if current_preferences|get_item:pref_key.frequency == freq_value %}selected{% endif %}>
+                                                                {{ freq_display }}
+                                                            </option>
+                                                            {% endfor %}
+                                                        </select>
+                                                        {% if method_code == 'sms' %}
+                                                            <small class="text-muted">Coming soon</small>
+                                                        {% endif %}
+                                                    {% endwith %}
+                                                </td>
+                                            {% endfor %}
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Bulk Actions -->
+                        <div class="row mt-4">
+                            <div class="col-md-12">
+                                <div class="alert alert-info">
+                                    <h6><i class="fas fa-magic"></i> Quick Actions</h6>
+                                    <div class="btn-group" role="group">
+                                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleColumn('email')">
+                                            Toggle All Email
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleColumn('sms')">
+                                            Toggle All SMS
+                                        </button>
+                                        <button type="button" class="btn btn-outline-primary btn-sm" onclick="toggleColumn('in_app')">
+                                            Toggle All In-App
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm" onclick="enableEssential()">
+                                            Essential Only
+                                        </button>
+                                        <button type="button" class="btn btn-outline-success btn-sm" onclick="enableAll()">
+                                            Enable All
+                                        </button>
+                                        <button type="button" class="btn btn-outline-danger btn-sm" onclick="disableAll()">
+                                            Disable All
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Contact Information Notice -->
+                        {% if not user.userprofile.phone %}
+                            <div class="alert alert-warning">
+                                <h6><i class="fas fa-exclamation-triangle"></i> SMS Notifications Unavailable</h6>
+                                <p class="mb-2">To receive SMS notifications, please add your phone number in your profile.</p>
+                                <a href="{% url 'booking:profile' %}" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-user-edit"></i> Update Profile
+                                </a>
+                            </div>
+                        {% endif %}
+
+                        <!-- Submit Button -->
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'booking:dashboard' %}" class="btn btn-secondary">
+                                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save"></i> Save Preferences
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Help Information -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-question-circle"></i> About Notification Types</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <h6>Essential Notifications</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success"></i> Booking Confirmed</li>
+                                <li><i class="fas fa-times text-danger"></i> Booking Cancelled</li>
+                                <li><i class="fas fa-gavel text-primary"></i> Approval Decision</li>
+                                <li><i class="fas fa-bell text-warning"></i> Waiting List Available</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Helpful Notifications</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-clock text-info"></i> Booking Reminders</li>
+                                <li><i class="fas fa-tools text-warning"></i> Maintenance Alerts</li>
+                                <li><i class="fas fa-exclamation-triangle text-danger"></i> Conflict Detection</li>
+                                <li><i class="fas fa-chart-line text-primary"></i> Quota Warnings</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-4">
+                            <h6>Administrative</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-user-check text-info"></i> Approval Requests</li>
+                                <li><i class="fas fa-list-ul text-muted"></i> Waiting List Updates</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Custom template filter simulation
+function lookup(obj, key) {
+    return obj[key] || false;
+}
+
+// Register the filter for template use
+if (typeof window.templateFilters === 'undefined') {
+    window.templateFilters = {};
+}
+window.templateFilters.lookup = lookup;
+
+function toggleColumn(method) {
+    const checkboxes = document.querySelectorAll(`input[name*="_${method}"]`);
+    const firstCheckbox = checkboxes[0];
+    const newState = !firstCheckbox.checked;
+    
+    checkboxes.forEach(checkbox => {
+        if (!checkbox.disabled) {
+            checkbox.checked = newState;
+        }
+    });
+}
+
+function enableEssential() {
+    // Disable all first
+    const allCheckboxes = document.querySelectorAll('input[type="checkbox"]');
+    allCheckboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    
+    // Enable essential notifications
+    const essential = [
+        'booking_confirmed',
+        'booking_cancelled', 
+        'approval_decision',
+        'waitlist_availability'
+    ];
+    
+    essential.forEach(type => {
+        // Enable email and in-app for essential
+        const emailCheckbox = document.querySelector(`input[name="pref_${type}_email"]`);
+        const inAppCheckbox = document.querySelector(`input[name="pref_${type}_in_app"]`);
+        
+        if (emailCheckbox) emailCheckbox.checked = true;
+        if (inAppCheckbox) inAppCheckbox.checked = true;
+    });
+}
+
+function enableAll() {
+    const allCheckboxes = document.querySelectorAll('input[type="checkbox"]:not(:disabled)');
+    allCheckboxes.forEach(checkbox => {
+        checkbox.checked = true;
+    });
+}
+
+function disableAll() {
+    const allCheckboxes = document.querySelectorAll('input[type="checkbox"]');
+    allCheckboxes.forEach(checkbox => {
+        checkbox.checked = false;
+    });
+}
+
+// Confirm before disabling all
+document.querySelector('button[onclick="disableAll()"]').addEventListener('click', function(e) {
+    if (!confirm('Are you sure you want to disable all notifications? You will not receive any updates about your bookings.')) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+});
+
+// Form validation
+document.querySelector('form').addEventListener('submit', function(e) {
+    const allCheckboxes = document.querySelectorAll('input[type="checkbox"]');
+    const checkedBoxes = document.querySelectorAll('input[type="checkbox"]:checked');
+    
+    if (checkedBoxes.length === 0) {
+        if (!confirm('You have not selected any notifications. Are you sure you want to continue? You will not receive any updates about your bookings.')) {
+            e.preventDefault();
+        }
+    }
+});
+</script>
+
+<style>
+.form-check-input:disabled {
+    opacity: 0.3;
+}
+
+.table th {
+    border-top: none;
+    font-weight: 600;
+}
+
+.btn-group .btn {
+    margin: 0 2px;
+}
+
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+    
+    .btn-group {
+        display: flex;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .btn-group .btn {
+        margin: 0;
+    }
+}
+</style>
+{% endblock %}

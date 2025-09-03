@@ -1,0 +1,89 @@
+LABITORY COMMERCIAL LICENSE AGREEMENT
+
+Version 1.0, January 2025
+
+Copyright (C) 2025 Labitory Contributors
+
+IMPORTANT: READ THIS LICENSE AGREEMENT CAREFULLY BEFORE USING THE SOFTWARE.
+
+This Commercial License Agreement ("Agreement") is a legal agreement between you (either an individual or a single entity, "Licensee") and the copyright holders of Labitory ("Licensor") for the use of Labitory software and associated documentation ("Software").
+
+BY INSTALLING, COPYING, OR OTHERWISE USING THE SOFTWARE, YOU AGREE TO BE BOUND BY THE TERMS OF THIS AGREEMENT.
+
+1. GRANT OF LICENSE
+
+Subject to the terms and conditions of this Agreement, Licensor hereby grants to Licensee a non-exclusive, non-transferable white-label commercial license to:
+
+a) Use, modify, and create derivative works of the Software
+b) Remove all "Labitory" branding, logos, and references
+c) Add Licensee's own branding, logos, colors, and product name
+d) Distribute the Software under Licensee's own product name
+e) Sublicense the Software to end users as Licensee's own product
+
+2. WHITE-LABEL RIGHTS
+
+This license specifically permits:
+- Complete removal of "Labitory" branding
+- Addition of Licensee's own logo, colors, and styling
+- Distribution under Licensee's own product name
+- Marketing and selling as Licensee's own development
+- No "Powered by" or attribution requirements
+- Custom documentation and user materials
+
+3. RESTRICTIONS
+
+Licensee shall NOT:
+a) Remove or alter any copyright, trademark, or license notices
+b) Use the Licensor's name, logo, or trademarks without written permission
+c) Distribute standalone copies of the Software under this commercial license
+d) Reverse engineer, decompile, or disassemble the Software except as permitted by law
+
+4. NO GPL OBLIGATIONS
+
+Under this Commercial License, Licensee is NOT subject to the obligations of the GNU General Public License v3.0, including but not limited to:
+- Source code disclosure requirements
+- Copyleft licensing of derivative works
+- Distribution of license text with binaries
+
+5. ATTRIBUTION
+
+Under this White-Label Commercial License, Licensee is NOT required to include any attribution notices, "Powered by" statements, or references to Labitory in distributions or marketing materials.
+
+6. SUPPORT AND MAINTENANCE
+
+This license does not include technical support or maintenance. Support services may be available under separate agreement.
+
+7. WARRANTY DISCLAIMER
+
+THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+
+8. LIMITATION OF LIABILITY
+
+IN NO EVENT SHALL THE LICENSOR BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+9. TERMINATION
+
+This license is effective until terminated. Licensor may terminate this license immediately upon notice if Licensee breaches any term of this Agreement. Upon termination, Licensee must cease all use and distribution of the Software.
+
+10. GOVERNING LAW
+
+This Agreement shall be governed by and construed in accordance with the laws of [JURISDICTION TO BE DETERMINED], without regard to its conflict of laws principles.
+
+11. ENTIRE AGREEMENT
+
+This Agreement constitutes the entire agreement between the parties and supersedes all prior agreements and understandings relating to the subject matter hereof.
+
+12. WHITE-LABEL LICENSE FEES
+
+White-label licensing fees and terms:
+- Small Business License: £1,599/year (up to 25 users)
+- Professional License: £3,999/year (up to 250 users)  
+- Enterprise License: Custom pricing (unlimited users)
+
+For white-label licensing inquiries, please contact:
+Email: commercial@labitory.org
+Website: https://labitory.org/commercial
+
+---
+
+NOTICE: This software is also available under the GNU General Public License v3.0 for non-commercial and open source use. See LICENSE file for GPL terms.

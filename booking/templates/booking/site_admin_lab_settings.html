@@ -1,0 +1,190 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Lab Settings - Site Administration - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-building me-2"></i>
+                    Lab Settings
+                </h1>
+                <div>
+                    <a href="{% url 'booking:site_admin_config' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Back to System Configuration
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-cog me-2"></i>
+                        Lab Configuration
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'booking:site_admin_lab_settings' %}">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label for="lab_name" class="form-label fw-bold">Lab Name</label>
+                            <input type="text" 
+                                   class="form-control form-control-lg" 
+                                   id="lab_name" 
+                                   name="lab_name" 
+                                   value="{{ lab_settings.lab_name }}"
+                                   placeholder="Enter your lab or facility name"
+                                   required
+                                   maxlength="100">
+                            <div class="form-text">
+                                This name will be displayed throughout the application, including in the navigation bar, 
+                                page titles, and email notifications.
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <h6 class="alert-heading">
+                                <i class="fas fa-info-circle me-2"></i>
+                                About Lab Settings
+                            </h6>
+                            <p class="mb-0">
+                                The lab name is the primary identifier for your facility in the Labitory system. 
+                                Choose a name that clearly identifies your laboratory, department, or facility.
+                            </p>
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-2"></i>
+                                Save Changes
+                            </button>
+                            <button type="reset" class="btn btn-outline-secondary">
+                                <i class="fas fa-undo me-2"></i>
+                                Reset
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>
+                        Naming Guidelines
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">Consider including:</p>
+                    <ul class="mb-0">
+                        <li>Department or faculty name</li>
+                        <li>Building or location identifier</li>
+                        <li>Type of facility (e.g., "Research Lab", "Teaching Lab")</li>
+                        <li>Specialization area if applicable</li>
+                    </ul>
+                    
+                    <hr>
+                    
+                    <h6>Examples:</h6>
+                    <ul class="list-unstyled mb-0">
+                        <li><code>Engineering Research Lab</code></li>
+                        <li><code>Biology Teaching Lab - Building A</code></li>
+                        <li><code>Chemistry NMR Facility</code></li>
+                        <li><code>Physics Laser Lab</code></li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Important Notes
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li>Changes take effect immediately</li>
+                        <li>The name appears in all user interfaces</li>
+                        <li>Maximum length: 100 characters</li>
+                        <li>Special characters are allowed</li>
+                        <li>Consider your branding guidelines</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Additional Settings Preview -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-eye me-2"></i>
+                        Preview
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p>Here's how your lab name will appear in different contexts:</p>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Navigation Bar:</h6>
+                            <div class="border rounded p-2 mb-3">
+                                <img src="{% static 'images/logo.png' %}" alt="Logo" style="height: 24px; width: auto;" class="me-2">
+                                <strong id="preview-navbar">{{ lab_settings.lab_name }}</strong>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6>Page Title:</h6>
+                            <div class="border rounded p-2 mb-3">
+                                <code id="preview-title">Calendar - {{ lab_settings.lab_name }}</code>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Email Subject:</h6>
+                            <div class="border rounded p-2 mb-3">
+                                <code id="preview-email">[{{ lab_settings.lab_name }}] Booking Confirmation</code>
+                            </div>
+                        </div>
+                        
+                        <div class="col-md-6">
+                            <h6>Footer:</h6>
+                            <div class="border rounded p-2">
+                                <small class="text-muted">© 2025 Labitory. All rights reserved.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Live preview update
+document.getElementById('lab_name').addEventListener('input', function(e) {
+    const newName = e.target.value || 'Labitory';
+    document.getElementById('preview-navbar').textContent = newName;
+    document.getElementById('preview-title').textContent = 'Calendar - ' + newName;
+    document.getElementById('preview-email').textContent = '[' + newName + '] Booking Confirmation';
+    // Footer stays as "Labitory" - no update needed
+});
+</script>
+{% endblock %}

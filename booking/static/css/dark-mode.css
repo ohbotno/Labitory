@@ -1,0 +1,501 @@
+/* Dark Mode Theme for Labitory
+ * This file is part of the Labitory.
+ * Copyright (C) 2025 Labitory Contributors
+ *
+ * This software is dual-licensed:
+ * 1. GNU General Public License v3.0 (GPL-3.0) - for open source use
+ * 2. Commercial License - for proprietary and commercial use
+ */
+
+/* Enhanced Focus and Accessibility CSS Variables */
+:root {
+    --focus-color: #0d6efd;
+    --focus-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+    --focus-shadow-dark: 0 0 0 0.25rem rgba(66, 153, 225, 0.4);
+    --high-contrast-text: #000000;
+    --high-contrast-bg: #ffffff;
+}
+
+/* Dark Mode CSS Variables */
+[data-theme="dark"] {
+    --bs-body-bg: #1a1a1a;
+    --bs-body-color: #e9ecef;
+    --bs-primary: #4299e1; /* Higher contrast blue for dark mode */
+    --bs-secondary: #a0aec0; /* Higher contrast gray */
+    --bs-success: #38a169; /* Higher contrast green */
+    --bs-danger: #e53e3e; /* Higher contrast red */
+    --bs-warning: #d69e2e; /* Higher contrast yellow */
+    --bs-info: #3182ce; /* Higher contrast info blue */
+    --bs-light: #2d3748;
+    --bs-dark: #f7fafc;
+    --bs-border-color: #4a5568;
+    --focus-color: #4299e1;
+}
+
+/* Global Dark Mode Styles */
+[data-theme="dark"] body {
+    background-color: #1a1a1a !important;
+    color: #e9ecef !important;
+}
+
+/* Navigation */
+[data-theme="dark"] .navbar-dark {
+    background-color: #212529 !important;
+}
+
+/* Sidebar */
+[data-theme="dark"] .sidebar {
+    background-color: #2d3748 !important;
+    border-right: 1px solid #495057 !important;
+}
+
+[data-theme="dark"] .sidebar.bg-light {
+    background-color: #2d3748 !important;
+}
+
+[data-theme="dark"] .nav-link {
+    color: #cbd5e0 !important;
+}
+
+[data-theme="dark"] .nav-link:hover,
+[data-theme="dark"] .nav-link.active {
+    background-color: #4a5568 !important;
+    color: #fff !important;
+}
+
+[data-theme="dark"] .sidebar-heading {
+    color: #a0aec0 !important;
+}
+
+/* Cards */
+[data-theme="dark"] .card {
+    background-color: #2d3748 !important;
+    border-color: #495057 !important;
+    color: #e9ecef !important;
+}
+
+[data-theme="dark"] .card-header {
+    background-color: #374151 !important;
+    border-color: #495057 !important;
+}
+
+/* Tables */
+[data-theme="dark"] .table {
+    color: #e9ecef !important;
+    background-color: #2d3748 !important;
+}
+
+[data-theme="dark"] .table-hover tbody tr:hover {
+    background-color: #374151 !important;
+}
+
+[data-theme="dark"] .table-light {
+    background-color: #374151 !important;
+    color: #e9ecef !important;
+}
+
+/* Forms */
+[data-theme="dark"] .form-control,
+[data-theme="dark"] .form-select {
+    background-color: #374151 !important;
+    border-color: #6b7280 !important;
+    color: #e9ecef !important;
+}
+
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus {
+    background-color: #374151 !important;
+    border-color: #60a5fa !important;
+    box-shadow: 0 0 0 0.2rem rgba(96, 165, 250, 0.25) !important;
+    color: #e9ecef !important;
+}
+
+[data-theme="dark"] .form-control::placeholder {
+    color: #9ca3af !important;
+}
+
+/* Modals */
+[data-theme="dark"] .modal-content {
+    background-color: #2d3748 !important;
+    border-color: #495057 !important;
+}
+
+[data-theme="dark"] .modal-header {
+    border-color: #495057 !important;
+}
+
+[data-theme="dark"] .modal-footer {
+    border-color: #495057 !important;
+}
+
+/* Buttons */
+[data-theme="dark"] .btn-outline-secondary {
+    color: #e9ecef !important;
+    border-color: #6c757d !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary:hover {
+    background-color: #6c757d !important;
+    border-color: #6c757d !important;
+    color: #fff !important;
+}
+
+/* Alerts */
+[data-theme="dark"] .alert-success {
+    background-color: #064e3b !important;
+    border-color: #059669 !important;
+    color: #a7f3d0 !important;
+}
+
+[data-theme="dark"] .alert-danger {
+    background-color: #7f1d1d !important;
+    border-color: #dc2626 !important;
+    color: #fecaca !important;
+}
+
+[data-theme="dark"] .alert-warning {
+    background-color: #451a03 !important;
+    border-color: #d97706 !important;
+    color: #fed7aa !important;
+}
+
+[data-theme="dark"] .alert-info {
+    background-color: #0c4a6e !important;
+    border-color: #0891b2 !important;
+    color: #bae6fd !important;
+}
+
+/* Badges */
+[data-theme="dark"] .badge.bg-light {
+    background-color: #4b5563 !important;
+    color: #e5e7eb !important;
+}
+
+[data-theme="dark"] .badge.bg-secondary {
+    background-color: #6b7280 !important;
+}
+
+/* Background Utilities */
+[data-theme="dark"] .bg-light {
+    background-color: #2d3748 !important;
+    color: #e9ecef !important;
+}
+
+[data-theme="dark"] footer.bg-light {
+    background-color: #1f2937 !important;
+    border-color: #374151 !important;
+}
+
+/* Text Utilities */
+[data-theme="dark"] .text-muted {
+    color: #9ca3af !important;
+}
+
+[data-theme="dark"] .text-dark {
+    color: #e5e7eb !important;
+}
+
+/* Borders */
+[data-theme="dark"] .border-top {
+    border-color: #374151 !important;
+}
+
+/* Breadcrumbs */
+[data-theme="dark"] .breadcrumb {
+    background-color: transparent !important;
+}
+
+[data-theme="dark"] .breadcrumb-item a {
+    color: #60a5fa !important;
+}
+
+[data-theme="dark"] .breadcrumb-item.active {
+    color: #9ca3af !important;
+}
+
+/* Dropdowns */
+[data-theme="dark"] .dropdown-menu {
+    background-color: #374151 !important;
+    border-color: #6b7280 !important;
+}
+
+[data-theme="dark"] .dropdown-item {
+    color: #e5e7eb !important;
+}
+
+[data-theme="dark"] .dropdown-item:hover,
+[data-theme="dark"] .dropdown-item:focus {
+    background-color: #4b5563 !important;
+    color: #fff !important;
+}
+
+[data-theme="dark"] .dropdown-header {
+    color: #9ca3af !important;
+}
+
+[data-theme="dark"] .dropdown-divider {
+    border-color: #6b7280 !important;
+}
+
+/* Notification Dropdown */
+[data-theme="dark"] .notification-dropdown .dropdown-header {
+    background-color: #374151 !important;
+    color: #e5e7eb !important;
+}
+
+[data-theme="dark"] .notification-preview {
+    background-color: #374151 !important;
+    color: #e5e7eb !important;
+}
+
+/* Pagination */
+[data-theme="dark"] .page-link {
+    background-color: #374151 !important;
+    border-color: #6b7280 !important;
+    color: #e5e7eb !important;
+}
+
+[data-theme="dark"] .page-link:hover {
+    background-color: #4b5563 !important;
+    border-color: #6b7280 !important;
+    color: #fff !important;
+}
+
+[data-theme="dark"] .page-item.active .page-link {
+    background-color: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+}
+
+/* Calendar */
+[data-theme="dark"] .calendar-wrapper {
+    background-color: #2d3748 !important;
+    border-color: #495057 !important;
+}
+
+[data-theme="dark"] .fc {
+    color: #e9ecef !important;
+}
+
+[data-theme="dark"] .fc-theme-standard td,
+[data-theme="dark"] .fc-theme-standard th {
+    border-color: #495057 !important;
+}
+
+[data-theme="dark"] .fc-theme-standard .fc-scrollgrid {
+    border-color: #495057 !important;
+}
+
+[data-theme="dark"] .fc-button {
+    background-color: #374151 !important;
+    border-color: #6b7280 !important;
+    color: #e5e7eb !important;
+}
+
+[data-theme="dark"] .fc-button:hover {
+    background-color: #4b5563 !important;
+}
+
+[data-theme="dark"] .fc-button-primary {
+    background-color: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+}
+
+[data-theme="dark"] .fc-col-header-cell {
+    background-color: #374151 !important;
+}
+
+[data-theme="dark"] .fc-daygrid-day {
+    background-color: #2d3748 !important;
+}
+
+[data-theme="dark"] .fc-day-today {
+    background-color: #1e40af !important;
+}
+
+/* Theme Toggle Button */
+.theme-toggle {
+    background: none;
+    border: none;
+    color: #ffffff;
+    font-size: 1.2rem;
+    padding: 0.5rem;
+    margin-right: 0.5rem;
+    border-radius: 0.375rem;
+    transition: all 0.2s ease;
+    cursor: pointer;
+}
+
+.theme-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+    transform: scale(1.05);
+}
+
+.theme-toggle:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+}
+
+[data-theme="dark"] .theme-toggle {
+    color: #e9ecef;
+}
+
+[data-theme="dark"] .theme-toggle:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* ========================================
+   ENHANCED FOCUS INDICATORS & ACCESSIBILITY
+   ======================================== */
+
+/* Enhanced focus styles for all interactive elements */
+button:focus,
+input:focus,
+select:focus,
+textarea:focus,
+a:focus,
+.btn:focus,
+.form-control:focus,
+.form-select:focus,
+.nav-link:focus {
+    outline: 2px solid var(--focus-color) !important;
+    outline-offset: 2px !important;
+    box-shadow: var(--focus-shadow) !important;
+}
+
+/* Dark mode focus styles */
+[data-theme="dark"] button:focus,
+[data-theme="dark"] input:focus,
+[data-theme="dark"] select:focus,
+[data-theme="dark"] textarea:focus,
+[data-theme="dark"] a:focus,
+[data-theme="dark"] .btn:focus,
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-select:focus,
+[data-theme="dark"] .nav-link:focus {
+    outline: 2px solid var(--focus-color) !important;
+    outline-offset: 2px !important;
+    box-shadow: var(--focus-shadow-dark) !important;
+}
+
+/* Skip link enhanced styles */
+.skip-link:focus {
+    outline: 3px solid #ffff00 !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 5px rgba(255, 255, 0, 0.3) !important;
+    background: #000 !important;
+    color: #fff !important;
+    text-decoration: none !important;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+    :root {
+        --bs-primary: #0000FF;
+        --bs-success: #008000;
+        --bs-danger: #FF0000;
+        --bs-warning: #FF8C00;
+        --focus-color: #0000FF;
+    }
+    
+    button, .btn {
+        border: 2px solid currentColor !important;
+    }
+    
+    .text-muted {
+        color: var(--high-contrast-text) !important;
+    }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        transition-delay: 0s !important;
+    }
+    
+    .theme-toggle,
+    .nav-link,
+    .btn {
+        transition: none !important;
+        transform: none !important;
+    }
+}
+
+/* Keyboard navigation enhancements */
+.nav-link:focus-visible,
+.dropdown-item:focus-visible,
+.btn:focus-visible {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+    border-radius: 4px;
+}
+
+[data-theme="dark"] .nav-link:focus-visible,
+[data-theme="dark"] .dropdown-item:focus-visible,
+[data-theme="dark"] .btn:focus-visible {
+    background-color: rgba(66, 153, 225, 0.2) !important;
+}
+
+/* Form validation enhancements */
+.is-invalid:focus {
+    outline: 2px solid var(--bs-danger) !important;
+    box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25) !important;
+}
+
+.is-valid:focus {
+    outline: 2px solid var(--bs-success) !important;
+    box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25) !important;
+}
+
+/* Improved color contrast for text elements */
+.text-muted {
+    color: #6c757d !important; /* WCAG AA compliant */
+}
+
+[data-theme="dark"] .text-muted {
+    color: #a0aec0 !important; /* Higher contrast for dark mode */
+}
+
+/* Alert contrast improvements */
+.alert-warning {
+    background-color: #fff3cd !important;
+    border-color: #ffecb5 !important;
+    color: #664d03 !important; /* Higher contrast */
+}
+
+.alert-info {
+    background-color: #d1ecf1 !important;
+    border-color: #b6d4ea !important;
+    color: #055160 !important; /* Higher contrast */
+}
+
+/* Table accessibility improvements */
+.table-hover tbody tr:hover {
+    background-color: rgba(13, 110, 253, 0.075) !important;
+}
+
+[data-theme="dark"] .table-hover tbody tr:hover {
+    background-color: rgba(66, 153, 225, 0.15) !important;
+}
+
+/* Button contrast improvements */
+.btn-outline-secondary {
+    color: #495057 !important;
+    border-color: #495057 !important;
+}
+
+.btn-outline-secondary:hover {
+    background-color: #495057 !important;
+    color: #fff !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary {
+    color: #a0aec0 !important;
+    border-color: #a0aec0 !important;
+}
+
+[data-theme="dark"] .btn-outline-secondary:hover {
+    background-color: #a0aec0 !important;
+    color: #1a1a1a !important;
+}

@@ -1,0 +1,265 @@
+{% extends "booking/base.html" %}
+{% load static %}
+
+{% block title %}Join Waiting List - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h4 class="mb-0">
+                        <i class="fas fa-plus-circle"></i> Join Waiting List
+                    </h4>
+                    <small class="text-muted">Resource: {{ resource.name }}</small>
+                </div>
+                <div class="card-body">
+                    {% if messages %}
+                        {% for message in messages %}
+                            <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="alert alert-info">
+                                <h6><i class="fas fa-info-circle"></i> About {{ resource.name }}</h6>
+                                <p class="mb-1"><strong>Type:</strong> {{ resource.get_resource_type_display }}</p>
+                                <p class="mb-1"><strong>Location:</strong> {{ resource.location }}</p>
+                                {% if resource.description %}
+                                    <p class="mb-0"><strong>Description:</strong> {{ resource.description }}</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- Time Preferences -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="id_preferred_start_time" class="form-label">Preferred Start Time *</label>
+                                <input type="datetime-local" 
+                                       class="form-control" 
+                                       id="id_preferred_start_time" 
+                                       name="preferred_start_time" 
+                                       value="{{ requested_start_time }}" 
+                                       required>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="id_preferred_end_time" class="form-label">Preferred End Time *</label>
+                                <input type="datetime-local" 
+                                       class="form-control" 
+                                       id="id_preferred_end_time" 
+                                       name="preferred_end_time" 
+                                       value="{{ requested_end_time }}" 
+                                       required>
+                            </div>
+                        </div>
+
+                        <!-- Duration Flexibility -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="id_min_duration_minutes" class="form-label">Minimum Duration (minutes)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="id_min_duration_minutes" 
+                                       name="min_duration_minutes" 
+                                       value="60" 
+                                       min="30" 
+                                       max="480">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="id_max_duration_minutes" class="form-label">Maximum Duration (minutes)</label>
+                                <input type="number" 
+                                       class="form-control" 
+                                       id="id_max_duration_minutes" 
+                                       name="max_duration_minutes" 
+                                       value="240" 
+                                       min="30" 
+                                       max="480">
+                            </div>
+                        </div>
+
+                        <!-- Flexibility Options -->
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="id_flexible_start_time" 
+                                           name="flexible_start_time" 
+                                           checked>
+                                    <label class="form-check-label" for="id_flexible_start_time">
+                                        <strong>Flexible Start Time</strong>
+                                        <small class="text-muted d-block">Allow booking up to 2 hours before/after preferred time</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <div class="form-check">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="id_flexible_duration" 
+                                           name="flexible_duration" 
+                                           checked>
+                                    <label class="form-check-label" for="id_flexible_duration">
+                                        <strong>Flexible Duration</strong>
+                                        <small class="text-muted d-block">Accept shorter or longer time slots within min/max range</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Priority and Auto-booking -->
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="id_priority" class="form-label">Priority Level</label>
+                                <select class="form-select" id="id_priority" name="priority">
+                                    <option value="normal" selected>Normal</option>
+                                    <option value="high">High Priority</option>
+                                    <option value="urgent">Urgent</option>
+                                </select>
+                                <small class="form-text text-muted">Higher priority gets notified first</small>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mt-4">
+                                    <input class="form-check-input" 
+                                           type="checkbox" 
+                                           id="id_auto_book" 
+                                           name="auto_book">
+                                    <label class="form-check-label" for="id_auto_book">
+                                        <strong>Auto-book when available</strong>
+                                        <small class="text-muted d-block">Automatically create booking without confirmation</small>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Notes -->
+                        <div class="row mb-3">
+                            <div class="col-md-12">
+                                <label for="id_notes" class="form-label">Additional Notes (Optional)</label>
+                                <textarea class="form-control" 
+                                          id="id_notes" 
+                                          name="notes" 
+                                          rows="3" 
+                                          placeholder="Any specific requirements or additional information..."></textarea>
+                            </div>
+                        </div>
+
+                        <!-- Submit Buttons -->
+                        <div class="row">
+                            <div class="col-md-12">
+                                <div class="d-flex justify-content-between">
+                                    <a href="{% url 'booking:calendar' %}" class="btn btn-secondary">
+                                        <i class="fas fa-arrow-left"></i> Back to Calendar
+                                    </a>
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-plus-circle"></i> Join Waiting List
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Help Information -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-question-circle"></i> How does the waiting list work?</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="mb-0">
+                        <li><strong>Notification:</strong> You'll receive email and in-app notifications when a suitable time slot becomes available</li>
+                        <li><strong>Response Time:</strong> You have 2 hours to respond to availability notifications</li>
+                        <li><strong>Priority:</strong> Higher priority entries are notified first when slots become available</li>
+                        <li><strong>Flexibility:</strong> More flexible preferences increase your chances of getting notified</li>
+                        <li><strong>Auto-booking:</strong> Automatically creates a booking when enabled (no confirmation needed)</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Set default times if not provided
+    const startTime = document.getElementById('id_preferred_start_time');
+    const endTime = document.getElementById('id_preferred_end_time');
+    
+    if (!startTime.value) {
+        // Set to tomorrow at 9 AM
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        tomorrow.setHours(9, 0, 0, 0);
+        startTime.value = tomorrow.toISOString().slice(0, 16);
+    }
+    
+    if (!endTime.value) {
+        // Set to 2 hours after start time
+        const start = new Date(startTime.value || Date.now());
+        const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+        endTime.value = end.toISOString().slice(0, 16);
+    }
+    
+    // Update end time when start time changes
+    startTime.addEventListener('change', function() {
+        const start = new Date(this.value);
+        const end = new Date(start.getTime() + 2 * 60 * 60 * 1000);
+        endTime.value = end.toISOString().slice(0, 16);
+        
+        // Update duration fields
+        updateDurationFields();
+    });
+    
+    // Update duration fields when end time changes
+    endTime.addEventListener('change', function() {
+        updateDurationFields();
+    });
+    
+    function updateDurationFields() {
+        const start = new Date(startTime.value);
+        const end = new Date(endTime.value);
+        
+        if (start && end && end > start) {
+            const durationMinutes = Math.round((end - start) / (1000 * 60));
+            document.getElementById('id_min_duration_minutes').value = Math.max(30, durationMinutes - 30);
+            document.getElementById('id_max_duration_minutes').value = durationMinutes + 60;
+        }
+    }
+    
+    // Validate duration fields
+    const minDuration = document.getElementById('id_min_duration_minutes');
+    const maxDuration = document.getElementById('id_max_duration_minutes');
+    
+    minDuration.addEventListener('change', function() {
+        const min = parseInt(this.value);
+        const max = parseInt(maxDuration.value);
+        
+        if (min > max) {
+            maxDuration.value = min;
+        }
+    });
+    
+    maxDuration.addEventListener('change', function() {
+        const max = parseInt(this.value);
+        const min = parseInt(minDuration.value);
+        
+        if (max < min) {
+            minDuration.value = max;
+        }
+    });
+});
+</script>
+{% endblock %}

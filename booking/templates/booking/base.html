@@ -1,0 +1,1599 @@
+<!-- booking/templates/booking/base.html -->
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" data-theme="{{ user_theme }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ lab_name }}{% endblock %}</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{% if favicon_url %}{{ favicon_url }}?v=2{% else %}{% static 'images/favicon.png' %}?v=2{% endif %}">
+    <link rel="shortcut icon" href="{% if favicon_url %}{{ favicon_url }}?v=2{% else %}{% static 'images/favicon.ico' %}?v=2{% endif %}">
+    <link rel="apple-touch-icon" href="{% if favicon_url %}{{ favicon_url }}?v=2{% else %}{% static 'images/favicon.png' %}?v=2{% endif %}">
+    <meta name="msapplication-TileImage" content="{% if favicon_url %}{{ favicon_url }}?v=2{% else %}{% static 'images/favicon.png' %}?v=2{% endif %}">
+    <meta name="msapplication-TileColor" content="#ffffff">
+    <meta name="theme-color" content="#ffffff">
+    
+    <!-- Prevent theme flicker - this runs before anything else loads -->
+    <script>
+        (function() {
+            // Get theme from localStorage or use server-provided default
+            var storedTheme = localStorage.getItem('theme');
+            var serverTheme = '{{ user_theme_preference|default:"light" }}';
+            var theme = storedTheme || serverTheme;
+            
+            // Resolve system theme
+            if (theme === 'system') {
+                theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            }
+            
+            // Apply theme immediately
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    
+    <!-- FontAwesome CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    
+    <!-- FullCalendar CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet">
+    
+    <!-- Dark Mode CSS -->
+    <link href="{% static 'css/dark-mode.css' %}" rel="stylesheet">
+    
+    <style>
+        /* Critical dark theme styles to prevent flash */
+        html {
+            background-color: #ffffff;
+            transition: background-color 0s;
+        }
+        
+        html[data-theme="dark"] {
+            background-color: #1a1a1a !important;
+        }
+        
+        body {
+            background-color: #ffffff;
+            color: #000000;
+            transition: none;
+        }
+        
+        html[data-theme="dark"] body {
+            background-color: #1a1a1a !important;
+            color: #ffffff !important;
+        }
+        
+        /* Critical navbar styles for dark theme */
+        .navbar {
+            transition: none;
+        }
+        
+        html[data-theme="dark"] .navbar {
+            background-color: #212529 !important;
+        }
+        
+        html[data-theme="dark"] .navbar-dark {
+            background-color: #212529 !important;
+        }
+        
+        html[data-theme="dark"] .bg-dark {
+            background-color: #212529 !important;
+        }
+        
+        /* Critical sidebar styles for dark theme */
+        html[data-theme="dark"] .sidebar {
+            background-color: #2b2b2b !important;
+            color: #ffffff !important;
+        }
+        
+        /* Smooth transition after initial load - but not for critical elements */
+        body *:not(.navbar):not(.sidebar) {
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        
+        body {
+            padding-top: 56px; /* Account for fixed navbar */
+        }
+        
+        .sidebar {
+            position: fixed;
+            top: 56px; /* Start below navbar */
+            left: 0;
+            width: 16.666667%; /* 2/12 columns for lg screens */
+            height: calc(100vh - 56px);
+            z-index: 100;
+            box-shadow: inset -1px 0 0 rgba(0, 0, 0, .1);
+            overflow-y: auto;
+        }
+        
+        .sidebar-sticky {
+            position: relative;
+            top: 0;
+            height: 100%;
+            padding-top: .5rem;
+            overflow-x: hidden;
+        }
+        
+        .main-content {
+            margin-left: 16.666667%; /* 2/12 columns for lg screens */
+            padding: 20px;
+            min-height: calc(100vh - 56px);
+        }
+        
+        @media (max-width: 991.98px) {
+            .sidebar {
+                width: 25%; /* 3/12 columns for md screens */
+            }
+            .main-content {
+                margin-left: 25%; /* 3/12 columns for md screens */
+            }
+        }
+        
+        @media (max-width: 767.98px) {
+            body {
+                padding-top: 56px;
+            }
+            .sidebar {
+                position: static;
+                top: auto;
+                height: auto;
+                width: 100%;
+            }
+            .main-content {
+                margin-left: 0;
+            }
+        }
+        
+        .fc-event {
+            cursor: pointer;
+        }
+        
+        .resource-filter {
+            margin-bottom: 20px;
+        }
+        
+        .logo-cropped {
+            object-fit: cover;
+            object-position: center top;
+        }
+        
+        /* Fix navbar dropdown to prevent height expansion */
+        .navbar .dropdown-menu {
+            position: absolute !important;
+            top: 100% !important;
+            left: auto !important;
+            right: 0 !important;
+            transform: none !important;
+            margin-top: 0 !important;
+            z-index: 1050;
+        }
+        
+        .navbar .nav-item.dropdown {
+            position: relative;
+        }
+        
+        /* Ensure dropdown doesn't affect navbar height */
+        .navbar-nav .dropdown.show {
+            position: static;
+        }
+        
+        .navbar-nav .dropdown-menu.show {
+            position: absolute !important;
+            top: 100% !important;
+            right: 0 !important;
+            left: auto !important;
+        }
+        
+        /* Notification badge styling */
+        .notification-badge {
+            font-size: 0.6em !important;
+            min-width: 1.2em;
+            height: 1.2em;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(220, 53, 69, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+        }
+        
+        /* Notification icon hover effect */
+        .nav-link:hover .bi-bell {
+            transform: rotate(15deg);
+            transition: transform 0.2s ease-in-out;
+        }
+        
+        /* Notification dropdown styling */
+        .notification-dropdown {
+            box-shadow: 0 10px 25px rgba(0,0,0,0.15) !important;
+            border: none !important;
+            border-radius: 8px !important;
+        }
+        
+        .notification-dropdown .dropdown-header {
+            background-color: #f8f9fa;
+            border-radius: 8px 8px 0 0;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .notification-preview {
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 8px;
+        }
+        
+        .notification-dropdown .dropdown-item {
+            padding: 0.5rem 1rem;
+            transition: background-color 0.2s ease-in-out;
+        }
+        
+        .notification-dropdown .dropdown-item:hover {
+            background-color: #e9ecef;
+        }
+        
+        /* Skip navigation link for accessibility */
+        .skip-link {
+            position: absolute;
+            top: -40px;
+            left: 6px;
+            background: #000;
+            color: #fff;
+            padding: 8px;
+            text-decoration: none;
+            border-radius: 0 0 6px 6px;
+            z-index: 1100;
+            font-weight: bold;
+        }
+        
+        .skip-link:focus {
+            top: 0;
+            color: #fff;
+            text-decoration: none;
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Skip navigation for accessibility -->
+    <a href="#main-content" class="skip-link">Skip to main content</a>
+    
+    <!-- Navigation -->
+    <nav class="navbar navbar-dark bg-dark fixed-top" role="navigation" aria-label="Main navigation">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{% url 'booking:calendar' %}">
+                <img src="{% if logo_url %}{{ logo_url }}{% else %}{% static 'images/logo.png' %}{% endif %}" alt="{{ lab_name }}" style="height: 32px; width: auto; margin-right: 8px;">
+                <span class="fw-bold">{{ lab_name }}</span>
+                <small class="text-muted ms-2" style="font-size: 0.7em;">Booking system v{{ version }}</small>
+            </a>
+            
+            <div class="navbar-nav ms-auto d-flex flex-row align-items-center">
+                <!-- Theme Toggle -->
+                <button class="theme-toggle" id="theme-toggle" title="Toggle dark mode" aria-label="Toggle dark mode" type="button">
+                    <i class="fas fa-moon" id="theme-icon" aria-hidden="true"></i>
+                </button>
+                
+                <!-- Notification Dropdown -->
+                <div class="nav-item dropdown me-2">
+                    <a class="nav-link text-white position-relative p-2" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" title="Notifications" aria-label="Notifications menu">
+                        <i class="bi bi-bell fs-5" aria-hidden="true"></i>
+                        {% if total_notifications_count > 0 %}
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger notification-badge">
+                                {% if total_notifications_count > 99 %}99+{% else %}{{ total_notifications_count }}{% endif %}
+                                <span class="visually-hidden">unread notifications</span>
+                            </span>
+                        {% endif %}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end notification-dropdown" style="min-width: 350px;">
+                        <li class="dropdown-header d-flex justify-content-between align-items-center">
+                            <span><i class="bi bi-bell"></i> Notifications</span>
+                            {% if total_notifications_count > 0 %}
+                                <span class="badge bg-primary">{{ total_notifications_count }}</span>
+                            {% endif %}
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        
+                        {% if total_notifications_count > 0 %}
+                            <!-- Recent Notifications Preview -->
+                            <li class="px-3 py-2">
+                                <div class="notification-preview">
+                                    {% if unread_notifications_count > 0 %}
+                                        <div class="d-flex align-items-center mb-2">
+                                            <i class="bi bi-envelope text-primary me-2"></i>
+                                            <a href="{% url 'booking:notifications' %}" class="small text-decoration-none">{{ unread_notifications_count }} unread message{{ unread_notifications_count|pluralize }}</a>
+                                        </div>
+                                    {% endif %}
+                                    
+                                    {% if pending_access_requests_count > 0 and user.userprofile.role in 'technician,sysadmin' or user.groups.all|length > 0 and 'Lab Admin' in user.groups.all|join:',' %}
+                                        <div class="d-flex align-items-center mb-2">
+                                            <i class="bi bi-key text-warning me-2"></i>
+                                            <a href="{% url 'booking:lab_admin_access_requests' %}" class="small text-decoration-none">{{ pending_access_requests_count }} access request{{ pending_access_requests_count|pluralize }} pending</a>
+                                        </div>
+                                    {% endif %}
+                                    
+                                    {% if pending_training_requests_count > 0 and user.userprofile.role in 'technician,sysadmin' or user.groups.all|length > 0 and 'Lab Admin' in user.groups.all|join:',' %}
+                                        <div class="d-flex align-items-center mb-2">
+                                            <i class="bi bi-book text-info me-2"></i>
+                                            <a href="{% url 'booking:lab_admin_training' %}" class="small text-decoration-none">{{ pending_training_requests_count }} training request{{ pending_training_requests_count|pluralize }} pending</a>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </li>
+                            
+                            <!-- Recent Individual Notifications -->
+                            {% if recent_notifications %}
+                                <li><hr class="dropdown-divider"></li>
+                                <li class="dropdown-header">
+                                    <small class="text-muted">Recent Notifications</small>
+                                </li>
+                                {% for notification in recent_notifications %}
+                                    <li>
+                                        <a href="{{ notification.get_notification_url }}" class="dropdown-item py-2">
+                                            <div class="d-flex align-items-start">
+                                                <div class="me-2 mt-1">
+                                                    {% if notification.notification_type == 'booking_confirmation' %}
+                                                        <i class="bi bi-calendar-check text-success"></i>
+                                                    {% elif notification.notification_type == 'booking_cancelled' %}
+                                                        <i class="bi bi-calendar-x text-danger"></i>
+                                                    {% elif notification.notification_type == 'access_granted' %}
+                                                        <i class="bi bi-key text-success"></i>
+                                                    {% elif notification.notification_type == 'access_denied' %}
+                                                        <i class="bi bi-x-circle text-danger"></i>
+                                                    {% elif notification.notification_type == 'maintenance_alert' %}
+                                                        <i class="bi bi-tools text-warning"></i>
+                                                    {% elif notification.notification_type == 'training_reminder' %}
+                                                        <i class="bi bi-graduation-cap text-info"></i>
+                                                    {% else %}
+                                                        <i class="bi bi-bell text-primary"></i>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <div class="fw-medium small">{{ notification.title|truncatechars:40 }}</div>
+                                                    <div class="text-muted" style="font-size: 0.75rem;">{{ notification.message|truncatechars:60 }}</div>
+                                                    <div class="text-muted" style="font-size: 0.7rem;">{{ notification.created_at|timesince }} ago</div>
+                                                </div>
+                                                {% if notification.status == 'sent' %}
+                                                    <div class="ms-2">
+                                                        <span class="badge bg-primary rounded-pill" style="width: 8px; height: 8px; padding: 0;"></span>
+                                                    </div>
+                                                {% endif %}
+                                            </div>
+                                        </a>
+                                    </li>
+                                {% endfor %}
+                            {% endif %}
+                            <li><hr class="dropdown-divider"></li>
+                        {% else %}
+                            <li class="px-3 py-2 text-center text-muted">
+                                <i class="bi bi-check-circle"></i>
+                                <div>No new notifications</div>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                        {% endif %}
+                        
+                        <!-- Action Links -->
+                        <li>
+                            <a class="dropdown-item" href="{% url 'booking:notifications' %}">
+                                <i class="bi bi-list-ul me-2"></i>View All Notifications
+                            </a>
+                        </li>
+                        
+                        {% if user.userprofile.role in 'technician,sysadmin' or user.groups.all|length > 0 and 'Lab Admin' in user.groups.all|join:',' %}
+                            {% if pending_access_requests_count > 0 %}
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'booking:lab_admin_access_requests' %}">
+                                        <i class="bi bi-key me-2"></i>Review Access Requests
+                                        <span class="badge bg-warning ms-auto">{{ pending_access_requests_count }}</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                            
+                            {% if pending_training_requests_count > 0 %}
+                                <li>
+                                    <a class="dropdown-item" href="{% url 'booking:lab_admin_training' %}">
+                                        <i class="bi bi-book me-2"></i>Review Training Requests
+                                        <span class="badge bg-info ms-auto">{{ pending_training_requests_count }}</span>
+                                    </a>
+                                </li>
+                            {% endif %}
+                        {% endif %}
+                        
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="{% url 'booking:notification_preferences' %}">
+                                <i class="bi bi-gear me-2"></i>Notification Settings
+                            </a>
+                        </li>
+                    </ul>
+                </div>
+                
+                <!-- User Dropdown -->
+                <div class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="User account menu">
+                        <i class="bi bi-person-circle" aria-hidden="true"></i> {{ user.get_full_name|default:user.username }}
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li><a class="dropdown-item" href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                        <li><a class="dropdown-item" href="{% url 'booking:profile' %}">Profile Settings</a></li>
+                        {% if user.userprofile.role in 'technician,sysadmin' %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li><h6 class="dropdown-header">Management</h6></li>
+                        <li><a class="dropdown-item" href="{% url 'booking:approval_rules' %}">
+                            <i class="fas fa-cogs me-2"></i>Approval Rules
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'booking:approval_statistics' %}">
+                            <i class="fas fa-chart-line me-2"></i>Statistics
+                        </a></li>
+                        <li><a class="dropdown-item" href="{% url 'booking:site_admin_dashboard' %}">
+                            <i class="fas fa-tools me-2"></i>Site Administration
+                        </a></li>
+                        {% else %}
+                        {% if user.groups.all|length > 0 and 'Lab Admin' in user.groups.all|join:',' or user.userprofile.role in 'technician,sysadmin' %}
+                        <li><a class="dropdown-item" href="{% url 'booking:approval_statistics' %}">
+                            <i class="fas fa-chart-line me-2"></i>Statistics
+                        </a></li>
+                        {% endif %}
+                        {% endif %}
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <a class="dropdown-item" href="https://github.com/ohbotno/labitory/issues/new?template=bug_report.md" target="_blank">
+                                <i class="bi bi-bug me-2"></i>Report Bug
+                            </a>
+                        </li>
+                        <li>
+                            <a class="dropdown-item" href="https://docs.labitory.org" target="_blank">
+                                <i class="bi bi-question-circle me-2"></i>Help & Documentation
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <form method="post" action="{% url 'logout' %}" style="display: inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="dropdown-item" style="border: none; background: none; width: 100%; text-align: left;">
+                                    Logout
+                                </button>
+                            </form>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Sidebar -->
+            <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse" role="navigation" aria-label="Secondary navigation">
+                <div class="sidebar-sticky">
+                    <ul class="nav flex-column" role="list">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'about' %}active{% endif %}" 
+                               href="{% url 'booking:about' %}" {% if request.resolver_match.url_name == 'about' %}aria-current="page"{% endif %}>
+                                <i class="bi bi-info-circle" aria-hidden="true"></i> Lab Information
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" 
+                               href="{% url 'booking:dashboard' %}" {% if request.resolver_match.url_name == 'dashboard' %}aria-current="page"{% endif %}>
+                                <i class="bi bi-speedometer2" aria-hidden="true"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'resource' in request.resolver_match.url_name %}active{% endif %}" 
+                               href="{% url 'booking:resources_list' %}" {% if 'resource' in request.resolver_match.url_name %}aria-current="page"{% endif %}>
+                                <i class="bi bi-tools" aria-hidden="true"></i> Resources
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'my_bookings' %}active{% endif %}" 
+                               href="{% url 'booking:my_bookings' %}" {% if request.resolver_match.url_name == 'my_bookings' %}aria-current="page"{% endif %}>
+                                <i class="bi bi-calendar-check" aria-hidden="true"></i> My Bookings
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'calendar' %}active{% endif %}" 
+                               href="{% url 'booking:calendar' %}" {% if request.resolver_match.url_name == 'calendar' %}aria-current="page"{% endif %}>
+                                <i class="bi bi-calendar3" aria-hidden="true"></i> Calendar
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'template' in request.resolver_match.url_name %}active{% endif %}" 
+                               href="{% url 'booking:templates' %}">
+                                <i class="bi bi-file-earmark-text"></i> Templates
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'my_reported_issues' %}active{% endif %}" 
+                               href="{% url 'booking:my_reported_issues' %}">
+                                <i class="bi bi-exclamation-triangle"></i> My Issues
+                            </a>
+                        </li>
+                    </ul>
+                    
+                    
+                    {% if user.groups.all|length > 0 and 'Lab Admin' in user.groups.all|join:',' or user.userprofile.role in 'technician,sysadmin' %}
+                    <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mt-4 mb-1 text-muted">
+                        <span>Lab Administration</span>
+                    </h6>
+                    <ul class="nav flex-column mb-2">
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'lab_admin_dashboard' %}active{% endif %}" 
+                               href="{% url 'booking:lab_admin_dashboard' %}">
+                                <i class="fas fa-tachometer-alt"></i> Lab Admin Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'manage_bookings' %}active{% endif %}" 
+                               href="{% url 'booking:manage_bookings' %}">
+                                <i class="fas fa-tasks"></i> Manage Bookings
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'lab_admin_resources' in request.resolver_match.url_name %}active{% endif %}" 
+                               href="{% url 'booking:lab_admin_resources' %}">
+                                <i class="fas fa-cogs"></i> Resource Management
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'lab_admin_access_requests' %}active{% endif %}" 
+                               href="{% url 'booking:lab_admin_access_requests' %}">
+                                <i class="fas fa-key"></i> Access Requests
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'lab_admin_inductions' %}active{% endif %}" 
+                               href="{% url 'booking:lab_admin_inductions' %}">
+                                <i class="fas fa-shield-alt"></i> Lab Inductions
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'lab_admin_training' %}active{% endif %}" 
+                               href="{% url 'booking:lab_admin_training' %}">
+                                <i class="fas fa-graduation-cap"></i> Training Management
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'lab_admin_risk_assessments' %}active{% endif %}" 
+                               href="{% url 'booking:lab_admin_risk_assessments' %}">
+                                <i class="fas fa-shield-alt"></i> Risk Assessments
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'lab_admin_users' %}active{% endif %}" 
+                               href="{% url 'booking:lab_admin_users' %}">
+                                <i class="fas fa-users"></i> User Management
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'issues' in request.resolver_match.url_name and 'my_reported_issues' not in request.resolver_match.url_name %}active{% endif %}" 
+                               href="{% url 'booking:issues_dashboard' %}">
+                                <i class="bi bi-tools"></i> Issues Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if 'lab_admin_maintenance' in request.resolver_match.url_name %}active{% endif %}" 
+                               href="{% url 'booking:lab_admin_maintenance' %}">
+                                <i class="fas fa-wrench"></i> Maintenance Periods
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'approval_statistics' %}active{% endif %}" 
+                               href="{% url 'booking:approval_statistics' %}">
+                                <i class="fas fa-chart-line"></i> Approval Statistics
+                            </a>
+                        </li>
+                        {% if user.userprofile.role in 'technician,sysadmin' %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.resolver_match.url_name == 'approval_rules' %}active{% endif %}" 
+                               href="{% url 'booking:approval_rules' %}">
+                                <i class="fas fa-sliders-h"></i> Approval Rules
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                    {% endif %}
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main id="main-content" class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content" role="main" aria-label="Main content">
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.level_tag }} alert-dismissible fade show{% if message.level_tag == 'success' %} alert-success-prominent{% endif %}{% if 'persistent-alert' in message.tags %} persistent-alert{% endif %}" role="alert" style="{% if message.level_tag == 'success' %}border-left: 5px solid #28a745; background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); font-size: 1.05em; color: #155724 !important;{% endif %}">
+                            {% if message.level_tag == 'success' %}
+                                {{ message|safe }}
+                            {% else %}
+                                {{ message|safe }}
+                            {% endif %}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"{% if message.level_tag == 'success' %} data-bs-delay="15000"{% endif %}></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+                
+                {% block content %}{% endblock %}
+                
+                <!-- Footer -->
+                <footer class="bg-light border-top mt-5">
+                    <div class="py-4 px-3">
+                        <div class="row">
+                            <div class="col-md-6">
+                                {% if show_powered_by %}
+                                <div class="d-flex align-items-center mb-2">
+                                    <img src="{% if logo_url %}{{ logo_url }}{% else %}{% static 'images/logo.png' %}{% endif %}" alt="{{ app_title }}" height="24" class="me-2">
+                                    <strong>{{ app_title }}</strong>&nbsp;v{{ version }}
+                                </div>
+                                <p class="text-muted small mb-2">
+                                    Laboratory resource booking and management system
+                                </p>
+                                <p class="text-muted small mb-0">
+                                    &copy; 2025 OhBotNo Ltd. 
+                                    <a href="https://github.com/ohbotno/labitory/blob/main/LICENSE" class="text-decoration-none">GPL-3.0</a> / 
+                                    <a href="{% url 'booking:about' %}" class="text-decoration-none">Commercial License</a>
+                                </p>
+                                {% else %}
+                                <div class="d-flex align-items-center mb-2">
+                                    <strong>{{ app_title }}</strong>&nbsp;v{{ version }}
+                                </div>
+                                <p class="text-muted small mb-2">
+                                    Laboratory resource booking and management system
+                                </p>
+                                <p class="text-muted small mb-0">
+                                    &copy; 2025 OhBotNo Ltd. | Open Source License (GPL-3.0)
+                                </p>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6 class="fw-bold mb-2">Support</h6>
+                                        <ul class="list-unstyled small">
+                                            {% if show_powered_by %}
+                                            <li><a href="https://docs.labitory.org" class="text-decoration-none text-muted">Documentation</a></li>
+                                            <li><a href="https://github.com/ohbotno/labitory/issues" class="text-decoration-none text-muted">
+                                                <i class="bi bi-github me-1"></i>GitHub Issues
+                                            </a></li>
+                                            <li><a href="https://github.com/ohbotno/labitory/discussions" class="text-decoration-none text-muted">Community Forum</a></li>
+                                            <li><a href="mailto:support@labitory.org" class="text-decoration-none text-muted">Email Support</a></li>
+                                            {% else %}
+                                            <li><a href="https://github.com/ohbotno/labitory/issues" class="text-decoration-none text-muted">
+                                                <i class="bi bi-github me-1"></i>GitHub Issues
+                                            </a></li>
+                                            {% if branding.support_email %}
+                                            <li><a href="mailto:{{ branding.support_email }}" class="text-decoration-none text-muted">Email Support</a></li>
+                                            {% endif %}
+                                            {% if branding.website_url %}
+                                            <li><a href="{{ branding.website_url }}" class="text-decoration-none text-muted">Website</a></li>
+                                            {% endif %}
+                                            {% if branding.support_phone %}
+                                            <li><span class="text-muted"><i class="bi bi-telephone me-1"></i>{{ branding.support_phone }}</span></li>
+                                            {% endif %}
+                                            {% endif %}
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6 class="fw-bold mb-2">Contribute</h6>
+                                        <ul class="list-unstyled small">
+                                            <li><a href="https://github.com/ohbotno/labitory" class="text-decoration-none text-muted">
+                                                <i class="bi bi-github me-1"></i>Source Code
+                                            </a></li>
+                                            <li><a href="https://github.com/ohbotno/labitory/issues/new" class="text-decoration-none text-muted">
+                                                <i class="bi bi-bug me-1"></i>Report Bug
+                                            </a></li>
+                                            <li><a href="https://github.com/ohbotno/labitory/issues/new" class="text-decoration-none text-muted">
+                                                <i class="bi bi-lightbulb me-1"></i>Request Feature
+                                            </a></li>
+                                            <li><a href="https://github.com/ohbotno/labitory/fork" class="text-decoration-none text-muted">
+                                                <i class="bi bi-git me-1"></i>Fork Project
+                                            </a></li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <hr class="my-3">
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between align-items-center flex-wrap">
+                                    {% if show_powered_by %}
+                                    <small class="text-muted">
+                                        Made with ❤️ for the open source community
+                                    </small>
+                                    {% else %}
+                                    <small class="text-muted">
+                                        {% if footer_text %}
+                                            {{ footer_text }}
+                                        {% else %}
+                                            {{ company_name|default:lab_name|default:"Laboratory Booking System" }}
+                                        {% endif %}
+                                    </small>
+                                    {% endif %}
+                                    <div class="d-flex align-items-center">
+                                        <small class="text-muted me-3">
+                                            <i class="bi bi-shield-check me-1"></i>
+                                            {% if user.is_authenticated %}
+                                                Logged in as {{ user.get_full_name|default:user.username }}
+                                            {% else %}
+                                                Not logged in
+                                            {% endif %}
+                                        </small>
+                                        {% if user.is_authenticated and user.userprofile.role in 'technician,sysadmin' %}
+                                            <a href="{% url 'booking:issues_dashboard' %}" class="btn btn-sm btn-outline-secondary me-2" title="Issues Dashboard">
+                                                <i class="bi bi-tools"></i>
+                                            </a>
+                                        {% endif %}
+                                        {% if user.is_authenticated %}
+                                            <a href="{% url 'booking:my_reported_issues' %}" class="btn btn-sm btn-outline-secondary" title="My Reported Issues">
+                                                <i class="bi bi-exclamation-triangle"></i>
+                                            </a>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </footer>
+            </main>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- FullCalendar JS -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+    
+    <!-- Custom JS -->
+    <script>
+        // CSRF token for AJAX requests
+        function getCSRFToken() {
+            return document.querySelector('[name=csrfmiddlewaretoken]').value;
+        }
+        
+        // Dark Mode Theme Management
+        class ThemeManager {
+            constructor() {
+                this.theme = localStorage.getItem('theme') || 'system';
+                this.init();
+            }
+            
+            async init() {
+                // Load user preference from server if authenticated
+                {% if user.is_authenticated %}
+                await this.loadUserPreference();
+                {% endif %}
+                
+                this.applyTheme(this.theme);
+                this.setupToggle();
+                this.updateIcon();
+            }
+            
+            async loadUserPreference() {
+                try {
+                    const response = await fetch('/api/profiles/theme/');
+                    if (response.ok) {
+                        const data = await response.json();
+                        this.theme = data.theme || 'system';
+                        localStorage.setItem('theme', this.theme);
+                    }
+                } catch (error) {
+                    console.warn('Could not load theme preference:', error);
+                }
+            }
+            
+            applyTheme(theme) {
+                let actualTheme = theme;
+                
+                // Handle system preference
+                if (theme === 'system') {
+                    actualTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                }
+                
+                document.documentElement.setAttribute('data-theme', actualTheme);
+                this.theme = theme;
+                localStorage.setItem('theme', theme);
+                
+                // Update server preference if user is authenticated
+                {% if user.is_authenticated %}
+                this.updateServerPreference(theme);
+                {% endif %}
+            }
+            
+            toggle() {
+                // Cycle through: light → dark → system → light
+                let newTheme;
+                switch (this.theme) {
+                    case 'light':
+                        newTheme = 'dark';
+                        break;
+                    case 'dark':
+                        newTheme = 'system';
+                        break;
+                    case 'system':
+                    default:
+                        newTheme = 'light';
+                        break;
+                }
+                
+                this.applyTheme(newTheme);
+                this.updateIcon();
+                
+                // Dispatch event for other components
+                window.dispatchEvent(new CustomEvent('themeChanged', { detail: { theme: newTheme } }));
+            }
+            
+            updateIcon() {
+                const icon = document.getElementById('theme-icon');
+                const toggle = document.getElementById('theme-toggle');
+                if (icon && toggle) {
+                    switch (this.theme) {
+                        case 'light':
+                            icon.className = 'fas fa-moon';
+                            toggle.title = 'Switch to dark mode';
+                            break;
+                        case 'dark':
+                            icon.className = 'fas fa-desktop';
+                            toggle.title = 'Switch to system theme';
+                            break;
+                        case 'system':
+                            icon.className = 'fas fa-sun';
+                            toggle.title = 'Switch to light mode';
+                            break;
+                    }
+                }
+            }
+            
+            setupToggle() {
+                const toggle = document.getElementById('theme-toggle');
+                if (toggle) {
+                    toggle.addEventListener('click', () => this.toggle());
+                }
+            }
+            
+            updateServerPreference(theme) {
+                // Save theme preference to user profile
+                fetch('/api/profiles/update-theme/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCSRFToken()
+                    },
+                    body: JSON.stringify({ theme: theme })
+                }).catch(error => {
+                    console.warn('Could not save theme preference:', error);
+                });
+            }
+        }
+        
+        // Initialize theme manager
+        let themeManager;
+        
+        // Form Progress Indicators Utility
+        class FormProgressManager {
+            static init() {
+                // Auto-apply progress indicators to forms with data-progress attribute
+                document.querySelectorAll('form[data-progress="true"]').forEach(form => {
+                    this.addProgressIndicator(form);
+                });
+            }
+            
+            static addProgressIndicator(form, options = {}) {
+                const defaultOptions = {
+                    loadingText: 'Processing...',
+                    showOverlay: false,
+                    preventDoubleSubmit: true,
+                    showFileProgress: true
+                };
+                const config = { ...defaultOptions, ...options };
+                
+                if (typeof form === 'string') {
+                    form = document.getElementById(form);
+                }
+                
+                if (!form) return;
+                
+                let isSubmitting = false;
+                
+                form.addEventListener('submit', function(e) {
+                    if (config.preventDoubleSubmit && isSubmitting) {
+                        e.preventDefault();
+                        return false;
+                    }
+                    
+                    // Check if this is a file upload form
+                    const isFileUpload = form.enctype === 'multipart/form-data';
+                    const fileInput = form.querySelector('input[type="file"]');
+                    
+                    if (isFileUpload && fileInput && fileInput.files.length > 0 && config.showFileProgress) {
+                        e.preventDefault();
+                        this.handleFileUploadWithProgress(form, config);
+                        return false;
+                    }
+                    
+                    isSubmitting = true;
+                    
+                    // Find submit button
+                    const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+                    if (submitBtn) {
+                        const originalContent = submitBtn.innerHTML;
+                        const originalDisabled = submitBtn.disabled;
+                        
+                        // Update button state
+                        submitBtn.disabled = true;
+                        submitBtn.classList.add('btn-loading');
+                        
+                        // Update button content
+                        const icon = submitBtn.querySelector('i');
+                        if (icon) {
+                            icon.className = 'spinner-border spinner-border-sm';
+                        }
+                        
+                        const textSpan = submitBtn.querySelector('span:not(.spinner-border)');
+                        if (textSpan) {
+                            textSpan.textContent = config.loadingText;
+                        } else {
+                            submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>${config.loadingText}`;
+                        }
+                    }
+                    
+                    // Show overlay if requested
+                    if (config.showOverlay) {
+                        this.showLoadingOverlay();
+                    }
+                    
+                    // Reset on page navigation (in case of client-side validation errors)
+                    setTimeout(() => {
+                        if (submitBtn && !window.location.href.includes('#')) {
+                            // Reset if still on same page (likely validation error)
+                            isSubmitting = false;
+                            submitBtn.disabled = originalDisabled;
+                            submitBtn.classList.remove('btn-loading');
+                            submitBtn.innerHTML = originalContent;
+                        }
+                    }, 3000);
+                });
+            }
+            
+            static handleFileUploadWithProgress(form, config) {
+                const formData = new FormData(form);
+                const submitBtn = form.querySelector('button[type="submit"], input[type="submit"]');
+                const progressContainer = form.querySelector('#uploadProgress, .upload-progress');
+                const progressBar = form.querySelector('#uploadProgressBar, .upload-progress-bar');
+                const progressText = form.querySelector('#uploadProgressText, .upload-progress-text');
+                
+                // Show progress bar
+                if (progressContainer) {
+                    progressContainer.style.display = 'block';
+                }
+                
+                // Update submit button
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.classList.add('btn-loading');
+                    submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Uploading...`;
+                }
+                
+                // Create XMLHttpRequest for progress tracking
+                const xhr = new XMLHttpRequest();
+                
+                // Track upload progress
+                xhr.upload.addEventListener('progress', function(e) {
+                    if (e.lengthComputable) {
+                        const percentComplete = Math.round((e.loaded / e.total) * 100);
+                        
+                        if (progressBar) {
+                            progressBar.style.width = percentComplete + '%';
+                            progressBar.setAttribute('aria-valuenow', percentComplete);
+                        }
+                        
+                        if (progressText) {
+                            progressText.textContent = percentComplete + '%';
+                        }
+                        
+                        if (submitBtn && percentComplete < 100) {
+                            submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Uploading... ${percentComplete}%`;
+                        }
+                    }
+                });
+                
+                // Handle completion
+                xhr.addEventListener('load', function() {
+                    if (progressBar) {
+                        progressBar.style.width = '100%';
+                    }
+                    if (progressText) {
+                        progressText.textContent = '100%';
+                    }
+                    if (submitBtn) {
+                        submitBtn.innerHTML = `<span class="spinner-border spinner-border-sm me-2"></span>Processing...`;
+                    }
+                    
+                    // Handle response
+                    if (xhr.status >= 200 && xhr.status < 300) {
+                        // Success - redirect or reload page
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 500);
+                    } else {
+                        // Error handling
+                        console.error('Upload failed:', xhr.statusText);
+                        alert('Upload failed. Please try again.');
+                        this.resetUploadForm(form, submitBtn, progressContainer);
+                    }
+                });
+                
+                // Handle errors
+                xhr.addEventListener('error', function() {
+                    console.error('Upload error');
+                    alert('Upload error. Please try again.');
+                    this.resetUploadForm(form, submitBtn, progressContainer);
+                });
+                
+                // Send the request
+                xhr.open('POST', form.action || window.location.href);
+                xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+                xhr.send(formData);
+            }
+            
+            static resetUploadForm(form, submitBtn, progressContainer) {
+                if (progressContainer) {
+                    progressContainer.style.display = 'none';
+                }
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.classList.remove('btn-loading');
+                    submitBtn.innerHTML = submitBtn.getAttribute('data-original-text') || 'Submit';
+                }
+            }
+            
+            static showLoadingOverlay(message = 'Processing...') {
+                const overlay = document.createElement('div');
+                overlay.className = 'loading-overlay';
+                overlay.innerHTML = `
+                    <div class="loading-spinner">
+                        <div class="spinner-border text-primary mb-3" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <div>${message}</div>
+                    </div>
+                `;
+                document.body.appendChild(overlay);
+                return overlay;
+            }
+            
+            static hideLoadingOverlay() {
+                const overlay = document.querySelector('.loading-overlay');
+                if (overlay) {
+                    overlay.remove();
+                }
+            }
+            
+            // AJAX Progress Indicator Utility
+            static ajaxWithProgress(url, options = {}, progressOptions = {}) {
+                const defaultProgressOptions = {
+                    showOverlay: true,
+                    overlayMessage: 'Processing...',
+                    targetButton: null,
+                    originalButtonContent: null
+                };
+                const progressConfig = { ...defaultProgressOptions, ...progressOptions };
+                
+                // Show loading state
+                let overlay = null;
+                if (progressConfig.showOverlay) {
+                    overlay = this.showLoadingOverlay(progressConfig.overlayMessage);
+                }
+                
+                // Update button state if provided
+                if (progressConfig.targetButton) {
+                    const btn = typeof progressConfig.targetButton === 'string' 
+                        ? document.querySelector(progressConfig.targetButton) 
+                        : progressConfig.targetButton;
+                    
+                    if (btn) {
+                        progressConfig.originalButtonContent = btn.innerHTML;
+                        btn.disabled = true;
+                        btn.classList.add('btn-loading');
+                        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>' + 
+                                      (progressOptions.buttonLoadingText || 'Processing...');
+                    }
+                }
+                
+                // Perform the fetch request
+                return fetch(url, options)
+                    .then(response => {
+                        if (overlay) this.hideLoadingOverlay();
+                        return response;
+                    })
+                    .catch(error => {
+                        if (overlay) this.hideLoadingOverlay();
+                        
+                        // Reset button state on error
+                        if (progressConfig.targetButton && progressConfig.originalButtonContent) {
+                            const btn = typeof progressConfig.targetButton === 'string' 
+                                ? document.querySelector(progressConfig.targetButton) 
+                                : progressConfig.targetButton;
+                            
+                            if (btn) {
+                                btn.disabled = false;
+                                btn.classList.remove('btn-loading');
+                                btn.innerHTML = progressConfig.originalButtonContent;
+                            }
+                        }
+                        
+                        throw error;
+                    });
+            }
+        }
+        
+        // Enhanced message handling
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize dark mode
+            themeManager = new ThemeManager();
+            
+            // Initialize form progress indicators
+            FormProgressManager.init();
+            // Make success messages more prominent and persistent
+            const successAlerts = document.querySelectorAll('.alert-success');
+            successAlerts.forEach(function(alert) {
+                // Add prominent styling
+                alert.style.cssText += `
+                    box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+                    border-radius: 8px;
+                    margin-bottom: 20px;
+                    animation: slideInDown 0.5s ease-out;
+                `;
+                
+                // Prevent auto-dismiss for success messages
+                const closeBtn = alert.querySelector('.btn-close');
+                if (closeBtn) {
+                    closeBtn.addEventListener('click', function() {
+                        alert.style.animation = 'fadeOut 0.3s ease-out';
+                        setTimeout(() => alert.remove(), 300);
+                    });
+                }
+            });
+            
+            // Auto-dismiss non-success messages after 8 seconds (except persistent alerts)
+            const otherAlerts = document.querySelectorAll('.alert:not(.alert-success):not(.persistent-alert)');
+            otherAlerts.forEach(function(alert) {
+                setTimeout(function() {
+                    if (alert.parentNode) {
+                        alert.style.animation = 'fadeOut 0.5s ease-out';
+                        setTimeout(() => alert.remove(), 500);
+                    }
+                }, 8000);
+            });
+            
+            // Theme management - handle system theme detection without flash
+            function initializeTheme() {
+                const html = document.documentElement;
+                const userThemePreference = '{{ user_theme_preference }}';
+                
+                // Only update if user has system preference and current theme doesn't match system
+                if (userThemePreference === 'system') {
+                    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+                    const systemTheme = prefersDark ? 'dark' : 'light';
+                    const currentTheme = html.getAttribute('data-theme');
+                    
+                    // Only update if different to avoid unnecessary DOM changes
+                    if (currentTheme !== systemTheme) {
+                        html.setAttribute('data-theme', systemTheme);
+                    }
+                    
+                    // Listen for system theme changes
+                    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+                        if (userThemePreference === 'system') {
+                            html.setAttribute('data-theme', e.matches ? 'dark' : 'light');
+                        }
+                    });
+                }
+            }
+            
+            // Initialize theme after DOM is ready but before other scripts
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', initializeTheme);
+            } else {
+                initializeTheme();
+            }
+        });
+    </script>
+    
+    <style>
+        @keyframes slideInDown {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        
+        @keyframes fadeOut {
+            from {
+                opacity: 1;
+            }
+            to {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+        }
+        
+        .alert-success-prominent {
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .alert-success-prominent::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, #28a745, #20c997, #28a745);
+            background-size: 200% 100%;
+            animation: shimmer 2s infinite;
+        }
+        
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        
+        
+        /* Dark mode navbar */
+        [data-theme="dark"] .navbar-dark {
+            background-color: #212529 !important;
+        }
+        
+        /* Dark mode sidebar */
+        [data-theme="dark"] .sidebar {
+            background-color: #2d3748 !important;
+            border-right: 1px solid #495057 !important;
+        }
+        
+        [data-theme="dark"] .nav-link {
+            color: #cbd5e0 !important;
+        }
+        
+        [data-theme="dark"] .nav-link:hover,
+        [data-theme="dark"] .nav-link.active {
+            background-color: #4a5568 !important;
+            color: #fff !important;
+        }
+        
+        [data-theme="dark"] .sidebar-heading {
+            color: #a0aec0 !important;
+        }
+        
+        /* Dark mode cards */
+        [data-theme="dark"] .card {
+            background-color: #2d3748 !important;
+            border-color: #495057 !important;
+            color: #e9ecef !important;
+        }
+        
+        [data-theme="dark"] .card-header {
+            background-color: #374151 !important;
+            border-color: #495057 !important;
+        }
+        
+        /* Dark mode tables */
+        [data-theme="dark"] .table {
+            color: #e9ecef !important;
+            background-color: #2d3748 !important;
+        }
+        
+        [data-theme="dark"] .table-hover tbody tr:hover {
+            background-color: #374151 !important;
+        }
+        
+        [data-theme="dark"] .table-light {
+            background-color: #374151 !important;
+            color: #e9ecef !important;
+        }
+        
+        /* Dark mode forms */
+        [data-theme="dark"] .form-control,
+        [data-theme="dark"] .form-select {
+            background-color: #374151 !important;
+            border-color: #6b7280 !important;
+            color: #e9ecef !important;
+        }
+        
+        [data-theme="dark"] .form-control:focus,
+        [data-theme="dark"] .form-select:focus {
+            background-color: #374151 !important;
+            border-color: #60a5fa !important;
+            box-shadow: 0 0 0 0.2rem rgba(96, 165, 250, 0.25) !important;
+            color: #e9ecef !important;
+        }
+        
+        [data-theme="dark"] .form-control::placeholder {
+            color: #9ca3af !important;
+        }
+        
+        /* Dark mode modals */
+        [data-theme="dark"] .modal-content {
+            background-color: #2d3748 !important;
+            border-color: #495057 !important;
+        }
+        
+        [data-theme="dark"] .modal-header {
+            border-color: #495057 !important;
+        }
+        
+        [data-theme="dark"] .modal-footer {
+            border-color: #495057 !important;
+        }
+        
+        /* Dark mode buttons */
+        [data-theme="dark"] .btn-outline-secondary {
+            color: #e9ecef !important;
+            border-color: #6c757d !important;
+        }
+        
+        [data-theme="dark"] .btn-outline-secondary:hover {
+            background-color: #6c757d !important;
+            border-color: #6c757d !important;
+            color: #fff !important;
+        }
+        
+        /* Dark mode alerts - moved to dark-mode.css for consistency */
+        
+        /* Dark mode badges */
+        [data-theme="dark"] .badge.bg-light {
+            background-color: #4b5563 !important;
+            color: #e5e7eb !important;
+        }
+        
+        [data-theme="dark"] .badge.bg-secondary {
+            background-color: #6b7280 !important;
+        }
+        
+        /* Dark mode bg-light elements */
+        [data-theme="dark"] .bg-light {
+            background-color: #2d3748 !important;
+            color: #e9ecef !important;
+        }
+        
+        [data-theme="dark"] footer.bg-light {
+            background-color: #1f2937 !important;
+            border-color: #374151 !important;
+        }
+        
+        [data-theme="dark"] .sidebar.bg-light {
+            background-color: #2d3748 !important;
+        }
+        
+        /* Dark mode breadcrumbs */
+        [data-theme="dark"] .breadcrumb {
+            background-color: transparent !important;
+        }
+        
+        [data-theme="dark"] .breadcrumb-item a {
+            color: #60a5fa !important;
+        }
+        
+        [data-theme="dark"] .breadcrumb-item.active {
+            color: #9ca3af !important;
+        }
+        
+        /* Dark mode dropdown */
+        [data-theme="dark"] .dropdown-menu {
+            background-color: #374151 !important;
+            border-color: #6b7280 !important;
+        }
+        
+        [data-theme="dark"] .dropdown-item {
+            color: #e5e7eb !important;
+        }
+        
+        [data-theme="dark"] .dropdown-item:hover,
+        [data-theme="dark"] .dropdown-item:focus {
+            background-color: #4b5563 !important;
+            color: #fff !important;
+        }
+        
+        [data-theme="dark"] .dropdown-header {
+            color: #9ca3af !important;
+        }
+        
+        [data-theme="dark"] .dropdown-divider {
+            border-color: #6b7280 !important;
+        }
+        
+        /* Dark mode notification dropdown */
+        [data-theme="dark"] .notification-dropdown .dropdown-header {
+            background-color: #374151 !important;
+            color: #e5e7eb !important;
+        }
+        
+        [data-theme="dark"] .notification-preview {
+            background-color: #374151 !important;
+            color: #e5e7eb !important;
+        }
+        
+        /* Dark mode text utilities */
+        [data-theme="dark"] .text-muted {
+            color: #9ca3af !important;
+        }
+        
+        [data-theme="dark"] .text-dark {
+            color: #e5e7eb !important;
+        }
+        
+        [data-theme="dark"] .border-top {
+            border-color: #374151 !important;
+        }
+        
+        /* Dark mode pagination */
+        [data-theme="dark"] .page-link {
+            background-color: #374151 !important;
+            border-color: #6b7280 !important;
+            color: #e5e7eb !important;
+        }
+        
+        [data-theme="dark"] .page-link:hover {
+            background-color: #4b5563 !important;
+            border-color: #6b7280 !important;
+            color: #fff !important;
+        }
+        
+        [data-theme="dark"] .page-item.active .page-link {
+            background-color: #3b82f6 !important;
+            border-color: #3b82f6 !important;
+        }
+        
+        /* Dark mode calendar specific */
+        [data-theme="dark"] .calendar-wrapper {
+            background-color: #2d3748 !important;
+            border-color: #495057 !important;
+        }
+        
+        [data-theme="dark"] .fc {
+            color: #e9ecef !important;
+        }
+        
+        [data-theme="dark"] .fc-theme-standard td,
+        [data-theme="dark"] .fc-theme-standard th {
+            border-color: #495057 !important;
+        }
+        
+        [data-theme="dark"] .fc-theme-standard .fc-scrollgrid {
+            border-color: #495057 !important;
+        }
+        
+        [data-theme="dark"] .fc-button {
+            background-color: #374151 !important;
+            border-color: #6b7280 !important;
+            color: #e5e7eb !important;
+        }
+        
+        [data-theme="dark"] .fc-button:hover {
+            background-color: #4b5563 !important;
+        }
+        
+        [data-theme="dark"] .fc-button-primary {
+            background-color: #3b82f6 !important;
+            border-color: #3b82f6 !important;
+        }
+        
+        [data-theme="dark"] .fc-col-header-cell {
+            background-color: #374151 !important;
+        }
+        
+        [data-theme="dark"] .fc-daygrid-day {
+            background-color: #2d3748 !important;
+        }
+        
+        [data-theme="dark"] .fc-day-today {
+            background-color: #1e40af !important;
+        }
+        
+        /* Theme toggle button */
+        .theme-toggle {
+            background: none;
+            border: none;
+            color: #ffffff;
+            font-size: 1.2rem;
+            padding: 0.5rem;
+            margin-right: 0.5rem;
+            border-radius: 0.375rem;
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        
+        .theme-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+            transform: scale(1.05);
+        }
+        
+        .theme-toggle:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.3);
+        }
+        
+        [data-theme="dark"] .theme-toggle {
+            color: #e9ecef;
+        }
+        
+        [data-theme="dark"] .theme-toggle:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        /* Progress Indicators */
+        .btn-loading {
+            position: relative;
+            opacity: 0.8;
+            cursor: not-allowed !important;
+        }
+        
+        .btn-loading:hover {
+            opacity: 0.8;
+        }
+        
+        .form-loading {
+            position: relative;
+        }
+        
+        .form-loading::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.7);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        [data-theme="dark"] .form-loading::after {
+            background: rgba(0, 0, 0, 0.7);
+        }
+        
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+        
+        .loading-spinner {
+            background: white;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        [data-theme="dark"] .loading-spinner {
+            background: #2d3748;
+            color: #e9ecef;
+        }
+    </style>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

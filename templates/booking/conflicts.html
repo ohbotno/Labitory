@@ -1,0 +1,256 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Conflict Management - Labitory{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-exclamation-triangle"></i> Booking Conflicts</h2>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Filter Controls -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Filter Conflicts</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-6">
+                <label for="resource" class="form-label">Resource</label>
+                <select name="resource" id="resource" class="form-control">
+                    <option value="">Select a resource...</option>
+                    {% for resource in resources %}
+                        <option value="{{ resource.pk }}" {% if selected_resource and selected_resource.pk == resource.pk %}selected{% endif %}>
+                            {{ resource.name }} ({{ resource.get_resource_type_display }})
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="days" class="form-label">Days Ahead</label>
+                <select name="days" id="days" class="form-control">
+                    <option value="7" {% if days_ahead == 7 %}selected{% endif %}>7 days</option>
+                    <option value="14" {% if days_ahead == 14 %}selected{% endif %}>14 days</option>
+                    <option value="30" {% if days_ahead == 30 %}selected{% endif %}>30 days</option>
+                    <option value="60" {% if days_ahead == 60 %}selected{% endif %}>60 days</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">&nbsp;</label>
+                <div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i> Check Conflicts
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if conflicts_data %}
+    <!-- Summary -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-danger">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-danger">{{ conflicts_data.summary.total_conflicts }}</h5>
+                    <p class="card-text">Total Conflicts</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-warning">{{ conflicts_data.summary.days_with_conflicts }}</h5>
+                    <p class="card-text">Days with Conflicts</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-info">{{ conflicts_data.summary.avg_conflicts_per_day|floatformat:1 }}</h5>
+                    <p class="card-text">Avg per Day</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-primary">{{ conflicts_data.period.days }}</h5>
+                    <p class="card-text">Day Period</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if conflicts_data.summary.total_conflicts > 0 %}
+        <!-- Bulk Actions -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Bulk Actions</h5>
+                <div>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="selectAllConflicts()">
+                        Select All
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="clearSelection()">
+                        Clear
+                    </button>
+                </div>
+            </div>
+            <div class="card-body">
+                <form method="post" action="{% url 'booking:bulk_resolve_conflicts' %}" id="bulkForm">
+                    {% csrf_token %}
+                    <input type="hidden" name="resource_id" value="{{ selected_resource.pk }}">
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="strategy" class="form-label">Resolution Strategy</label>
+                            <select name="strategy" id="strategy" class="form-control">
+                                <option value="suggest_alternatives">Suggest Alternatives</option>
+                                <option value="auto_reschedule">Auto Reschedule Lower Priority</option>
+                                <option value="manual_review">Mark for Manual Review</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">&nbsp;</label>
+                            <div>
+                                <button type="submit" class="btn btn-primary" onclick="return confirmBulkAction()">
+                                    <i class="bi bi-gear"></i> Process Selected Conflicts
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Conflicts List -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Detected Conflicts</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th width="50">
+                                    <input type="checkbox" id="selectAll" onchange="toggleAllCheckboxes()">
+                                </th>
+                                <th>Date</th>
+                                <th>Time Overlap</th>
+                                <th>Booking 1</th>
+                                <th>Booking 2</th>
+                                <th>Duration</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for conflict in conflicts_data.all_conflicts %}
+                            <tr>
+                                <td>
+                                    <input type="checkbox" name="conflict_ids" value="{{ conflict.booking1.id }}_{{ conflict.booking2.id }}" 
+                                           form="bulkForm" class="conflict-checkbox">
+                                </td>
+                                <td>{{ conflict.overlap_start|date:"M d, Y" }}</td>
+                                <td>
+                                    {{ conflict.overlap_start|date:"H:i" }} - {{ conflict.overlap_end|date:"H:i" }}
+                                </td>
+                                <td>
+                                    <strong>{{ conflict.booking1.title }}</strong><br>
+                                    <small class="text-muted">{{ conflict.booking1.user }} 
+                                        <span class="badge bg-{{ conflict.booking1.status }}">{{ conflict.booking1.status }}</span>
+                                    </small>
+                                </td>
+                                <td>
+                                    <strong>{{ conflict.booking2.title }}</strong><br>
+                                    <small class="text-muted">{{ conflict.booking2.user }}
+                                        <span class="badge bg-{{ conflict.booking2.status }}">{{ conflict.booking2.status }}</span>
+                                    </small>
+                                </td>
+                                <td>{{ conflict.overlap_duration_minutes }} min</td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a href="{% url 'booking:resolve_conflict' 'booking' conflict.booking1.id conflict.booking2.id %}" 
+                                           class="btn btn-outline-primary">
+                                            <i class="bi bi-tools"></i> Resolve
+                                        </a>
+                                        <a href="{% url 'booking:booking_detail' conflict.booking1.id %}" 
+                                           class="btn btn-outline-info">
+                                            <i class="bi bi-eye"></i> View
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% else %}
+        <div class="alert alert-success">
+            <i class="bi bi-check-circle"></i> No conflicts detected for {{ selected_resource.name }} in the next {{ days_ahead }} days.
+        </div>
+    {% endif %}
+{% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> Select a resource above to check for booking conflicts.
+    </div>
+{% endif %}
+
+<script>
+function selectAllConflicts() {
+    const checkboxes = document.querySelectorAll('.conflict-checkbox');
+    checkboxes.forEach(cb => cb.checked = true);
+    document.getElementById('selectAll').checked = true;
+}
+
+function clearSelection() {
+    const checkboxes = document.querySelectorAll('.conflict-checkbox');
+    checkboxes.forEach(cb => cb.checked = false);
+    document.getElementById('selectAll').checked = false;
+}
+
+function toggleAllCheckboxes() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.conflict-checkbox');
+    checkboxes.forEach(cb => cb.checked = selectAll.checked);
+}
+
+function confirmBulkAction() {
+    const selectedCount = document.querySelectorAll('.conflict-checkbox:checked').length;
+    if (selectedCount === 0) {
+        alert('Please select at least one conflict to process.');
+        return false;
+    }
+    
+    const strategy = document.getElementById('strategy').value;
+    return confirm(`Are you sure you want to process ${selectedCount} conflicts using the "${strategy}" strategy?`);
+}
+
+// Update checkbox state when individual checkboxes change
+document.addEventListener('DOMContentLoaded', function() {
+    const checkboxes = document.querySelectorAll('.conflict-checkbox');
+    const selectAll = document.getElementById('selectAll');
+    
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            const checkedCount = document.querySelectorAll('.conflict-checkbox:checked').length;
+            selectAll.checked = checkedCount === checkboxes.length;
+            selectAll.indeterminate = checkedCount > 0 && checkedCount < checkboxes.length;
+        });
+    });
+});
+</script>
+{% endblock %}

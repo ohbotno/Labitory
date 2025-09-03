@@ -1,0 +1,284 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Training Dashboard - {{ lab_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.training-card {
+    transition: transform 0.2s;
+}
+.training-card:hover {
+    transform: translateY(-2px);
+}
+.progress-ring {
+    width: 60px;
+    height: 60px;
+}
+.course-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2><i class="fas fa-graduation-cap"></i> Training Dashboard</h2>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'booking:approval_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left"></i> Back to Approval
+                    </a>
+                    <a href="{% url 'booking:training_courses' %}" class="btn btn-outline-primary">
+                        <i class="fas fa-book"></i> All Courses
+                    </a>
+                    {% if user.userprofile.role in 'technician,academic,sysadmin' %}
+                    <a href="{% url 'booking:manage_training' %}" class="btn btn-primary">
+                        <i class="fas fa-cogs"></i> Manage Training
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0">{{ my_completed_training }}</h3>
+                            <p class="mb-0">Completed</p>
+                        </div>
+                        <i class="fas fa-certificate fa-2x opacity-75"></i>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{% url 'booking:my_training' %}?status=completed" class="text-white text-decoration-none">
+                        View Certificates <i class="fas fa-arrow-circle-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0">{{ my_in_progress_training }}</h3>
+                            <p class="mb-0">In Progress</p>
+                        </div>
+                        <i class="fas fa-clock fa-2x opacity-75"></i>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{% url 'booking:my_training' %}?status=in_progress" class="text-white text-decoration-none">
+                        Continue Training <i class="fas fa-arrow-circle-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0">{{ available_courses }}</h3>
+                            <p class="mb-0">Available</p>
+                        </div>
+                        <i class="fas fa-book-open fa-2x opacity-75"></i>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{% url 'booking:training_courses' %}" class="text-white text-decoration-none">
+                        Browse Courses <i class="fas fa-arrow-circle-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0">{{ expiring_soon }}</h3>
+                            <p class="mb-0">Expiring Soon</p>
+                        </div>
+                        <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{% url 'booking:my_training' %}?expiring=true" class="text-white text-decoration-none">
+                        Renew Training <i class="fas fa-arrow-circle-right"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- My Training Progress -->
+        <div class="col-lg-8">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-chart-line"></i> My Training Progress</h5>
+                </div>
+                <div class="card-body">
+                    {% if my_training %}
+                        <div class="row">
+                            {% for training in my_training %}
+                            <div class="col-md-6 mb-3">
+                                <div class="card training-card position-relative">
+                                    <div class="card-body">
+                                        <span class="badge bg-{{ training.status|yesno:'success,warning,secondary' }} course-badge">
+                                            {{ training.get_status_display }}
+                                        </span>
+                                        <h6 class="card-title">{{ training.training_course.title }}</h6>
+                                        <p class="card-text text-muted small">{{ training.training_course.code }}</p>
+                                        
+                                        {% if training.status == 'completed' %}
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <small class="text-success">
+                                                <i class="fas fa-certificate"></i> 
+                                                Completed {{ training.completed_at|date:"M d, Y" }}
+                                            </small>
+                                            {% if training.expires_at %}
+                                            <small class="text-muted">
+                                                Expires {{ training.expires_at|date:"M d, Y" }}
+                                            </small>
+                                            {% endif %}
+                                        </div>
+                                        {% elif training.status == 'in_progress' %}
+                                        <div class="progress mb-2">
+                                            <div class="progress-bar" role="progressbar" style="width: 60%">60%</div>
+                                        </div>
+                                        <small class="text-info">Started {{ training.started_at|date:"M d, Y" }}</small>
+                                        {% else %}
+                                        <small class="text-muted">Enrolled {{ training.enrolled_at|date:"M d, Y" }}</small>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="text-center">
+                            <a href="{% url 'booking:my_training' %}" class="btn btn-primary">
+                                View All My Training
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-graduation-cap fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No Training Enrolled</h5>
+                            <p class="text-muted">Start your training journey by enrolling in available courses.</p>
+                            <a href="{% url 'booking:training_courses' %}" class="btn btn-primary">
+                                Browse Training Courses
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Recommended Courses -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-star"></i> Recommended for You</h5>
+                </div>
+                <div class="card-body">
+                    {% if recommended_courses %}
+                        {% for course in recommended_courses %}
+                        <div class="d-flex align-items-center mb-3">
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">{{ course.title }}</h6>
+                                <small class="text-muted">{{ course.duration_hours }}h • {{ course.get_course_type_display }}</small>
+                            </div>
+                            <a href="{% url 'booking:training_course_detail' course.id %}" class="btn btn-outline-primary btn-sm">
+                                View
+                            </a>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No recommendations available</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Upcoming Sessions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-calendar"></i> Upcoming Sessions</h5>
+                </div>
+                <div class="card-body">
+                    {% if upcoming_sessions %}
+                        {% for session in upcoming_sessions %}
+                        <div class="mb-3">
+                            <h6 class="mb-1">{{ session.training_course.title }}</h6>
+                            <p class="mb-1 text-muted">
+                                <i class="fas fa-clock"></i> {{ session.session_date|date:"M d, Y H:i" }}
+                            </p>
+                            {% if session.session_location %}
+                            <p class="mb-1 text-muted">
+                                <i class="fas fa-map-marker-alt"></i> {{ session.session_location }}
+                            </p>
+                            {% endif %}
+                            {% if session.instructor %}
+                            <small class="text-muted">
+                                Instructor: {{ session.instructor.get_full_name }}
+                            </small>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">No upcoming sessions scheduled</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-bolt"></i> Quick Actions</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'booking:training_courses' %}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-search"></i> Browse All Courses
+                        </a>
+                        <a href="{% url 'booking:my_training' %}" class="btn btn-outline-info btn-sm">
+                            <i class="fas fa-user-graduate"></i> My Training Record
+                        </a>
+                        {% if user.userprofile.role in 'technician,academic,sysadmin' %}
+                        <a href="{% url 'booking:manage_training' %}" class="btn btn-outline-success btn-sm">
+                            <i class="fas fa-cogs"></i> Manage Training
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-refresh every 5 minutes
+    setTimeout(function() {
+        location.reload();
+    }, 300000);
+});
+</script>
+{% endblock %}

@@ -1,0 +1,111 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Django
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+/staticfiles/
+/media/
+
+# Logs directory
+logs/*.log
+logs/*.log.*
+!logs/.gitkeep
+
+# Environment variables
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Translations
+*.mo
+*.pot
+
+# Backup files
+*.bak
+*.backup
+models_backup.py
+models_old.py
+
+# System backups directory
+backups/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Documentation files (keep local, exclude from git)
+CLAUDE.md
+PROJECT.md
+TODO.md
+LOGS.md
+PLANNING.md
+TASK.md
+
+# Claude AI files (exclude from git)
+.claude/
+.claudeignore
+*.claude
+claude.json
+claude.config
+
+# Development files (keep local, exclude from git)
+debug_urls.py
+CHECKING.md
+apply_migration_fix.sh
+fix_migrations.py
+update_lab_name.py
+
+# Testing files (keep local, exclude from git)
+test_backups/

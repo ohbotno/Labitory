@@ -1,0 +1,658 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+{% load booking_extras %}
+
+{% block title %}Checklist Configuration - {{ resource.name }} - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-clipboard-check me-2"></i>Checklist Configuration</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_dashboard' %}">Lab Admin</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_resources' %}">Resources</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_edit_resource' resource.id %}">{{ resource.name }}</a></li>
+                            <li class="breadcrumb-item active">Checklist</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{% url 'booking:lab_admin_edit_resource' resource.id %}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left me-1"></i> Back to Resource
+                    </a>
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#checklistItemModal" id="create-checklist-item-btn">
+                        <i class="fas fa-plus me-1"></i> Create New Item
+                    </button>
+                </div>
+            </div>
+
+            <!-- Resource Info -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h5 class="mb-2">
+                                <i class="fas fa-cog me-2"></i>{{ resource.name }}
+                                {% if resource.requires_checkout_checklist %}
+                                <span class="badge bg-success ms-2">Checklist Enabled</span>
+                                {% else %}
+                                <span class="badge bg-warning ms-2">Checklist Disabled</span>
+                                {% endif %}
+                            </h5>
+                            <p class="text-muted mb-0">{{ resource.description|default:"No description provided" }}</p>
+                            {% if resource.requires_checkout_checklist %}
+                            <small class="text-success">
+                                <strong>Checklist Title:</strong> {{ resource.checkout_checklist_title }}
+                            </small>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-4 text-end">
+                            <div class="row text-center">
+                                <div class="col-6">
+                                    <div class="h4 mb-0">{{ total_available }}</div>
+                                    <small class="text-muted">Available Items</small>
+                                </div>
+                                <div class="col-6">
+                                    <div class="h4 mb-0 text-primary">{{ total_assigned }}</div>
+                                    <small class="text-muted">Assigned Items</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if not resource.requires_checkout_checklist %}
+            <div class="alert alert-warning">
+                <h6><i class="fas fa-exclamation-triangle me-2"></i>Checkout Checklist Disabled</h6>
+                <p class="mb-2">This resource does not currently require a checkout checklist. Items can be configured here, but users won't see them during checkout.</p>
+                <a href="{% url 'booking:lab_admin_edit_resource' resource.id %}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-cog me-1"></i>Enable Checklist in Resource Settings
+                </a>
+            </div>
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+                
+                <div class="row">
+                    <!-- Available Items -->
+                    <div class="col-lg-8">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-list me-2"></i>Available Checklist Items
+                                    <small class="text-muted">({{ total_available }} items)</small>
+                                </h5>
+                                <small class="text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Drag items by the <i class="fas fa-grip-vertical"></i> handle to reorder them
+                                </small>
+                            </div>
+                            <div class="card-body">
+                                {% if items_by_category %}
+                                {% for category, items in items_by_category.items %}
+                                <div class="mb-3 category-section" data-category="{{ category }}">
+                                    <h6 class="text-primary border-bottom pb-1 mb-2">
+                                        {% if category == "Safety Check" %}
+                                            <i class="fas fa-shield-alt me-2"></i>
+                                        {% elif category == "Equipment Status" %}
+                                            <i class="fas fa-cogs me-2"></i>
+                                        {% elif category == "Cleanliness" %}
+                                            <i class="fas fa-broom me-2"></i>
+                                        {% elif category == "Documentation" %}
+                                            <i class="fas fa-file-alt me-2"></i>
+                                        {% elif category == "Maintenance Check" %}
+                                            <i class="fas fa-wrench me-2"></i>
+                                        {% else %}
+                                            <i class="fas fa-clipboard me-2"></i>
+                                        {% endif %}
+                                        {{ category }}
+                                    </h6>
+                                    
+                                    {% for item in items %}
+                                    {% get_checklist_fields form item.id as fields %}
+                                    <div class="card mb-1 border-light checklist-item" data-item-id="{{ item.id }}" draggable="true">
+                                        <div class="card-body py-2 px-3">
+                                            <div class="row align-items-center g-2">
+                                                <div class="col-auto">
+                                                    <div class="drag-handle" title="Drag to reorder">
+                                                        <i class="fas fa-grip-vertical text-muted small"></i>
+                                                    </div>
+                                                </div>
+                                                <div class="col-auto">
+                                                    <div class="form-check mb-0">
+                                                        {% if fields.enabled %}
+                                                            {{ fields.enabled }}
+                                                        {% else %}
+                                                            <span class="text-danger">Missing field: item_{{ item.id }}_enabled</span>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                <div class="col">
+                                                    <div class="d-flex align-items-center flex-wrap">
+                                                        <strong class="me-2">{{ item.title }}</strong>
+                                                        <span class="badge bg-secondary badge-sm me-1">{{ item.get_item_type_display }}</span>
+                                                        {% if item.is_required %}
+                                                        <span class="badge bg-danger badge-sm">Required</span>
+                                                        {% endif %}
+                                                    </div>
+                                                    {% if item.description %}
+                                                    <small class="text-muted d-block">{{ item.description|truncatechars:80 }}</small>
+                                                    {% endif %}
+                                                    
+                                                    {% if item.item_type == 'select' and item.options %}
+                                                    <small class="text-info d-block">
+                                                        <strong>Options:</strong> {{ item.options|join:", "|truncatechars:50 }}
+                                                    </small>
+                                                    {% endif %}
+                                                    
+                                                    {% if item.item_type == 'number' %}
+                                                    <small class="text-info d-block">
+                                                        <strong>Range:</strong> 
+                                                        {% if item.min_value %}{{ item.min_value }}{% else %}-∞{% endif %} 
+                                                        to 
+                                                        {% if item.max_value %}{{ item.max_value }}{% else %}+∞{% endif %}
+                                                    </small>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="col-auto">
+                                                    <div class="text-center">
+                                                        {% if fields.order %}
+                                                            {{ fields.order }}
+                                                        {% else %}
+                                                            <span class="text-danger">Missing order field</span>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                <div class="col-auto">
+                                                    <div class="form-check text-center">
+                                                        {% if fields.required %}
+                                                            {{ fields.required }}
+                                                            <label class="form-check-label small d-block">Required</label>
+                                                        {% else %}
+                                                            <span class="text-danger">Missing required field</span>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                                <div class="col-auto">
+                                                    <a href="/admin/booking/checklistitem/{{ item.id }}/change/" 
+                                                       class="btn btn-sm btn-outline-secondary" 
+                                                       target="_blank"
+                                                       title="Edit Item">
+                                                        <i class="fas fa-edit"></i>
+                                                    </a>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% endfor %}
+                                {% else %}
+                                <div class="text-center py-5">
+                                    <i class="fas fa-clipboard fa-3x text-muted mb-3"></i>
+                                    <h5 class="text-muted">No Checklist Items Available</h5>
+                                    <p class="text-muted">Create checklist items first before assigning them to resources.</p>
+                                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#checklistItemModal" id="create-first-checklist-item-btn">
+                                        <i class="fas fa-plus me-2"></i>Create First Checklist Item
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Currently Assigned Items -->
+                    <div class="col-lg-4">
+                        <div class="card sticky-top" style="top: 1rem;">
+                            <div class="card-header">
+                                <h5 class="mb-0">
+                                    <i class="fas fa-check-circle me-2"></i>Assigned Items
+                                    <small class="text-muted">({{ total_assigned }})</small>
+                                </h5>
+                            </div>
+                            <div class="card-body assigned-items-preview">
+                                {% if assigned_items %}
+                                <div class="small text-muted mb-2">
+                                    Items will appear in this order during checkout:
+                                </div>
+                                <div id="assigned-items-container">
+                                {% for assignment in assigned_items %}
+                                <div class="d-flex align-items-center mb-1 p-2 border rounded assigned-item" data-item-id="{{ assignment.checklist_item.id }}">
+                                    <div class="me-2">
+                                        <span class="badge bg-primary">{{ assignment.order|default:0 }}</span>
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <div class="fw-bold small">{{ assignment.checklist_item.title }}</div>
+                                        <div class="text-muted small">
+                                            {{ assignment.checklist_item.get_category_display }} • 
+                                            {{ assignment.checklist_item.get_item_type_display }}
+                                            {% if assignment.is_required %}
+                                            • <span class="text-danger">Required</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                                </div>
+                                {% else %}
+                                <div class="text-center py-4">
+                                    <i class="fas fa-clipboard text-muted mb-2"></i>
+                                    <div class="text-muted small">No items assigned yet</div>
+                                    <div class="text-muted small">Check boxes on the left to assign items</div>
+                                </div>
+                                {% endif %}
+                            </div>
+                            
+                            {% if items_by_category %}
+                            <div class="card-footer">
+                                <div class="d-grid gap-2">
+                                    <button type="submit" class="btn btn-primary">
+                                        <i class="fas fa-save me-2"></i>Save Configuration
+                                    </button>
+                                    <a href="{% url 'booking:lab_admin_edit_resource' resource.id %}" class="btn btn-outline-secondary">
+                                        <i class="fas fa-times me-2"></i>Cancel
+                                    </a>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Checklist Item Modal -->
+<div class="modal fade" id="checklistItemModal" tabindex="-1" aria-labelledby="checklistItemModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="checklistItemModalLabel">
+                    <i class="fas fa-plus me-2"></i>Create New Checklist Item
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="checklist-item-modal-body">
+                <!-- Form content will be loaded here -->
+                <div class="text-center py-3">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-success" id="save-checklist-item-btn">
+                    <i class="fas fa-save me-1"></i>Save Item
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.checklist-item {
+    transition: all 0.2s ease;
+    cursor: move;
+}
+
+.checklist-item:hover {
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.checklist-item.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+}
+
+.checklist-item.drag-over {
+    border-color: #007bff !important;
+    border-width: 2px !important;
+}
+
+.checklist-item .card-body {
+    padding: 0.5rem 0.75rem !important;
+}
+
+.checklist-item .form-control {
+    font-size: 0.875rem;
+    padding: 0.25rem 0.5rem;
+    width: 60px;
+}
+
+.badge-sm {
+    font-size: 0.75rem;
+    padding: 0.25em 0.5em;
+}
+
+.drag-handle {
+    cursor: grab;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: background-color 0.2s ease;
+}
+
+.drag-handle:hover {
+    background-color: #f8f9fa;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+.drop-zone {
+    min-height: 60px;
+    border: 2px dashed #dee2e6;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #6c757d;
+    margin: 10px 0;
+    transition: all 0.2s ease;
+}
+
+.drop-zone.drag-over {
+    border-color: #007bff;
+    background-color: #f8f9fa;
+    color: #007bff;
+}
+
+.drop-zone-active {
+    display: block;
+}
+
+.drop-zone-inactive {
+    display: none;
+}
+
+/* Right panel assigned items styling */
+.assigned-items-preview .d-flex {
+    padding: 0.5rem !important;
+}
+
+.assigned-items-preview .badge {
+    font-size: 0.75rem;
+}
+
+.assigned-items-preview .fw-bold {
+    font-size: 0.875rem;
+}
+
+.assigned-items-preview .text-muted {
+    font-size: 0.75rem;
+}
+
+
+.assigned-item {
+    transition: all 0.2s ease;
+}
+
+.assigned-item.drag-over {
+    border-color: #007bff !important;
+    border-width: 2px !important;
+    margin: 4px 0;
+}
+
+
+/* Ensure relative positioning for feedback */
+.checklist-item {
+    position: relative;
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-update order numbers when items are selected/deselected
+    const checkboxes = document.querySelectorAll('input[type="checkbox"][name$="_enabled"]');
+    
+    function updateOrderNumbers() {
+        // Get all enabled items in DOM order and assign sequential numbers
+        let nextOrder = 1;
+        
+        document.querySelectorAll('.checklist-item').forEach(item => {
+            const itemId = item.dataset.itemId;
+            const checkbox = item.querySelector(`input[name="item_${itemId}_enabled"]`);
+            const orderInput = item.querySelector(`input[name="item_${itemId}_order"]`);
+            
+            if (checkbox && checkbox.checked && orderInput) {
+                orderInput.value = nextOrder++;
+            } else if (orderInput && (!checkbox || !checkbox.checked)) {
+                orderInput.value = '0';
+            }
+        });
+    }
+    
+    checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            const itemId = this.name.match(/item_(\d+)_enabled/)[1];
+            const orderInput = document.querySelector(`input[name="item_${itemId}_order"]`);
+            const requiredInput = document.querySelector(`input[name="item_${itemId}_required"]`);
+            
+            if (this.checked) {
+                // Item was selected
+                if (orderInput.value === '0' || orderInput.value === '') {
+                    updateOrderNumbers();
+                }
+                orderInput.disabled = false;
+                requiredInput.disabled = false;
+            } else {
+                // Item was deselected
+                orderInput.value = '0';
+                orderInput.disabled = true;
+                requiredInput.disabled = true;
+            }
+        });
+        
+        // Initialize state
+        const event = new Event('change');
+        checkbox.dispatchEvent(event);
+    });
+    
+    // Drag and Drop functionality for reordering checklist items
+    initializeDragAndDrop();
+    
+    function initializeDragAndDrop() {
+        const checklistItems = document.querySelectorAll('.checklist-item');
+        let draggedItem = null;
+        
+        checklistItems.forEach(item => {
+            item.addEventListener('dragstart', handleDragStart);
+            item.addEventListener('dragend', handleDragEnd);
+            item.addEventListener('dragover', handleDragOver);
+            item.addEventListener('dragenter', handleDragEnter);
+            item.addEventListener('dragleave', handleDragLeave);
+            item.addEventListener('drop', handleDrop);
+        });
+        
+        
+        function handleDragStart(e) {
+            draggedItem = this;
+            
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/html', this.outerHTML);
+            e.dataTransfer.setData('text/plain', this.dataset.itemId);
+        }
+        
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            
+            // Remove drag-over class from all items
+            checklistItems.forEach(item => {
+                item.classList.remove('drag-over');
+            });
+            
+            draggedItem = null;
+        }
+        
+        function handleDragOver(e) {
+            if (e.preventDefault) {
+                e.preventDefault();
+            }
+            e.dataTransfer.dropEffect = 'move';
+            return false;
+        }
+        
+        function handleDragEnter(e) {
+            if (this !== draggedItem) {
+                this.classList.add('drag-over');
+            }
+        }
+        
+        function handleDragLeave(e) {
+            this.classList.remove('drag-over');
+        }
+        
+        function handleDrop(e) {
+            if (e.stopPropagation) {
+                e.stopPropagation();
+            }
+            
+            if (draggedItem !== this && draggedItem) {
+                // Get the category container
+                const categoryContainer = this.closest('[data-category]') || this.parentNode;
+                
+                // Determine if we should insert before or after
+                const rect = this.getBoundingClientRect();
+                const midpoint = rect.top + rect.height / 2;
+                const insertAfter = e.clientY > midpoint;
+                
+                if (insertAfter) {
+                    // Insert after the target
+                    this.parentNode.insertBefore(draggedItem, this.nextSibling);
+                } else {
+                    // Insert before the target
+                    this.parentNode.insertBefore(draggedItem, this);
+                }
+                
+                // Update order numbers for all items
+                updateOrderNumbers();
+            }
+            
+            this.classList.remove('drag-over');
+            return false;
+        }
+    }
+    
+    
+    // Modal functionality for creating checklist items
+    const modal = document.getElementById('checklistItemModal');
+    const modalBody = document.getElementById('checklist-item-modal-body');
+    const saveBtn = document.getElementById('save-checklist-item-btn');
+    
+    // Function to get CSRF token
+    function getCSRFToken() {
+        const csrfInput = document.querySelector('[name=csrfmiddlewaretoken]');
+        return csrfInput ? csrfInput.value : '{{ csrf_token }}';
+    }
+    
+    // Load form when modal is opened
+    modal.addEventListener('show.bs.modal', function() {
+        modalBody.innerHTML = `
+            <div class="text-center py-3">
+                <div class="spinner-border text-primary" role="status">
+                    <span class="visually-hidden">Loading...</span>
+                </div>
+            </div>
+        `;
+        
+        fetch('{% url "booking:ajax_create_checklist_item" %}')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                modalBody.innerHTML = data.html;
+            })
+            .catch(error => {
+                console.error('Error loading form:', error);
+                modalBody.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Error loading form: ${error.message}. Please try again.
+                    </div>
+                `;
+            });
+    });
+    
+    // Handle form submission
+    saveBtn.addEventListener('click', function() {
+        const form = document.getElementById('checklist-item-form');
+        if (!form) return;
+        
+        const formData = new FormData(form);
+        const submitBtn = this;
+        const originalText = submitBtn.innerHTML;
+        
+        // Show loading state
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i>Saving...';
+        
+        fetch('{% url "booking:ajax_create_checklist_item" %}', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-CSRFToken': getCSRFToken()
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                const successAlert = document.createElement('div');
+                successAlert.className = 'alert alert-success alert-dismissible fade show';
+                successAlert.innerHTML = `
+                    <i class="fas fa-check-circle me-2"></i>
+                    Checklist item "${data.item.title}" created successfully!
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                
+                // Insert success message at the top of the page
+                const container = document.querySelector('.container-fluid');
+                container.insertBefore(successAlert, container.firstChild);
+                
+                // Close modal
+                const modalInstance = bootstrap.Modal.getInstance(modal);
+                modalInstance.hide();
+                
+                // Reload page to show new item
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1000);
+            } else {
+                // Show form with errors
+                modalBody.innerHTML = data.html;
+            }
+        })
+        .catch(error => {
+            console.error('Error saving form:', error);
+            modalBody.innerHTML = `
+                <div class="alert alert-danger">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Error saving item. Please try again.
+                </div>
+            `;
+        })
+        .finally(() => {
+            // Restore button state
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
+    });
+});
+
+</script>
+{% endblock %}

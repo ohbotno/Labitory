@@ -1,0 +1,446 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Booking Management - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-tasks me-2"></i>Manage Bookings</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_dashboard' %}">Lab Admin</a></li>
+                            <li class="breadcrumb-item active">Manage Bookings</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div class="btn-group">
+                    <button type="button" class="btn btn-success" id="bulk-approve-btn" disabled>
+                        <i class="bi bi-check-circle"></i> Approve Selected
+                    </button>
+                    <button type="button" class="btn btn-secondary" id="bulk-reject-btn" disabled>
+                        <i class="bi bi-x-circle"></i> Reject Selected
+                    </button>
+                    <button type="button" class="btn btn-danger" id="bulk-cancel-btn" disabled>
+                        <i class="bi bi-trash"></i> Cancel Selected
+                    </button>
+                </div>
+            </div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Filters</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-2">
+                <label for="status" class="form-label">Status</label>
+                <select class="form-select" name="status" id="status">
+                    <option value="">All Statuses</option>
+                    {% for status_code, status_display in status_choices %}
+                        <option value="{{ status_code }}" {% if status_filter == status_code %}selected{% endif %}>
+                            {{ status_display }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="resource" class="form-label">Resource</label>
+                <select class="form-select" name="resource" id="resource">
+                    <option value="">All Resources</option>
+                    {% for resource in resources %}
+                        <option value="{{ resource.id }}" {% if resource_filter == resource.id|stringformat:"s" %}selected{% endif %}>
+                            {{ resource.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="user" class="form-label">User</label>
+                <input type="text" class="form-control" name="user" id="user" 
+                       value="{{ user_filter }}" placeholder="Username or name">
+            </div>
+            <div class="col-md-2">
+                <label for="date_from" class="form-label">From Date</label>
+                <input type="date" class="form-control" name="date_from" id="date_from" 
+                       value="{{ date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label for="date_to" class="form-label">To Date</label>
+                <input type="date" class="form-control" name="date_to" id="date_to" 
+                       value="{{ date_to }}">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">Filter</button>
+                <a href="{% url 'booking:manage_bookings' %}" class="btn btn-outline-secondary">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Bookings Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            Bookings 
+            <span class="badge bg-secondary">{{ page_obj.paginator.count }} total</span>
+        </h5>
+        <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="select-all">
+            <label class="form-check-label" for="select-all">Select All</label>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if page_obj %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="5%"></th>
+                            <th>Title</th>
+                            <th>User</th>
+                            <th>Resource</th>
+                            <th>Date & Time</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for booking in page_obj %}
+                        <tr>
+                            <td>
+                                <input type="checkbox" class="form-check-input booking-checkbox" 
+                                       value="{{ booking.pk }}" data-status="{{ booking.status }}">
+                            </td>
+                            <td>
+                                <strong>{{ booking.title }}</strong>
+                                {% if booking.description %}
+                                    <br><small class="text-muted">{{ booking.description|truncatechars:50 }}</small>
+                                {% endif %}
+                                {% if booking.is_recurring %}
+                                    <span class="badge bg-info ms-1">Recurring</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ booking.user.get_full_name|default:booking.user.username }}
+                                <br><small class="text-muted">{{ booking.user.userprofile.role|title }}</small>
+                            </td>
+                            <td>
+                                {{ booking.resource.name }}
+                                <br><small class="text-muted">{{ booking.resource.location }}</small>
+                            </td>
+                            <td>
+                                {{ booking.start_time|date:"M d, Y" }}
+                                <br><small class="text-muted">{{ booking.start_time|time:"H:i" }} - {{ booking.end_time|time:"H:i" }}</small>
+                            </td>
+                            <td>
+                                {% if booking.status == 'approved' %}
+                                    <span class="badge bg-success">{{ booking.get_status_display }}</span>
+                                {% elif booking.status == 'pending' %}
+                                    <span class="badge bg-warning text-dark">{{ booking.get_status_display }}</span>
+                                {% elif booking.status == 'cancelled' %}
+                                    <span class="badge bg-danger">{{ booking.get_status_display }}</span>
+                                {% elif booking.status == 'rejected' %}
+                                    <span class="badge bg-secondary">{{ booking.get_status_display }}</span>
+                                {% elif booking.status == 'completed' %}
+                                    <span class="badge bg-info">{{ booking.get_status_display }}</span>
+                                {% else %}
+                                    <span class="badge bg-light text-dark">{{ booking.get_status_display }}</span>
+                                {% endif %}
+                                {% if booking.approved_by %}
+                                    <br><small class="text-muted">by {{ booking.approved_by.get_full_name|default:booking.approved_by.username }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ booking.created_at|date:"M d, H:i" }}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'booking:booking_detail' booking.pk %}" 
+                                       class="btn btn-outline-primary" title="View Details">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    
+                                    {% if booking.status != 'cancelled' and booking.status != 'completed' %}
+                                        <a href="{% url 'booking:edit_booking' booking.pk %}" 
+                                           class="btn btn-outline-info" title="Edit Booking">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                    {% endif %}
+                                    
+                                    {% if booking.status == 'pending' %}
+                                        <button type="button" class="btn btn-outline-success" 
+                                                onclick="singleAction('approve', {{ booking.pk }})" title="Approve">
+                                            <i class="bi bi-check"></i>
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary" 
+                                                onclick="singleAction('reject', {{ booking.pk }})" title="Reject">
+                                            <i class="bi bi-x"></i>
+                                        </button>
+                                    {% endif %}
+                                    
+                                    {% if booking.can_be_cancelled %}
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                onclick="singleAction('cancel', {{ booking.pk }})" title="Cancel Booking">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    {% endif %}
+                                    
+                                    <button type="button" class="btn btn-outline-danger" 
+                                            onclick="confirmDelete({{ booking.pk }}, '{{ booking.title|escapejs }}')" 
+                                            title="Delete Booking"
+                                            {% if booking.status not in 'cancelled,completed' %}disabled{% endif %}>
+                                        <i class="bi bi-trash-fill"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-calendar-x display-4 text-muted"></i>
+                <h5 class="mt-3">No bookings found</h5>
+                <p class="text-muted">Try adjusting your filters or check back later.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<nav aria-label="Bookings pagination" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1">First</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">Previous</a>
+            </li>
+        {% endif %}
+        
+        <li class="page-item active">
+            <span class="page-link">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+        </li>
+        
+        {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">Next</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.paginator.num_pages }}">Last</a>
+            </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Action Form (Hidden) -->
+<form id="bulk-action-form" method="post" action="{% url 'booking:bulk_operations' %}" style="display: none;">
+    {% csrf_token %}
+    <input type="hidden" name="action" id="bulk-action">
+    <div id="booking-ids-container"></div>
+</form>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-message"></p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> This action cannot be undone.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirm-action">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const bookingCheckboxes = document.querySelectorAll('.booking-checkbox');
+    const bulkApproveBtn = document.getElementById('bulk-approve-btn');
+    const bulkRejectBtn = document.getElementById('bulk-reject-btn');
+    const bulkCancelBtn = document.getElementById('bulk-cancel-btn');
+    const bulkActionForm = document.getElementById('bulk-action-form');
+    const bookingIdsContainer = document.getElementById('booking-ids-container');
+    const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    
+    // Select all functionality
+    selectAllCheckbox.addEventListener('change', function() {
+        bookingCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateBulkButtons();
+    });
+    
+    // Individual checkbox change
+    bookingCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateSelectAllState();
+            updateBulkButtons();
+        });
+    });
+    
+    function updateSelectAllState() {
+        const checkedBoxes = document.querySelectorAll('.booking-checkbox:checked');
+        selectAllCheckbox.checked = checkedBoxes.length === bookingCheckboxes.length;
+        selectAllCheckbox.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < bookingCheckboxes.length;
+    }
+    
+    function updateBulkButtons() {
+        const checkedBoxes = document.querySelectorAll('.booking-checkbox:checked');
+        const hasChecked = checkedBoxes.length > 0;
+        
+        bulkApproveBtn.disabled = !hasChecked;
+        bulkRejectBtn.disabled = !hasChecked;
+        bulkCancelBtn.disabled = !hasChecked;
+        
+        // Update button text with count
+        if (hasChecked) {
+            bulkApproveBtn.innerHTML = `<i class="bi bi-check-circle"></i> Approve Selected (${checkedBoxes.length})`;
+            bulkRejectBtn.innerHTML = `<i class="bi bi-x-circle"></i> Reject Selected (${checkedBoxes.length})`;
+            bulkCancelBtn.innerHTML = `<i class="bi bi-trash"></i> Cancel Selected (${checkedBoxes.length})`;
+        } else {
+            bulkApproveBtn.innerHTML = '<i class="bi bi-check-circle"></i> Approve Selected';
+            bulkRejectBtn.innerHTML = '<i class="bi bi-x-circle"></i> Reject Selected';
+            bulkCancelBtn.innerHTML = '<i class="bi bi-trash"></i> Cancel Selected';
+        }
+    }
+    
+    // Bulk action handlers
+    bulkApproveBtn.addEventListener('click', () => bulkAction('approve'));
+    bulkRejectBtn.addEventListener('click', () => bulkAction('reject'));
+    bulkCancelBtn.addEventListener('click', () => bulkAction('cancel'));
+    
+    function bulkAction(action) {
+        const checkedBoxes = document.querySelectorAll('.booking-checkbox:checked');
+        if (checkedBoxes.length === 0) return;
+        
+        const actionText = action.charAt(0).toUpperCase() + action.slice(1);
+        document.getElementById('confirm-message').textContent = 
+            `Are you sure you want to ${action} ${checkedBoxes.length} selected booking(s)?`;
+        
+        document.getElementById('confirm-action').onclick = function() {
+            // Prepare form
+            document.getElementById('bulk-action').value = action;
+            bookingIdsContainer.innerHTML = '';
+            
+            checkedBoxes.forEach(checkbox => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'booking_ids';
+                input.value = checkbox.value;
+                bookingIdsContainer.appendChild(input);
+            });
+            
+            // Submit form
+            bulkActionForm.submit();
+        };
+        
+        confirmModal.show();
+    }
+    
+    // Initial state
+    updateBulkButtons();
+});
+
+function singleAction(action, bookingId) {
+    const actionText = action.charAt(0).toUpperCase() + action.slice(1);
+    document.getElementById('confirm-message').textContent = 
+        `Are you sure you want to ${action} this booking?`;
+    
+    document.getElementById('confirm-action').onclick = function() {
+        // Prepare form for single action
+        document.getElementById('bulk-action').value = action;
+        document.getElementById('booking-ids-container').innerHTML = 
+            `<input type="hidden" name="booking_ids" value="${bookingId}">`;
+        
+        document.getElementById('bulk-action-form').submit();
+    };
+    
+    const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    confirmModal.show();
+}
+
+function confirmDelete(bookingId, bookingTitle) {
+    document.getElementById('confirm-message').innerHTML = 
+        `Are you sure you want to permanently delete the booking "<strong>${bookingTitle}</strong>"?<br><br>
+         <div class="alert alert-danger mt-2 mb-0">
+             <i class="bi bi-exclamation-triangle me-2"></i>
+             <strong>Warning:</strong> This will permanently remove the booking from the system. This action cannot be undone.
+         </div>`;
+    
+    document.getElementById('confirm-action').onclick = function() {
+        // Create a form to handle the delete action
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = `/booking/${bookingId}/delete/`;
+        
+        // Add CSRF token
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const csrfInput = document.createElement('input');
+        csrfInput.type = 'hidden';
+        csrfInput.name = 'csrfmiddlewaretoken';
+        csrfInput.value = csrfToken;
+        form.appendChild(csrfInput);
+        
+        // Add confirmation input
+        const confirmInput = document.createElement('input');
+        confirmInput.type = 'hidden';
+        confirmInput.name = 'confirm_delete';
+        confirmInput.value = 'yes';
+        form.appendChild(confirmInput);
+        
+        document.body.appendChild(form);
+        form.submit();
+    };
+    
+    // Change the confirm button to be more prominent for delete action
+    const confirmButton = document.getElementById('confirm-action');
+    confirmButton.className = 'btn btn-danger';
+    confirmButton.innerHTML = '<i class="bi bi-trash-fill me-1"></i>Delete Permanently';
+    
+    const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    confirmModal.show();
+    
+    // Reset the button when modal is hidden
+    document.getElementById('confirmModal').addEventListener('hidden.bs.modal', function() {
+        confirmButton.className = 'btn btn-danger';
+        confirmButton.innerHTML = 'Confirm';
+    }, { once: true });
+}
+</script>
+{% endblock %}

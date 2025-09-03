@@ -1,0 +1,798 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Lab Admin - User Management - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-users me-2"></i>User Management</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_dashboard' %}">Lab Admin</a></li>
+                            <li class="breadcrumb-item active">Users</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div class="btn-group">
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+                        <i class="fas fa-plus me-2"></i>Add New User
+                    </button>
+                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#bulkImportModal">
+                        <i class="fas fa-upload me-2"></i>Bulk Import
+                    </button>
+                    <button class="btn btn-outline-info" onclick="exportUsers()">
+                        <i class="fas fa-download me-2"></i>Export Users
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filter Section -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Status</label>
+                            <select name="is_active" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Users</option>
+                                <option value="true" {% if is_active_filter == 'true' %}selected{% endif %}>Active Only</option>
+                                <option value="false" {% if is_active_filter == 'false' %}selected{% endif %}>Inactive Only</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Role</label>
+                            <select name="role" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Roles</option>
+                                {% for value, display in role_choices %}
+                                <option value="{{ value }}" {% if role_filter == value %}selected{% endif %}>{{ display }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Search</label>
+                            <input type="text" name="search" class="form-control" placeholder="Search by name, username, or email..." value="{{ search_query }}">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-search"></i> Search
+                            </button>
+                            <a href="{% url 'booking:lab_admin_users' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Clear
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Users List -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">System Users ({{ users.paginator.count }} total)</h5>
+                    <div id="bulkActions" style="display: none;">
+                        <span class="me-3"><span id="selectedCount">0</span> selected</span>
+                        <div class="btn-group">
+                            <button type="button" class="btn btn-outline-success btn-sm" onclick="bulkActivateUsers()">
+                                <i class="fas fa-check"></i> Activate
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="bulkDeactivateUsers()">
+                                <i class="fas fa-ban"></i> Deactivate
+                            </button>
+                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="bulkDeleteUsers()">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="50">
+                                        <input type="checkbox" id="selectAll" onchange="toggleSelectAll()">
+                                    </th>
+                                    <th>User</th>
+                                    <th>Role</th>
+                                    <th>Department</th>
+                                    <th>Email Verified</th>
+                                    <th>Joined</th>
+                                    <th>Last Login</th>
+                                    <th>Status</th>
+                                    <th width="200">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in users %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" class="user-checkbox" value="{{ user.id }}" 
+                                               onchange="updateBulkActions()" 
+                                               {% if user.is_superuser %}disabled title="Cannot select superuser"{% endif %}>
+                                    </td>
+                                    <td>
+                                        <div>
+                                            <strong>{{ user.get_full_name|default:user.username }}</strong>
+                                            <br><small class="text-muted">{{ user.username }}</small>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if user.userprofile %}
+                                        <span class="badge bg-secondary">{{ user.userprofile.get_role_display }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.userprofile.department %}
+                                        {{ user.userprofile.department.name }}
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.userprofile.email_verified %}
+                                        <span class="badge bg-success">Verified</span>
+                                        {% else %}
+                                        <span class="badge bg-warning text-dark">Pending</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <small>{{ user.date_joined|date:"M j, Y" }}</small>
+                                    </td>
+                                    <td>
+                                        {% if user.last_login %}
+                                        <small>{{ user.last_login|date:"M j, Y" }}</small>
+                                        {% else %}
+                                        <span class="text-muted">Never</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.is_active %}
+                                        <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                        <span class="badge bg-danger">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <button class="btn btn-outline-primary" onclick="viewUser({{ user.id }})" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="btn btn-outline-secondary" onclick="editUser({{ user.id }})" title="Edit User">
+                                                <i class="fas fa-edit"></i>
+                                            </button>
+                                            {% if user.is_active %}
+                                            <button class="btn btn-outline-secondary" onclick="toggleUserStatus({{ user.id }}, false)" title="Deactivate">
+                                                <i class="fas fa-user-slash"></i>
+                                            </button>
+                                            {% else %}
+                                            <button class="btn btn-outline-success" onclick="toggleUserStatus({{ user.id }}, true)" title="Activate">
+                                                <i class="fas fa-user-check"></i>
+                                            </button>
+                                            {% endif %}
+                                            {% if not user.is_superuser %}
+                                            <button class="btn btn-outline-danger" onclick="deleteUser({{ user.id }}, '{{ user.get_full_name|default:user.username }}')" title="Delete User">
+                                                <i class="fas fa-trash"></i>
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="9" class="text-center py-4">
+                                        <i class="fas fa-users fa-2x text-muted mb-2"></i>
+                                        <p class="text-muted mb-0">No users found matching the current filters.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            {% if users.has_other_pages %}
+            <nav aria-label="Users pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if users.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if is_active_filter %}is_active={{ is_active_filter }}&{% endif %}{% if role_filter %}role={{ role_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}page={{ users.previous_page_number }}">Previous</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in users.paginator.page_range %}
+                    {% if users.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > users.number|add:'-3' and num < users.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if is_active_filter %}is_active={{ is_active_filter }}&{% endif %}{% if role_filter %}role={{ role_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}page={{ num }}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if users.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if is_active_filter %}is_active={{ is_active_filter }}&{% endif %}{% if role_filter %}role={{ role_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}page={{ users.next_page_number }}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+            <!-- Summary Cards -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">User Management</h5>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    Monitor user registration, email verification, and account status.
+                                    Contact system administrators for user account modifications.
+                                </small>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Statistics</h5>
+                            <p class="card-text">
+                                <strong>{{ users.paginator.count }}</strong> total users<br>
+                                <small class="text-muted">Filtered results</small>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add User Modal -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Add New User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="addUserForm" method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Username *</label>
+                                <input type="text" name="username" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Email *</label>
+                                <input type="email" name="email" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">First Name *</label>
+                                <input type="text" name="first_name" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Last Name *</label>
+                                <input type="text" name="last_name" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Role *</label>
+                                <select name="role" class="form-select" required>
+                                    {% for value, display in role_choices %}
+                                    <option value="{{ value }}">{{ display }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Phone</label>
+                                <input type="tel" name="phone" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Password *</label>
+                                <input type="password" name="password1" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Confirm Password *</label>
+                                <input type="password" name="password2" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="isActive" checked>
+                        <label class="form-check-label" for="isActive">
+                            Active user account
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit User Modal -->
+<div class="modal fade" id="editUserModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit User</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editUserForm" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="user_id" id="editUserId">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Username *</label>
+                                <input type="text" name="username" id="editUsername" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Email *</label>
+                                <input type="email" name="email" id="editEmail" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">First Name *</label>
+                                <input type="text" name="first_name" id="editFirstName" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Last Name *</label>
+                                <input type="text" name="last_name" id="editLastName" class="form-control" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Role *</label>
+                                <select name="role" id="editRole" class="form-select" required>
+                                    {% for value, display in role_choices %}
+                                    <option value="{{ value }}">{{ display }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Phone</label>
+                                <input type="tel" name="phone" id="editPhone" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="is_active" id="editIsActive">
+                        <label class="form-check-label" for="editIsActive">
+                            Active user account
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update User</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- View User Modal -->
+<div class="modal fade" id="viewUserModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">User Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="userDetailsContent">
+                <!-- User details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="editUserFromView()">Edit User</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Import Modal -->
+<div class="modal fade" id="bulkImportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bulk Import Users</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="bulkImportForm" method="post" enctype="multipart/form-data" data-progress="true">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">CSV File *</label>
+                        <input type="file" name="csv_file" class="form-control" accept=".csv" required id="csvFileInput">
+                        <div class="form-text">
+                            <strong>Required columns:</strong> username<br>
+                            <strong>Optional columns:</strong> email, first_name, last_name, role<br>
+                            <strong>Example CSV:</strong><br>
+                            <code>username,email,first_name,last_name,role<br>
+                            jdoe,john.doe@example.com,John,Doe,researcher<br>
+                            asmith,alice.smith@example.com,Alice,Smith,lab_admin</code>
+                        </div>
+                        <!-- File Upload Progress Bar -->
+                        <div class="progress mt-2" id="uploadProgress" style="display: none;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                 role="progressbar" style="width: 0%" id="uploadProgressBar">
+                                <span id="uploadProgressText">0%</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="update_existing" id="updateExisting">
+                        <label class="form-check-label" for="updateExisting">
+                            Update existing users
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Import Users</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let currentUserId = null;
+
+function viewUser(userId) {
+    fetch(`/lab-admin/users/${userId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('userDetailsContent').innerHTML = data.html;
+                currentUserId = userId;
+                new bootstrap.Modal(document.getElementById('viewUserModal')).show();
+            } else {
+                alert('Error loading user details: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading user details');
+        });
+}
+
+function editUser(userId) {
+    fetch(`/lab-admin/users/${userId}/`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const user = data.user;
+                document.getElementById('editUserId').value = user.id;
+                document.getElementById('editUsername').value = user.username;
+                document.getElementById('editEmail').value = user.email;
+                document.getElementById('editFirstName').value = user.first_name;
+                document.getElementById('editLastName').value = user.last_name;
+                document.getElementById('editRole').value = user.role;
+                document.getElementById('editPhone').value = user.phone || '';
+                document.getElementById('editIsActive').checked = user.is_active;
+                
+                new bootstrap.Modal(document.getElementById('editUserModal')).show();
+            } else {
+                alert('Error loading user data: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading user data');
+        });
+}
+
+function editUserFromView() {
+    if (currentUserId) {
+        bootstrap.Modal.getInstance(document.getElementById('viewUserModal')).hide();
+        setTimeout(() => editUser(currentUserId), 300);
+    }
+}
+
+function toggleUserStatus(userId, activate) {
+    const action = activate ? 'activate' : 'deactivate';
+    if (confirm(`Are you sure you want to ${action} this user?`)) {
+        fetch(`/lab-admin/users/${userId}/toggle/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({active: activate})
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                alert('Error: ' + data.error);
+            }
+        });
+    }
+}
+
+function deleteUser(userId, userName) {
+    if (confirm(`Are you sure you want to delete user "${userName}"? This action cannot be undone.`)) {
+        fetch(`/lab-admin/users/${userId}/delete/`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                location.reload();
+            } else {
+                // If deletion fails due to dependencies, offer to deactivate instead
+                if (data.error.includes('Cannot delete user') || data.error.includes('data dependencies')) {
+                    if (confirm(data.error + '\n\nWould you like to deactivate the user instead?')) {
+                        toggleUserStatus(userId, false);
+                    }
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            }
+        });
+    }
+}
+
+function exportUsers() {
+    const params = new URLSearchParams();
+    const isActive = document.querySelector('[name="is_active"]').value;
+    const role = document.querySelector('[name="role"]').value;
+    const search = document.querySelector('[name="search"]').value;
+    
+    if (isActive) params.append('is_active', isActive);
+    if (role) params.append('role', role);
+    if (search) params.append('search', search);
+    
+    window.open(`/lab-admin/users/export/?${params.toString()}`);
+}
+
+// Form submissions
+document.getElementById('addUserForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    fetch('/lab-admin/users/add/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    });
+});
+
+document.getElementById('editUserForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    const userId = document.getElementById('editUserId').value;
+    
+    fetch(`/lab-admin/users/${userId}/edit/`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    });
+});
+
+document.getElementById('bulkImportForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    // Show loading state
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Importing...';
+    submitBtn.disabled = true;
+    
+    fetch('/lab-admin/users/bulk-import/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let message = `Successfully imported ${data.created} users, updated ${data.updated} users`;
+            
+            if (data.errors && data.errors.length > 0) {
+                message += `\n\nWarnings/Errors:\n${data.errors.join('\n')}`;
+            }
+            
+            alert(message);
+            bootstrap.Modal.getInstance(document.getElementById('bulkImportModal')).hide();
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Import error:', error);
+        alert('Import failed: ' + error.message);
+    })
+    .finally(() => {
+        // Reset button state
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    });
+});
+
+// Bulk action functions
+function toggleSelectAll() {
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const userCheckboxes = document.querySelectorAll('.user-checkbox:not(:disabled)');
+    
+    userCheckboxes.forEach(checkbox => {
+        checkbox.checked = selectAllCheckbox.checked;
+    });
+    
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const selectedCheckboxes = document.querySelectorAll('.user-checkbox:checked');
+    const bulkActionsDiv = document.getElementById('bulkActions');
+    const selectedCountSpan = document.getElementById('selectedCount');
+    
+    selectedCountSpan.textContent = selectedCheckboxes.length;
+    
+    if (selectedCheckboxes.length > 0) {
+        bulkActionsDiv.style.display = 'block';
+    } else {
+        bulkActionsDiv.style.display = 'none';
+    }
+    
+    // Update select all checkbox state
+    const selectAllCheckbox = document.getElementById('selectAll');
+    const allCheckboxes = document.querySelectorAll('.user-checkbox:not(:disabled)');
+    const checkedCheckboxes = document.querySelectorAll('.user-checkbox:checked');
+    
+    if (checkedCheckboxes.length === 0) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = false;
+    } else if (checkedCheckboxes.length === allCheckboxes.length) {
+        selectAllCheckbox.indeterminate = false;
+        selectAllCheckbox.checked = true;
+    } else {
+        selectAllCheckbox.indeterminate = true;
+    }
+}
+
+function getSelectedUserIds() {
+    const selectedCheckboxes = document.querySelectorAll('.user-checkbox:checked');
+    return Array.from(selectedCheckboxes).map(cb => cb.value);
+}
+
+function bulkActivateUsers() {
+    const userIds = getSelectedUserIds();
+    if (userIds.length === 0) return;
+    
+    if (confirm(`Are you sure you want to activate ${userIds.length} user(s)?`)) {
+        performBulkAction('activate', userIds);
+    }
+}
+
+function bulkDeactivateUsers() {
+    const userIds = getSelectedUserIds();
+    if (userIds.length === 0) return;
+    
+    if (confirm(`Are you sure you want to deactivate ${userIds.length} user(s)?`)) {
+        performBulkAction('deactivate', userIds);
+    }
+}
+
+function bulkDeleteUsers() {
+    const userIds = getSelectedUserIds();
+    if (userIds.length === 0) return;
+    
+    if (confirm(`Are you sure you want to delete ${userIds.length} user(s)? This action cannot be undone.`)) {
+        performBulkAction('delete', userIds);
+    }
+}
+
+function performBulkAction(action, userIds) {
+    fetch('/lab-admin/users/bulk-action/', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: action,
+            user_ids: userIds
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            if (data.errors && data.errors.length > 0) {
+                alert(`Action completed with some issues:\n${data.errors.join('\n')}`);
+            } else {
+                alert(`Successfully ${action}d ${data.processed} user(s)`);
+            }
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Bulk action error:', error);
+        alert('Action failed: ' + error.message);
+    });
+}
+</script>
+{% endblock %}

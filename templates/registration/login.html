@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Labitory</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    {% load static %}
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{% static 'images/favicon.png' %}?v=2">
+    <link rel="shortcut icon" href="{% static 'images/favicon.ico' %}?v=2">
+</head>
+<body class="bg-light">
+    <div class="container">
+        <!-- Messages Section - Above Logo -->
+        {% if messages %}
+            <div class="row justify-content-center">
+                <div class="col-md-10 col-lg-8 mt-4">
+                    {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show{% if message.tags == 'success' %} alert-success-prominent{% endif %} mb-4" role="alert" style="{% if message.tags == 'success' %}border-left: 5px solid #28a745; background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); font-size: 1.05em; color: #155724 !important;{% endif %}">
+                            {{ message|safe }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endif %}
+        
+        <div class="row justify-content-center">
+            <div class="col-md-6 col-lg-4">
+                <!-- Logo Section -->
+                <div class="text-center mb-4 {% if not messages %}mt-5{% endif %}">
+                    <img src="{% if logo_url %}{{ logo_url }}{% else %}{% static 'images/logo.png' %}{% endif %}" alt="{{ app_title }}" style="max-width: 100%; height: auto;">
+                </div>
+                
+                <div class="card shadow">
+                    <div class="card-header text-center bg-primary text-white">
+                        <h4 class="mb-0">{{ app_title }}</h4>
+                    </div>
+                    <div class="card-body">
+                        <h5 id="signin-title" class="card-title text-center mb-4">Sign In</h5>
+
+                        {% if form.errors %}
+                            <div class="alert alert-danger" role="alert" aria-live="polite" id="login-errors">
+                                <i class="bi bi-exclamation-triangle" aria-hidden="true"></i>
+                                <span class="visually-hidden">Login errors:</span>
+                                {% for field, errors in form.errors.items %}
+                                    {% for error in errors %}
+                                        <div>{{ error|safe }}</div>
+                                    {% endfor %}
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        
+                        <form method="post" data-progress="true" aria-labelledby="signin-title" {% if form.errors %}aria-describedby="login-errors"{% endif %}>
+                            {% csrf_token %}
+                            <div class="mb-3">
+                                <label for="{{ form.username.id_for_label }}" class="form-label">
+                                    <i class="bi bi-envelope" aria-hidden="true"></i> Email Address
+                                </label>
+                                <input type="email" 
+                                       class="form-control" 
+                                       id="{{ form.username.id_for_label }}"
+                                       name="{{ form.username.name }}"
+                                       value="{{ form.username.value|default:'' }}"
+                                       required
+                                       aria-required="true"
+                                       autocomplete="email"
+                                       placeholder="Enter your email address">
+                            </div>
+                            <div class="mb-3">
+                                <label for="{{ form.password.id_for_label }}" class="form-label">
+                                    <i class="bi bi-lock" aria-hidden="true"></i> Password
+                                </label>
+                                <input type="password" 
+                                       class="form-control" 
+                                       id="{{ form.password.id_for_label }}"
+                                       name="{{ form.password.name }}"
+                                       required
+                                       aria-required="true"
+                                       autocomplete="current-password"
+                                       placeholder="Enter your password">
+                            </div>
+                            
+                            {% if next %}
+                                <input type="hidden" name="next" value="{{ next }}">
+                            {% endif %}
+                            
+                            <div class="d-grid">
+                                <button type="submit" class="btn btn-primary" aria-describedby="signin-help">
+                                    <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i> Sign In
+                                </button>
+                            </div>
+                        </form>
+                        
+                        <hr>
+                        <div class="text-center" id="signin-help">
+                            <small class="text-muted">
+                                <a href="{% url 'booking:password_reset' %}">Forgot your password?</a><br>
+                                Don't have an account? <a href="{% url 'booking:register' %}">Register here</a><br>
+                                Need to verify your email? <a href="{% url 'booking:resend_verification' %}">Resend verification</a>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-center mt-3">
+                    <small class="text-muted">
+                        {{ app_title }} - {{ lab_name }} v{{ version }}
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

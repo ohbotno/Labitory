@@ -1,0 +1,198 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Delete Department - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-trash text-danger me-2"></i>
+                    Delete Department
+                </h1>
+                <nav aria-label="breadcrumb">
+                    <ol class="breadcrumb">
+                        <li class="breadcrumb-item"><a href="{% url 'booking:site_admin_dashboard' %}">Site Admin</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'booking:site_admin_academic_hierarchy' %}">Academic Hierarchy</a></li>
+                        <li class="breadcrumb-item"><a href="{% url 'booking:site_admin_departments' %}">Departments</a></li>
+                        <li class="breadcrumb-item active" aria-current="page">Delete</li>
+                    </ol>
+                </nav>
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Confirm Department Deletion
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-warning me-2"></i>
+                            Warning: This action cannot be undone!
+                        </h6>
+                        <p class="mb-0">
+                            You are about to permanently delete this department.
+                        </p>
+                    </div>
+
+                    <!-- Department Details -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <h6>Department Information</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Name:</strong></td>
+                                    <td>{{ department.name }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Code:</strong></td>
+                                    <td><code>{{ department.code }}</code></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>College:</strong></td>
+                                    <td>{{ department.college.name }} ({{ department.college.code }})</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Faculty:</strong></td>
+                                    <td>{{ department.college.faculty.name }} ({{ department.college.faculty.code }})</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Status:</strong></td>
+                                    <td>
+                                        {% if department.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Created:</strong></td>
+                                    <td>{{ department.created_at|date:"M d, Y H:i" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Academic Hierarchy</h6>
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <div class="mb-2">
+                                        <i class="fas fa-university text-primary me-2"></i>
+                                        <strong>{{ department.college.faculty.name }}</strong>
+                                        <small class="text-muted">({{ department.college.faculty.code }})</small>
+                                    </div>
+                                    <div class="mb-2 ms-3">
+                                        <i class="fas fa-building text-success me-2"></i>
+                                        <strong>{{ department.college.name }}</strong>
+                                        <small class="text-muted">({{ department.college.code }})</small>
+                                    </div>
+                                    <div class="ms-5">
+                                        <i class="fas fa-users text-danger me-2"></i>
+                                        <strong>{{ department.name }}</strong>
+                                        <small class="text-muted">({{ department.code }})</small>
+                                        <span class="badge bg-danger ms-2">TO BE DELETED</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Impact Warning -->
+                    <div class="alert alert-warning">
+                        <h6 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Potential Impact
+                        </h6>
+                        <p class="mb-0">
+                            Deleting this department may affect user profiles and other records that reference this entity.
+                            Please ensure that no users are currently associated with this department before proceeding.
+                        </p>
+                    </div>
+
+                    <!-- Confirmation -->
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="bg-light p-3 rounded">
+                                <p class="mb-2">
+                                    <strong>To confirm deletion, please type the department name:</strong>
+                                </p>
+                                <p class="mb-0">
+                                    <code>{{ department.name }}</code>
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="post" id="deleteForm" class="mt-4">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="confirmName" class="form-label">
+                                Department Name Confirmation <span class="text-danger">*</span>
+                            </label>
+                            <input type="text" 
+                                   id="confirmName" 
+                                   class="form-control" 
+                                   placeholder="Type department name to confirm deletion"
+                                   required>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'booking:site_admin_departments' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-danger" id="deleteButton" disabled>
+                                <i class="fas fa-trash me-2"></i>
+                                Delete Department Permanently
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const confirmName = document.getElementById('confirmName');
+    const deleteButton = document.getElementById('deleteButton');
+    const expectedName = "{{ department.name|escapejs }}";
+    
+    confirmName.addEventListener('input', function() {
+        if (this.value === expectedName) {
+            deleteButton.disabled = false;
+            deleteButton.classList.remove('btn-secondary');
+            deleteButton.classList.add('btn-danger');
+        } else {
+            deleteButton.disabled = true;
+            deleteButton.classList.remove('btn-danger');
+            deleteButton.classList.add('btn-secondary');
+        }
+    });
+    
+    document.getElementById('deleteForm').addEventListener('submit', function(e) {
+        if (confirmName.value !== expectedName) {
+            e.preventDefault();
+            alert('Department name confirmation does not match.');
+            return false;
+        }
+        
+        if (!confirm('Are you absolutely sure you want to delete this department? This action cannot be undone.')) {
+            e.preventDefault();
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

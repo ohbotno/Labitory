@@ -1,0 +1,324 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Lab Admin - Resource Management - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-cogs me-2"></i>Resource Management</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_dashboard' %}">Lab Admin</a></li>
+                            <li class="breadcrumb-item active">Resources</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div class="btn-group">
+                    <a href="{% url 'booking:lab_admin_add_resource' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i> Add New Resource
+                    </a>
+                    <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#bulkImportModal">
+                        <i class="fas fa-upload me-1"></i> Bulk Import
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filter Section -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">Resource Type</label>
+                            <select name="type" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Types</option>
+                                {% for value, display in resource_types %}
+                                <option value="{{ value }}" {% if resource_type_filter == value %}selected{% endif %}>{{ display }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select" onchange="this.form.submit()">
+                                <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All</option>
+                                <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+                                <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Search</label>
+                            <input type="text" name="search" class="form-control" placeholder="Search by name, description, or location..." value="{{ search_query|default:'' }}">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-outline-primary me-2">
+                                <i class="fas fa-search"></i> Search
+                            </button>
+                            <a href="{% url 'booking:lab_admin_resources' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times"></i> Clear
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Resources List -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Resources ({{ resources.paginator.count }} total)</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Resource</th>
+                                    <th>Type</th>
+                                    <th>Location</th>
+                                    <th>Capacity</th>
+                                    <th>Training Level</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for resource in resources %}
+                                <tr>
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if resource.image %}
+                                            <img src="{{ resource.image.url }}" alt="{{ resource.name }}" class="me-2" style="width: 40px; height: 40px; object-fit: cover; border-radius: 4px;">
+                                            {% else %}
+                                            <div class="me-2 d-flex align-items-center justify-content-center bg-light" style="width: 40px; height: 40px; border-radius: 4px;">
+                                                <i class="fas fa-cog text-muted"></i>
+                                            </div>
+                                            {% endif %}
+                                            <div>
+                                                <strong>{{ resource.name }}</strong>
+                                                {% if resource.requires_checkout_checklist %}
+                                                <i class="fas fa-clipboard-check ms-2 text-success" title="Checkout checklist enabled"></i>
+                                                {% endif %}
+                                                {% if resource.description %}
+                                                <br><small class="text-muted">{{ resource.description|truncatechars:50 }}</small>
+                                                {% endif %}
+                                                {% if resource.requires_checkout_checklist %}
+                                                <br><small class="text-success">
+                                                    <i class="fas fa-clipboard-check me-1"></i>
+                                                    Checkout checklist: {{ resource.checkout_checklist_title }}
+                                                </small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-secondary">{{ resource.get_resource_type_display }}</span>
+                                    </td>
+                                    <td>{{ resource.location }}</td>
+                                    <td>{{ resource.capacity }}</td>
+                                    <td>Level {{ resource.required_training_level }}</td>
+                                    <td>
+                                        {% if resource.is_closed %}
+                                            <span class="badge bg-warning text-dark">Closed</span>
+                                        {% elif resource.is_active %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% else %}
+                                            <span class="badge bg-danger">Inactive</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group btn-group-sm" role="group">
+                                            <a href="{% url 'booking:resource_detail' resource.id %}" class="btn btn-outline-info" title="View Details">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a href="{% url 'booking:lab_admin_edit_resource' resource.id %}" class="btn btn-outline-primary" title="Edit">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            {% if resource.is_closed %}
+                                                <form method="post" action="{% url 'booking:lab_admin_open_resource' resource.id %}" style="display: inline;">
+                                                    {% csrf_token %}
+                                                    <button type="submit" class="btn btn-outline-success" title="Reopen Resource">
+                                                        <i class="fas fa-unlock"></i>
+                                                    </button>
+                                                </form>
+                                            {% else %}
+                                                <a href="{% url 'booking:lab_admin_close_resource' resource.id %}" class="btn btn-outline-secondary" title="Close Resource">
+                                                    <i class="fas fa-lock"></i>
+                                                </a>
+                                            {% endif %}
+                                            <a href="{% url 'booking:lab_admin_delete_resource' resource.id %}" class="btn btn-outline-danger" title="Delete">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center py-4">
+                                        <i class="fas fa-cogs fa-2x text-muted mb-2"></i>
+                                        <p class="text-muted mb-0">No resources found matching the current filters.</p>
+                                        <a href="{% url 'booking:lab_admin_add_resource' %}" class="btn btn-primary mt-2">
+                                            <i class="fas fa-plus me-1"></i> Add First Resource
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            {% if resources.has_other_pages %}
+            <nav aria-label="Resources pagination" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if resources.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if resource_type_filter %}type={{ resource_type_filter }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}page={{ resources.previous_page_number }}">Previous</a>
+                    </li>
+                    {% endif %}
+                    
+                    {% for num in resources.paginator.page_range %}
+                    {% if resources.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ num }}</span>
+                    </li>
+                    {% elif num > resources.number|add:'-3' and num < resources.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if resource_type_filter %}type={{ resource_type_filter }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}page={{ num }}">{{ num }}</a>
+                    </li>
+                    {% endif %}
+                    {% endfor %}
+                    
+                    {% if resources.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if resource_type_filter %}type={{ resource_type_filter }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}{% if search_query %}search={{ search_query }}&{% endif %}page={{ resources.next_page_number }}">Next</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+
+            <!-- Summary Cards -->
+            <div class="row mt-4">
+                <div class="col-md-6">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Resource Management</h5>
+                            <p class="card-text">
+                                <small class="text-muted">
+                                    Manage laboratory resources including equipment, instruments, and rooms.
+                                    Configure access permissions and training requirements.
+                                </small>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card bg-light">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">Statistics</h5>
+                            <p class="card-text">
+                                <strong>{{ resources.paginator.count }}</strong> total resources<br>
+                                <small class="text-muted">Filtered results</small>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Import Modal -->
+<div class="modal fade" id="bulkImportModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Bulk Import Resources</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="bulkImportForm" method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">CSV File *</label>
+                        <input type="file" name="csv_file" class="form-control" accept=".csv" required id="csvFileInput">
+                        <div class="form-text">
+                            <strong>Required columns:</strong> name, resource_type<br>
+                            <strong>Optional columns:</strong> description, location, capacity, is_active<br>
+                            <strong>Resource types:</strong> equipment, room, instrument, software<br>
+                            <strong>Example CSV:</strong><br>
+                            <code>name,resource_type,description,location,capacity,is_active<br>
+                            Microscope A,equipment,High-resolution microscope,Lab 101,1,true<br>
+                            Conference Room,room,Meeting space,Building A,10,true<br>
+                            Spectrophotometer,instrument,UV-Vis analysis,Lab 203,1,true</code>
+                        </div>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="update_existing" id="updateExisting">
+                        <label class="form-check-label" for="updateExisting">
+                            Update existing resources (match by name)
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">Import Resources</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.getElementById('bulkImportForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const formData = new FormData(this);
+    
+    // Show loading state
+    const submitBtn = this.querySelector('button[type="submit"]');
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = 'Importing...';
+    submitBtn.disabled = true;
+    
+    fetch('/lab-admin/resources/bulk-import/', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            let message = `Successfully imported ${data.created} resources, updated ${data.updated} resources`;
+            
+            if (data.errors && data.errors.length > 0) {
+                message += `\n\nWarnings/Errors:\n${data.errors.join('\n')}`;
+            }
+            
+            alert(message);
+            bootstrap.Modal.getInstance(document.getElementById('bulkImportModal')).hide();
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Import error:', error);
+        alert('Import failed: ' + error.message);
+    })
+    .finally(() => {
+        // Reset button state
+        submitBtn.textContent = originalText;
+        submitBtn.disabled = false;
+    });
+});
+</script>
+{% endblock %}

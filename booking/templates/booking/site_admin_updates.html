@@ -1,0 +1,355 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Updates - Site Administration - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-download me-2"></i>
+                    Application Updates
+                </h1>
+                <div>
+                    <a href="{% url 'booking:site_admin_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Back to Dashboard
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Current Status -->
+    <div class="row mb-4">
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Current Status
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-sm-6">
+                            <p><strong>Current Version:</strong></p>
+                            <p class="h4 text-primary">{{ update_status.current_version }}</p>
+                        </div>
+                        <div class="col-sm-6">
+                            <p><strong>Latest Version:</strong></p>
+                            {% if update_status.latest_version %}
+                                <p class="h4 {% if update_status.update_available %}text-warning{% else %}text-success{% endif %}">
+                                    {{ update_status.latest_version }}
+                                </p>
+                            {% else %}
+                                <p class="text-muted">Check for updates</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <p><strong>Status:</strong></p>
+                        {% if update_status.status == 'checking' %}
+                            <span class="badge bg-info">
+                                <i class="fas fa-spinner fa-spin me-1"></i>Checking for Updates
+                            </span>
+                        {% elif update_status.status == 'available' %}
+                            <span class="badge bg-warning">
+                                <i class="fas fa-exclamation-triangle me-1"></i>Update Available
+                            </span>
+                        {% elif update_status.status == 'downloading' %}
+                            <span class="badge bg-info">
+                                <i class="fas fa-download me-1"></i>Downloading ({{ update_status.download_progress }}%)
+                            </span>
+                        {% elif update_status.status == 'ready' %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check me-1"></i>Ready to Install
+                            </span>
+                        {% elif update_status.status == 'installing' %}
+                            <span class="badge bg-warning">
+                                <i class="fas fa-cog fa-spin me-1"></i>Installing Update
+                            </span>
+                        {% elif update_status.status == 'completed' %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check-circle me-1"></i>Update Completed
+                            </span>
+                        {% elif update_status.status == 'failed' %}
+                            <span class="badge bg-danger">
+                                <i class="fas fa-times me-1"></i>Update Failed
+                            </span>
+                        {% else %}
+                            <span class="badge bg-success">
+                                <i class="fas fa-check-circle me-1"></i>Up to Date
+                            </span>
+                        {% endif %}
+                    </div>
+                    
+                    {% if update_status.error_message %}
+                        <div class="alert alert-danger mt-3">
+                            <strong>Error:</strong> {{ update_status.error_message }}
+                        </div>
+                    {% endif %}
+                    
+                    <p class="text-muted small mt-3">
+                        Last checked: {{ update_status.last_check|date:"M d, Y H:i" }}
+                    </p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-cogs me-2"></i>
+                        Update Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <!-- Check for Updates -->
+                        <div class="d-grid gap-2 mb-3">
+                            <button type="submit" name="action" value="check_updates" 
+                                    class="btn btn-outline-primary"
+                                    {% if update_status.status == 'checking' %}disabled{% endif %}>
+                                <i class="fas fa-sync me-2"></i>
+                                Check for Updates
+                            </button>
+                        </div>
+                        
+                        <!-- Download Update -->
+                        {% if update_status.update_available and update_status.status == 'available' %}
+                        <div class="d-grid gap-2 mb-3">
+                            <button type="submit" name="action" value="download_update" 
+                                    class="btn btn-primary">
+                                <i class="fas fa-download me-2"></i>
+                                Download Update
+                            </button>
+                        </div>
+                        {% endif %}
+                        
+                        <!-- Install Update -->
+                        {% if update_status.can_install %}
+                        <div class="mb-3">
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="create_backup" checked>
+                                <label class="form-check-label">
+                                    Create backup before update
+                                </label>
+                            </div>
+                            <div class="d-grid gap-2">
+                                <button type="submit" name="action" value="install_update" 
+                                        class="btn btn-success"
+                                        onclick="return confirm('Are you sure you want to install this update? The application will be temporarily unavailable.')">
+                                    <i class="fas fa-upload me-2"></i>
+                                    Install Update
+                                </button>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Release Notes -->
+    {% if update_status.update_available and update_status.release_notes %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-file-alt me-2"></i>
+                        Release Notes - {{ update_status.latest_version }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="release-notes">
+                        {{ update_status.release_notes|linebreaks }}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Configuration -->
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-sliders-h me-2"></i>
+                        Update Configuration
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label for="github_repo" class="form-label">GitHub Repository</label>
+                                <input type="text" class="form-control" name="github_repo" 
+                                       value="{{ update_status.github_repo|default:'ohbotno/labitory' }}"
+                                       placeholder="username/repository-name" required>
+                                <div class="form-text">
+                                    GitHub repository in format: username/repository-name
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label">&nbsp;</label>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="auto_check_enabled"
+                                           {% if update_status.auto_check_enabled %}checked{% endif %}>
+                                    <label class="form-check-label">
+                                        Auto-check for updates
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="submit" name="action" value="configure_repo" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>
+                            Save Configuration
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Update History -->
+    {% if update_history %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Update History
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>From Version</th>
+                                    <th>To Version</th>
+                                    <th>Result</th>
+                                    <th>Date</th>
+                                    <th>Duration</th>
+                                    <th>Backup</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for update in update_history %}
+                                <tr>
+                                    <td>{{ update.from_version }}</td>
+                                    <td>{{ update.to_version }}</td>
+                                    <td>
+                                        {% if update.result == 'success' %}
+                                            <span class="badge bg-success">Success</span>
+                                        {% elif update.result == 'failed' %}
+                                            <span class="badge bg-danger">Failed</span>
+                                        {% else %}
+                                            <span class="badge bg-warning">{{ update.result|title }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ update.started_at|date:"M d, Y H:i" }}</td>
+                                    <td>
+                                        {% if update.duration %}
+                                            {{ update.duration }}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if update.backup_created %}
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-check me-1"></i>Yes
+                                            </span>
+                                        {% else %}
+                                            <span class="text-muted">No</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if update.backup_created and update.result == 'success' %}
+                                            <button class="btn btn-sm btn-outline-secondary" 
+                                                    onclick="rollbackUpdate({{ update.id }})"
+                                                    title="Rollback to this version">
+                                                <i class="fas fa-undo"></i>
+                                            </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function rollbackUpdate(updateId) {
+    if (!confirm('Are you sure you want to rollback to this version? This will restore the application to its previous state.')) {
+        return;
+    }
+    
+    fetch('{% url "booking:site_admin_updates_ajax" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            action: 'rollback',
+            update_id: updateId
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', 'Rollback initiated successfully');
+            setTimeout(() => window.location.reload(), 2000);
+        } else {
+            showAlert('danger', `Rollback failed: ${data.error}`);
+        }
+    })
+    .catch(error => {
+        console.error('Rollback error:', error);
+        showAlert('danger', 'Rollback request failed');
+    });
+}
+
+function showAlert(type, message) {
+    const alertContainer = document.createElement('div');
+    alertContainer.className = `alert alert-${type} alert-dismissible fade show`;
+    alertContainer.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    `;
+    
+    // Insert at the top of the container
+    const container = document.querySelector('.container-fluid');
+    container.insertBefore(alertContainer, container.firstChild);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (alertContainer && alertContainer.parentNode) {
+            alertContainer.remove();
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

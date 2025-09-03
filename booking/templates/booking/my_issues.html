@@ -1,0 +1,237 @@
+{% extends "booking/base.html" %}
+{% load static %}
+
+{% block title %}My Reported Issues - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3 mb-1">
+                        <i class="bi bi-person-exclamation me-2"></i>My Reported Issues
+                    </h1>
+                    <p class="text-muted mb-0">Track the status of issues you've reported</p>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body p-0">
+                    {% if issues %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Resource</th>
+                                        <th>Title</th>
+                                        <th>Severity</th>
+                                        <th>Status</th>
+                                        <th>Assigned To</th>
+                                        <th>Reported</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for issue in issues %}
+                                    <tr>
+                                        <td>
+                                            <strong>#{{ issue.id }}</strong>
+                                            {% if issue.is_urgent %}
+                                                <i class="bi bi-exclamation-circle text-danger ms-1" title="Urgent"></i>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <a href="{% url 'booking:resource_detail' issue.resource.id %}" class="text-decoration-none">
+                                                {{ issue.resource.name }}
+                                            </a>
+                                        </td>
+                                        <td>
+                                            {{ issue.title }}
+                                            {% if issue.blocks_resource_use %}
+                                                <i class="bi bi-shield-exclamation text-danger ms-1" title="Blocks resource use"></i>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{{ issue.get_severity_color }}{% if issue.get_severity_color == 'warning' %} text-dark{% endif %}">
+                                                {{ issue.get_severity_display }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-{{ issue.get_status_color }}">
+                                                {{ issue.get_status_display }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if issue.assigned_to %}
+                                                {{ issue.assigned_to.get_full_name|default:issue.assigned_to.username }}
+                                            {% else %}
+                                                <span class="text-muted">Unassigned</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ issue.created_at|date:"M d, Y" }}</td>
+                                        <td>
+                                            {% if user.userprofile.role in 'technician,sysadmin' %}
+                                                <a href="{% url 'booking:issue_detail' issue.id %}" class="btn btn-sm btn-outline-primary">
+                                                    <i class="bi bi-eye me-1"></i>Manage
+                                                </a>
+                                            {% else %}
+                                                <button class="btn btn-sm btn-outline-info" data-bs-toggle="modal" data-bs-target="#issueModal{{ issue.id }}">
+                                                    <i class="bi bi-eye me-1"></i>View
+                                                </button>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if issues.has_other_pages %}
+                            <div class="card-footer">
+                                <nav aria-label="Issues pagination">
+                                    <ul class="pagination justify-content-center mb-0">
+                                        {% if issues.has_previous %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ issues.previous_page_number }}">Previous</a>
+                                            </li>
+                                        {% endif %}
+                                        
+                                        {% for num in issues.paginator.page_range %}
+                                            {% if issues.number == num %}
+                                                <li class="page-item active">
+                                                    <span class="page-link">{{ num }}</span>
+                                                </li>
+                                            {% elif num > issues.number|add:'-3' and num < issues.number|add:'3' %}
+                                                <li class="page-item">
+                                                    <a class="page-link" href="?page={{ num }}">{{ num }}</a>
+                                                </li>
+                                            {% endif %}
+                                        {% endfor %}
+                                        
+                                        {% if issues.has_next %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ issues.next_page_number }}">Next</a>
+                                            </li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="bi bi-inbox display-1 text-muted"></i>
+                            <h4 class="text-muted mt-3">No Issues Reported</h4>
+                            <p class="text-muted">You haven't reported any issues yet.</p>
+                            <a href="{% url 'booking:resources_list' %}" class="btn btn-primary">
+                                <i class="bi bi-search me-1"></i>Browse Resources
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Issue Detail Modals for Regular Users -->
+{% if not user.userprofile.role in 'technician,sysadmin' %}
+    {% for issue in issues %}
+    <div class="modal fade" id="issueModal{{ issue.id }}" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Issue #{{ issue.id }} - {{ issue.title }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Resource:</dt>
+                                <dd class="col-sm-8">{{ issue.resource.name }}</dd>
+                                
+                                <dt class="col-sm-4">Category:</dt>
+                                <dd class="col-sm-8">{{ issue.get_category_display }}</dd>
+                                
+                                <dt class="col-sm-4">Severity:</dt>
+                                <dd class="col-sm-8">
+                                    <span class="badge bg-{{ issue.get_severity_color }}{% if issue.get_severity_color == 'warning' %} text-dark{% endif %}">
+                                        {{ issue.get_severity_display }}
+                                    </span>
+                                </dd>
+                                
+                                <dt class="col-sm-4">Status:</dt>
+                                <dd class="col-sm-8">
+                                    <span class="badge bg-{{ issue.get_status_color }}">
+                                        {{ issue.get_status_display }}
+                                    </span>
+                                </dd>
+                            </dl>
+                        </div>
+                        <div class="col-md-6">
+                            <dl class="row">
+                                <dt class="col-sm-4">Reported:</dt>
+                                <dd class="col-sm-8">{{ issue.created_at|date:"M d, Y H:i" }}</dd>
+                                
+                                {% if issue.assigned_to %}
+                                <dt class="col-sm-4">Assigned To:</dt>
+                                <dd class="col-sm-8">{{ issue.assigned_to.get_full_name|default:issue.assigned_to.username }}</dd>
+                                {% endif %}
+                                
+                                {% if issue.specific_location %}
+                                <dt class="col-sm-4">Location:</dt>
+                                <dd class="col-sm-8">{{ issue.specific_location }}</dd>
+                                {% endif %}
+                                
+                                <dt class="col-sm-4">Age:</dt>
+                                <dd class="col-sm-8">{{ issue.age_in_days }} day{{ issue.age_in_days|pluralize }}</dd>
+                            </dl>
+                        </div>
+                    </div>
+                    
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Description:</h6>
+                            <div class="bg-light p-3 rounded">
+                                {{ issue.description|linebreaks }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if issue.image %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Photo Evidence:</h6>
+                            <img src="{{ issue.image.url }}" alt="Issue photo" class="img-fluid rounded shadow-sm" style="max-height: 300px;">
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% if issue.resolution_description %}
+                    <div class="row mt-3">
+                        <div class="col-12">
+                            <h6>Resolution:</h6>
+                            <div class="bg-success bg-opacity-10 p-3 rounded border border-success border-opacity-25">
+                                {{ issue.resolution_description|linebreaks }}
+                                {% if issue.resolved_at %}
+                                    <p class="text-muted mt-2 mb-0">
+                                        <small>Resolved on {{ issue.resolved_at|date:"M d, Y H:i" }}</small>
+                                    </p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+{% endif %}
+{% endblock %}

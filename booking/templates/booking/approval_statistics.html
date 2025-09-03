@@ -1,0 +1,473 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+{% load booking_extras %}
+
+{% block title %}Approval Statistics - {{ lab_name }}{% endblock %}
+
+{% block extra_css %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+.stats-card {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 1rem;
+    border-left: 4px solid #007bff;
+}
+.stats-card.success { border-left-color: #28a745; }
+.stats-card.warning { border-left-color: #ffc107; }
+.stats-card.danger { border-left-color: #dc3545; }
+.stats-card.info { border-left-color: #17a2b8; }
+.chart-container {
+    position: relative;
+    height: 300px;
+    margin: 1rem 0;
+}
+.metric-value {
+    font-size: 2rem;
+    font-weight: bold;
+    margin-bottom: 0;
+}
+.metric-label {
+    color: #6c757d;
+    font-size: 0.9rem;
+}
+.trend-indicator {
+    font-size: 0.8rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 12px;
+}
+.trend-up { background-color: #d4edda; color: #155724; }
+.trend-down { background-color: #f8d7da; color: #721c24; }
+.trend-stable { background-color: #d1ecf1; color: #0c5460; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-chart-line me-2"></i>Approval Statistics Dashboard</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:approval_dashboard' %}">Approvals</a></li>
+                            <li class="breadcrumb-item active">Statistics</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div class="btn-group" role="group">
+                    <button class="btn btn-outline-primary" onclick="refreshStats()">
+                        <i class="fas fa-sync-alt me-2"></i>Refresh
+                    </button>
+                    <button class="btn btn-outline-info" onclick="exportStats()">
+                        <i class="fas fa-download me-2"></i>Export
+                    </button>
+                </div>
+            </div>
+
+            <!-- Time Period Filter -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <form method="get" class="row g-3 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label">Time Period</label>
+                            <select name="period" class="form-select" onchange="this.form.submit()">
+                                <option value="monthly" {% if request.GET.period == 'monthly' %}selected{% endif %}>Monthly</option>
+                                <option value="weekly" {% if request.GET.period == 'weekly' %}selected{% endif %}>Weekly</option>
+                                <option value="quarterly" {% if request.GET.period == 'quarterly' %}selected{% endif %}>Quarterly</option>
+                                <option value="yearly" {% if request.GET.period == 'yearly' %}selected{% endif %}>Yearly</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Resource</label>
+                            <select name="resource" class="form-select" onchange="this.form.submit()">
+                                <option value="">All Resources</option>
+                                {% for resource in resources %}
+                                <option value="{{ resource.id }}" {% if request.GET.resource == resource.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ resource.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Date Range</label>
+                            <div class="input-group">
+                                <input type="date" name="start_date" class="form-control" value="{{ request.GET.start_date }}">
+                                <span class="input-group-text">to</span>
+                                <input type="date" name="end_date" class="form-control" value="{{ request.GET.end_date }}">
+                            </div>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="submit" class="btn btn-primary w-100">Apply</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Key Performance Indicators -->
+            <div class="row mb-4">
+                <div class="col-lg-3 col-md-6">
+                    <div class="stats-card success">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-check-circle fa-2x text-success me-3"></i>
+                                <div class="flex-grow-1">
+                                    <p class="metric-value text-success">{{ summary.approval_rate|floatformat:1 }}%</p>
+                                    <p class="metric-label">Approval Rate</p>
+                                    <span class="trend-indicator trend-{{ summary.approval_trend }}">
+                                        {% if summary.approval_trend == 'up' %}
+                                        <i class="fas fa-arrow-up"></i>
+                                        {% elif summary.approval_trend == 'down' %}
+                                        <i class="fas fa-arrow-down"></i>
+                                        {% else %}
+                                        <i class="fas fa-arrow-right"></i>
+                                        {% endif %}
+                                        {{ summary.approval_change|floatformat:1 }}%
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-3 col-md-6">
+                    <div class="stats-card info">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-clock fa-2x text-info me-3"></i>
+                                <div class="flex-grow-1">
+                                    <p class="metric-value text-info">{{ summary.avg_response_time|floatformat:1 }}h</p>
+                                    <p class="metric-label">Avg Response Time</p>
+                                    <span class="trend-indicator trend-{{ summary.response_trend }}">
+                                        {% if summary.response_trend == 'down' %}
+                                        <i class="fas fa-arrow-down"></i>
+                                        {% elif summary.response_trend == 'up' %}
+                                        <i class="fas fa-arrow-up"></i>
+                                        {% else %}
+                                        <i class="fas fa-arrow-right"></i>
+                                        {% endif %}
+                                        {{ summary.response_change|floatformat:1 }}h
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-3 col-md-6">
+                    <div class="stats-card warning">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-exclamation-triangle fa-2x text-warning me-3"></i>
+                                <div class="flex-grow-1">
+                                    <p class="metric-value text-warning">{{ summary.overdue_items }}</p>
+                                    <p class="metric-label">Overdue Items</p>
+                                    <span class="trend-indicator trend-{{ summary.overdue_trend }}">
+                                        {% if summary.overdue_trend == 'up' %}
+                                        <i class="fas fa-arrow-up"></i>
+                                        {% elif summary.overdue_trend == 'down' %}
+                                        <i class="fas fa-arrow-down"></i>
+                                        {% else %}
+                                        <i class="fas fa-arrow-right"></i>
+                                        {% endif %}
+                                        {{ summary.overdue_change }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-3 col-md-6">
+                    <div class="stats-card">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-tasks fa-2x text-primary me-3"></i>
+                                <div class="flex-grow-1">
+                                    <p class="metric-value text-primary">{{ summary.total_requests }}</p>
+                                    <p class="metric-label">Total Requests</p>
+                                    <span class="trend-indicator trend-{{ summary.volume_trend }}">
+                                        {% if summary.volume_trend == 'up' %}
+                                        <i class="fas fa-arrow-up"></i>
+                                        {% elif summary.volume_trend == 'down' %}
+                                        <i class="fas fa-arrow-down"></i>
+                                        {% else %}
+                                        <i class="fas fa-arrow-right"></i>
+                                        {% endif %}
+                                        {{ summary.volume_change }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row -->
+            <div class="row mb-4">
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Request Distribution</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="distributionChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Response Time Trend</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="chart-container">
+                                <canvas id="responseTimeChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Statistics Tables -->
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-table me-2"></i>Resource Performance</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Resource</th>
+                                            <th>Requests</th>
+                                            <th>Approved</th>
+                                            <th>Approval Rate</th>
+                                            <th>Avg Response</th>
+                                            <th>Overdue</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for stat in resource_stats %}
+                                        <tr>
+                                            <td>
+                                                <strong>{{ stat.resource_name }}</strong>
+                                                <br><small class="text-muted">{{ stat.approver_name }}</small>
+                                            </td>
+                                            <td>{{ stat.total_requests }}</td>
+                                            <td>
+                                                <span class="badge bg-success">{{ stat.approved }}</span>
+                                                <span class="badge bg-danger">{{ stat.rejected }}</span>
+                                            </td>
+                                            <td>
+                                                <div class="progress" style="height: 20px;">
+                                                    <div class="progress-bar bg-success" style="width: {{ stat.approval_rate }}%">
+                                                        {{ stat.approval_rate|floatformat:1 }}%
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td>{{ stat.avg_response_time|floatformat:1 }}h</td>
+                                            <td>
+                                                {% if stat.overdue > 0 %}
+                                                <span class="badge bg-warning">{{ stat.overdue }}</span>
+                                                {% else %}
+                                                <span class="text-muted">0</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% empty %}
+                                        <tr>
+                                            <td colspan="6" class="text-center text-muted">No statistics available for the selected period</td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="col-lg-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-users me-2"></i>Top Performers</h5>
+                        </div>
+                        <div class="card-body">
+                            {% for performer in top_performers %}
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="flex-shrink-0">
+                                    <div class="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                        {{ forloop.counter }}
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <h6 class="mb-0">{{ performer.approver_name }}</h6>
+                                    <small class="text-muted">
+                                        {{ performer.total_requests }} requests, 
+                                        {{ performer.approval_rate|floatformat:1 }}% approved,
+                                        {{ performer.avg_response_time|floatformat:1 }}h avg
+                                    </small>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="text-center text-muted">
+                                <i class="fas fa-user-slash fa-2x mb-2"></i>
+                                <p>No performance data available</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    
+                    <div class="card mt-3">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Recent Activity</h5>
+                        </div>
+                        <div class="card-body">
+                            {% for activity in recent_activity %}
+                            <div class="d-flex align-items-start mb-3">
+                                <div class="flex-shrink-0">
+                                    <i class="fas fa-{{ activity.icon }} text-{{ activity.color }}"></i>
+                                </div>
+                                <div class="flex-grow-1 ms-3">
+                                    <p class="mb-1">{{ activity.description }}</p>
+                                    <small class="text-muted">{{ activity.timestamp|timesince }} ago</small>
+                                </div>
+                            </div>
+                            {% empty %}
+                            <div class="text-center text-muted">
+                                <i class="fas fa-clock fa-2x mb-2"></i>
+                                <p>No recent activity</p>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Chart data from Django template
+const chartData = {
+    distribution: {
+        labels: {{ distribution_labels|safe }},
+        data: {{ distribution_data|safe }},
+        colors: ['#28a745', '#dc3545', '#ffc107', '#6c757d']
+    },
+    responseTime: {
+        labels: {{ timeline_labels|safe }},
+        data: {{ timeline_data|safe }}
+    }
+};
+
+// Distribution Chart (Pie Chart)
+const distributionCtx = document.getElementById('distributionChart').getContext('2d');
+new Chart(distributionCtx, {
+    type: 'doughnut',
+    data: {
+        labels: chartData.distribution.labels,
+        datasets: [{
+            data: chartData.distribution.data,
+            backgroundColor: chartData.distribution.colors,
+            borderWidth: 2,
+            borderColor: '#fff'
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                position: 'bottom'
+            }
+        }
+    }
+});
+
+// Response Time Chart (Line Chart)
+const responseTimeCtx = document.getElementById('responseTimeChart').getContext('2d');
+new Chart(responseTimeCtx, {
+    type: 'line',
+    data: {
+        labels: chartData.responseTime.labels,
+        datasets: [{
+            label: 'Avg Response Time (hours)',
+            data: chartData.responseTime.data,
+            borderColor: '#007bff',
+            backgroundColor: 'rgba(0, 123, 255, 0.1)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        },
+        scales: {
+            y: {
+                beginAtZero: true,
+                title: {
+                    display: true,
+                    text: 'Hours'
+                }
+            }
+        }
+    }
+});
+
+// Functions
+function refreshStats() {
+    location.reload();
+}
+
+function exportStats() {
+    const params = new URLSearchParams(window.location.search);
+    params.set('export', 'csv');
+    window.open(`${window.location.pathname}?${params.toString()}`, '_blank');
+}
+
+// Auto-refresh every 5 minutes
+setInterval(function() {
+    const refreshBtn = document.querySelector('button[onclick="refreshStats()"]');
+    if (refreshBtn) {
+        refreshBtn.innerHTML = '<i class="fas fa-sync-alt fa-spin me-2"></i>Refreshing...';
+        setTimeout(() => {
+            location.reload();
+        }, 1000);
+    }
+}, 300000); // 5 minutes
+
+// Set default date range to last 30 days if not set
+document.addEventListener('DOMContentLoaded', function() {
+    const startDate = document.querySelector('input[name="start_date"]');
+    const endDate = document.querySelector('input[name="end_date"]');
+    
+    if (!startDate.value) {
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        startDate.value = thirtyDaysAgo.toISOString().split('T')[0];
+    }
+    
+    if (!endDate.value) {
+        const today = new Date();
+        endDate.value = today.toISOString().split('T')[0];
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,447 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}My Bookings - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-calendar-check"></i> My Bookings</h2>
+    <div class="btn-group" role="group">
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-info dropdown-toggle" data-bs-toggle="dropdown">
+                <i class="fas fa-sync-alt"></i> Calendar Sync
+            </button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="{% url 'booking:calendar_sync_settings' %}">
+                    <i class="fas fa-cog me-2"></i>Sync Settings
+                </a></li>
+                <li><a class="dropdown-item" href="{% url 'booking:export_my_calendar' %}" target="_blank">
+                    <i class="fas fa-download me-2"></i>Download Calendar
+                </a></li>
+                <li><hr class="dropdown-divider"></li>
+                <li><a class="dropdown-item" href="#" onclick="showQuickSync()">
+                    <i class="fas fa-external-link-alt me-2"></i>Quick Setup for Outlook
+                </a></li>
+                <li><a class="dropdown-item" href="#" onclick="showQuickSync()">
+                    <i class="fab fa-google me-2"></i>Quick Setup for Google
+                </a></li>
+            </ul>
+        </div>
+        <a href="{% url 'booking:create_booking' %}" class="btn btn-primary">
+            <i class="bi bi-plus-circle"></i> New Booking
+        </a>
+        <button type="button" class="btn btn-danger" id="bulk-cancel-btn" disabled>
+            <i class="bi bi-trash"></i> Cancel Selected
+        </button>
+    </div>
+</div>
+
+<!-- Quick sync functionality redirects to settings page -->
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<!-- Filters -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0">Filters</h5>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="status" class="form-label">Status</label>
+                <select class="form-select" name="status" id="status">
+                    <option value="">All Statuses</option>
+                    {% for status_code, status_display in status_choices %}
+                        <option value="{{ status_code }}" {% if status_filter == status_code %}selected{% endif %}>
+                            {{ status_display }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="resource" class="form-label">Resource</label>
+                <select class="form-select" name="resource" id="resource">
+                    <option value="">All Resources</option>
+                    {% for resource in resources %}
+                        <option value="{{ resource.id }}" {% if resource_filter == resource.id|stringformat:"s" %}selected{% endif %}>
+                            {{ resource.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="date_from" class="form-label">From Date</label>
+                <input type="date" class="form-control" name="date_from" id="date_from" 
+                       value="{{ date_from }}">
+            </div>
+            <div class="col-md-2">
+                <label for="date_to" class="form-label">To Date</label>
+                <input type="date" class="form-control" name="date_to" id="date_to" 
+                       value="{{ date_to }}">
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">Filter</button>
+                <a href="{% url 'booking:my_bookings' %}" class="btn btn-outline-secondary">Clear</a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Bookings Table -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            My Bookings 
+            <span class="badge bg-secondary">{{ page_obj.paginator.count }} total</span>
+        </h5>
+        <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="select-all">
+            <label class="form-check-label" for="select-all">Select All</label>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if page_obj %}
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th width="5%"></th>
+                            <th>Title</th>
+                            <th>Resource</th>
+                            <th>Date & Time</th>
+                            <th>Status</th>
+                            <th>Created</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for booking in page_obj %}
+                        <tr class="{% if booking.start_time < now %}table-secondary{% endif %}">
+                            <td>
+                                <input type="checkbox" class="form-check-input booking-checkbox" 
+                                       value="{{ booking.pk }}" data-status="{{ booking.status }}"
+                                       {% if not booking.can_be_cancelled %}disabled{% endif %}>
+                            </td>
+                            <td>
+                                <strong>{{ booking.title }}</strong>
+                                {% if booking.description %}
+                                    <br><small class="text-muted">{{ booking.description|truncatechars:40 }}</small>
+                                {% endif %}
+                                {% if booking.is_recurring %}
+                                    <span class="badge bg-info ms-1">Recurring</span>
+                                {% endif %}
+                                {% if booking.template_used %}
+                                    <span class="badge bg-success ms-1" title="Created from template">Template</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ booking.resource.name }}
+                                <br><small class="text-muted">{{ booking.resource.location }}</small>
+                            </td>
+                            <td>
+                                {{ booking.start_time|date:"M d, Y" }}
+                                <br><small class="text-muted">{{ booking.start_time|time:"H:i" }} - {{ booking.end_time|time:"H:i" }}</small>
+                                {% if booking.start_time < now %}
+                                    <br><span class="badge bg-secondary">Past</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ booking.status }}">{{ booking.get_status_display }}</span>
+                                {% if booking.approved_by %}
+                                    <br><small class="text-muted">by {{ booking.approved_by.get_full_name|default:booking.approved_by.username }}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {{ booking.created_at|date:"M d, H:i" }}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <a href="{% url 'booking:booking_detail' booking.pk %}" 
+                                       class="btn btn-outline-primary" title="View Details">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    
+                                    {% if booking.status in 'pending,approved' and booking.start_time > now %}
+                                        <a href="{% url 'booking:edit_booking' booking.pk %}" 
+                                           class="btn btn-outline-info" title="Edit">
+                                            <i class="bi bi-pencil"></i>
+                                        </a>
+                                    {% endif %}
+                                    
+                                    <a href="{% url 'booking:duplicate_booking' booking.pk %}" 
+                                       class="btn btn-outline-secondary" title="Duplicate">
+                                        <i class="bi bi-files"></i>
+                                    </a>
+                                    
+                                    {% if booking.can_be_cancelled %}
+                                        <button type="button" class="btn btn-outline-danger" 
+                                                onclick="singleAction('cancel', {{ booking.pk }})" title="Cancel">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    {% endif %}
+                                    
+                                    <a href="{% url 'booking:save_as_template' booking.pk %}" 
+                                       class="btn btn-outline-success" title="Save as Template">
+                                        <i class="bi bi-file-earmark-plus"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        {% else %}
+            <div class="text-center py-5">
+                <i class="bi bi-calendar-x display-4 text-muted"></i>
+                <h5 class="mt-3">No bookings found</h5>
+                <p class="text-muted">You haven't made any bookings yet.</p>
+                <a href="{% url 'booking:create_booking' %}" class="btn btn-primary">
+                    <i class="bi bi-plus-circle"></i> Create Your First Booking
+                </a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if page_obj.has_other_pages %}
+<nav aria-label="Bookings pagination" class="mt-4">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+            <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page=1">First</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.previous_page_number }}">Previous</a>
+            </li>
+        {% endif %}
+        
+        <li class="page-item active">
+            <span class="page-link">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+        </li>
+        
+        {% if page_obj.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.next_page_number }}">Next</a>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="?{% for key, value in request.GET.items %}{% if key != 'page' %}{{ key }}={{ value }}&{% endif %}{% endfor %}page={{ page_obj.paginator.num_pages }}">Last</a>
+            </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+<!-- Statistics -->
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-primary">{{ page_obj.paginator.count }}</h5>
+                <p class="card-text">Total Bookings</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-warning" id="pending-count">0</h5>
+                <p class="card-text">Pending</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-success" id="approved-count">0</h5>
+                <p class="card-text">Approved</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h5 class="card-title text-info" id="upcoming-count">0</h5>
+                <p class="card-text">Upcoming</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Action Form (Hidden) -->
+<form id="bulk-action-form" method="post" action="{% url 'booking:bulk_operations' %}" style="display: none;">
+    {% csrf_token %}
+    <input type="hidden" name="action" id="bulk-action">
+    <div id="booking-ids-container"></div>
+</form>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Action</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-message"></p>
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle"></i> This action cannot be undone.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirm-action">Confirm</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAllCheckbox = document.getElementById('select-all');
+    const bookingCheckboxes = document.querySelectorAll('.booking-checkbox:not(:disabled)');
+    const bulkCancelBtn = document.getElementById('bulk-cancel-btn');
+    const bulkActionForm = document.getElementById('bulk-action-form');
+    const bookingIdsContainer = document.getElementById('booking-ids-container');
+    const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    
+    // Calculate and display statistics
+    updateStatistics();
+    
+    // Select all functionality
+    selectAllCheckbox.addEventListener('change', function() {
+        bookingCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        updateBulkButtons();
+    });
+    
+    // Individual checkbox change
+    bookingCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            updateSelectAllState();
+            updateBulkButtons();
+        });
+    });
+    
+    function updateSelectAllState() {
+        const checkedBoxes = document.querySelectorAll('.booking-checkbox:checked');
+        selectAllCheckbox.checked = checkedBoxes.length === bookingCheckboxes.length;
+        selectAllCheckbox.indeterminate = checkedBoxes.length > 0 && checkedBoxes.length < bookingCheckboxes.length;
+    }
+    
+    function updateBulkButtons() {
+        const checkedBoxes = document.querySelectorAll('.booking-checkbox:checked');
+        const hasChecked = checkedBoxes.length > 0;
+        
+        bulkCancelBtn.disabled = !hasChecked;
+        
+        if (hasChecked) {
+            bulkCancelBtn.innerHTML = `<i class="bi bi-trash"></i> Cancel Selected (${checkedBoxes.length})`;
+        } else {
+            bulkCancelBtn.innerHTML = '<i class="bi bi-trash"></i> Cancel Selected';
+        }
+    }
+    
+    function updateStatistics() {
+        const rows = document.querySelectorAll('tbody tr');
+        let pending = 0, approved = 0, upcoming = 0;
+        
+        rows.forEach(row => {
+            const statusBadge = row.querySelector('.badge');
+            if (statusBadge) {
+                const status = statusBadge.textContent.trim().toLowerCase();
+                if (status.includes('pending')) pending++;
+                else if (status.includes('approved')) approved++;
+                
+                // Check if upcoming (not past)
+                if (!row.classList.contains('table-secondary')) {
+                    const statusCol = statusBadge.closest('td');
+                    if (statusCol && (status.includes('pending') || status.includes('approved'))) {
+                        upcoming++;
+                    }
+                }
+            }
+        });
+        
+        document.getElementById('pending-count').textContent = pending;
+        document.getElementById('approved-count').textContent = approved;
+        document.getElementById('upcoming-count').textContent = upcoming;
+    }
+    
+    // Bulk cancel handler
+    bulkCancelBtn.addEventListener('click', () => bulkAction('cancel'));
+    
+    function bulkAction(action) {
+        const checkedBoxes = document.querySelectorAll('.booking-checkbox:checked');
+        if (checkedBoxes.length === 0) return;
+        
+        document.getElementById('confirm-message').textContent = 
+            `Are you sure you want to cancel ${checkedBoxes.length} selected booking(s)?`;
+        
+        document.getElementById('confirm-action').onclick = function() {
+            // Prepare form
+            document.getElementById('bulk-action').value = action;
+            bookingIdsContainer.innerHTML = '';
+            
+            checkedBoxes.forEach(checkbox => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = 'booking_ids';
+                input.value = checkbox.value;
+                bookingIdsContainer.appendChild(input);
+            });
+            
+            // Submit form
+            bulkActionForm.submit();
+        };
+        
+        confirmModal.show();
+    }
+    
+    // Initial state
+    updateBulkButtons();
+});
+
+function singleAction(action, bookingId) {
+    document.getElementById('confirm-message').textContent = 
+        `Are you sure you want to ${action} this booking?`;
+    
+    document.getElementById('confirm-action').onclick = function() {
+        // Prepare form for single action
+        document.getElementById('bulk-action').value = action;
+        document.getElementById('booking-ids-container').innerHTML = 
+            `<input type="hidden" name="booking_ids" value="${bookingId}">`;
+        
+        document.getElementById('bulk-action-form').submit();
+    };
+    
+    const confirmModal = new bootstrap.Modal(document.getElementById('confirmModal'));
+    confirmModal.show();
+}
+
+// Calendar sync functionality
+function showQuickSync() {
+    // Construct the calendar feed URL directly 
+    // The token will be generated by the backend when the calendar sync settings page loads
+    const quickSyncUrl = '{% url "booking:calendar_sync_settings" %}';
+    
+    // For quick sync, we'll redirect to the settings page where they can copy the URL
+    // This is more reliable than trying to fetch and parse the token
+    window.open(quickSyncUrl, '_blank');
+}
+
+// Quick sync functionality simplified - redirects to full settings page
+</script>
+{% endblock %}

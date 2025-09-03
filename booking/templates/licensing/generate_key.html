@@ -1,0 +1,258 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Generate License Key - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1><i class="fas fa-key me-2"></i>Generate License Key</h1>
+                <a href="{% url 'booking:license_configure' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Back to Configuration
+                </a>
+            </div>
+
+            <div class="alert alert-warning">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Administrator Function:</strong> This feature is for license administrators only. 
+                Generated keys must be properly configured on the license server.
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-plus-circle me-2"></i>License Key Generator
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" data-progress="true">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">License Type *</label>
+                                    <select name="license_type" class="form-select" required>
+                                        <option value="">Select license type...</option>
+                                        <option value="commercial">Commercial</option>
+                                        <option value="enterprise">Enterprise</option>
+                                        <option value="trial">Trial</option>
+                                        <option value="educational">Educational</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Max Users</label>
+                                    <input type="number" name="max_users" class="form-control" min="1" max="10000" value="50">
+                                    <div class="form-text">Maximum number of users (0 = unlimited)</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Organization Name *</label>
+                                    <input type="text" name="licensee_name" class="form-control" required 
+                                           placeholder="Organization or individual name">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Contact Email *</label>
+                                    <input type="email" name="licensee_email" class="form-control" required
+                                           placeholder="contact@organization.com">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Expiration Date</label>
+                                    <input type="date" name="expires_at" class="form-control" 
+                                           min="{{ today|date:'Y-m-d' }}">
+                                    <div class="form-text">Leave blank for no expiration</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Key Length</label>
+                                    <select name="key_length" class="form-select">
+                                        <option value="32">32 characters</option>
+                                        <option value="64" selected>64 characters</option>
+                                        <option value="128">128 characters</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Description</label>
+                            <textarea name="description" class="form-control" rows="3" 
+                                      placeholder="Optional description or notes about this license..."></textarea>
+                        </div>
+
+                        <div class="mb-3">
+                            <h6>Enabled Features</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="features" value="custom_branding" checked>
+                                        <label class="form-check-label">Custom Branding</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="features" value="advanced_analytics" checked>
+                                        <label class="form-check-label">Advanced Analytics</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="features" value="api_access" checked>
+                                        <label class="form-check-label">Full API Access</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="features" value="sso_integration">
+                                        <label class="form-check-label">SSO Integration</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="features" value="priority_support" checked>
+                                        <label class="form-check-label">Priority Support</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="features" value="multi_tenant">
+                                        <label class="form-check-label">Multi-Tenant Support</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between">
+                            <a href="{% url 'booking:license_configure' %}" class="btn btn-secondary">
+                                Cancel
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-magic me-1"></i>Generate License Key
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Generated Key Display (shown after generation) -->
+            {% if generated_key %}
+                <div class="card mt-4">
+                    <div class="card-header bg-success text-white">
+                        <h5 class="mb-0">
+                            <i class="fas fa-check-circle me-2"></i>License Key Generated Successfully
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label class="form-label">License Key</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" value="{{ generated_key }}" readonly id="generatedKey">
+                                <button class="btn btn-outline-secondary" type="button" onclick="copyToClipboard()">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Important:</strong> Save this license key securely. You'll need to provide it to the customer 
+                            and configure it on the license validation server.
+                        </div>
+
+                        <div class="d-flex gap-2">
+                            <button type="button" class="btn btn-success" onclick="downloadKey()">
+                                <i class="fas fa-download me-1"></i>Download as File
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" onclick="emailKey()">
+                                <i class="fas fa-envelope me-1"></i>Email to Customer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- License Generation Guidelines -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-lightbulb me-2"></i>License Generation Guidelines
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Best Practices</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-check text-success me-2"></i>Use meaningful organization names</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Set appropriate expiration dates</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Enable only necessary features</li>
+                                <li><i class="fas fa-check text-success me-2"></i>Keep generated keys secure</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Security Notes</h6>
+                            <ul class="list-unstyled">
+                                <li><i class="fas fa-shield-alt text-primary me-2"></i>Keys are cryptographically secure</li>
+                                <li><i class="fas fa-shield-alt text-primary me-2"></i>All generation is logged</li>
+                                <li><i class="fas fa-shield-alt text-primary me-2"></i>Keys can be revoked if needed</li>
+                                <li><i class="fas fa-shield-alt text-primary me-2"></i>Validation requires server configuration</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function copyToClipboard() {
+    const keyInput = document.getElementById('generatedKey');
+    keyInput.select();
+    keyInput.setSelectionRange(0, 99999);
+    document.execCommand('copy');
+    
+    // Show feedback
+    const button = event.target.closest('button');
+    const originalIcon = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-check"></i>';
+    button.classList.add('btn-success');
+    button.classList.remove('btn-outline-secondary');
+    
+    setTimeout(() => {
+        button.innerHTML = originalIcon;
+        button.classList.remove('btn-success');
+        button.classList.add('btn-outline-secondary');
+    }, 2000);
+}
+
+function downloadKey() {
+    const key = document.getElementById('generatedKey').value;
+    const blob = new Blob([key], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `license-key-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+}
+
+function emailKey() {
+    const key = document.getElementById('generatedKey').value;
+    const subject = 'Your Labitory License Key';
+    const body = `Your license key for Labitory:\n\n${key}\n\nPlease keep this key secure and follow the activation instructions provided.`;
+    
+    window.location.href = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+}
+</script>
+{% endblock %}

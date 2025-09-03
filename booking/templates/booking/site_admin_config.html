@@ -1,0 +1,619 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}System Configuration - Site Administration{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-cog me-2"></i>
+                    System Configuration
+                </h1>
+                <a href="{% url 'booking:site_admin_dashboard' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>
+                    Back to Admin Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Current Configuration -->
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Current Configuration
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <tbody>
+                                <tr>
+                                    <td><strong>Lab Name</strong></td>
+                                    <td>
+                                        <code>{{ lab_name }}</code>
+                                        <a href="{% url 'booking:site_admin_lab_settings' %}" class="btn btn-sm btn-outline-primary ms-2">
+                                            <i class="fas fa-edit"></i> Edit
+                                        </a>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Debug Mode</strong></td>
+                                    <td>
+                                        {% if config_settings.debug_mode %}
+                                            <span class="badge bg-warning">Enabled</span>
+                                            <small class="text-muted ms-2">⚠️ Should be disabled in production</small>
+                                        {% else %}
+                                            <span class="badge bg-success">Disabled</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Time Zone</strong></td>
+                                    <td><code>{{ config_settings.time_zone }}</code></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Language</strong></td>
+                                    <td><code>{{ config_settings.language_code }}</code></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Email Backend</strong></td>
+                                    <td>
+                                        <code>{{ config_settings.email_backend }}</code>
+                                        {% if 'console' in config_settings.email_backend %}
+                                            <small class="text-muted ms-2">📧 Emails logged to console</small>
+                                        {% elif 'smtp' in config_settings.email_backend %}
+                                            <small class="text-success ms-2">✅ SMTP configured</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Database Engine</strong></td>
+                                    <td>
+                                        <code>{{ config_settings.database_engine }}</code>
+                                        {% if 'sqlite' in config_settings.database_engine %}
+                                            <small class="text-warning ms-2">⚠️ SQLite - consider PostgreSQL for production</small>
+                                        {% elif 'postgresql' in config_settings.database_engine %}
+                                            <small class="text-success ms-2">✅ PostgreSQL</small>
+                                        {% elif 'mysql' in config_settings.database_engine %}
+                                            <small class="text-success ms-2">✅ MySQL</small>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Static Files URL</strong></td>
+                                    <td><code>{{ config_settings.static_url }}</code></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Media Files URL</strong></td>
+                                    <td><code>{{ config_settings.media_url }}</code></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration Actions -->
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-tools me-2"></i>
+                        Configuration Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-primary" onclick="checkSystemHealth()">
+                            <i class="fas fa-heartbeat me-2"></i>
+                            Check System Health
+                        </button>
+                        <a href="{% url 'booking:site_admin_email_config' %}" class="btn btn-outline-success">
+                            <i class="fas fa-envelope-open-text me-2"></i>
+                            Manage Email Settings
+                        </a>
+                        <a href="{% url 'booking:site_admin_lab_settings' %}" class="btn btn-outline-info">
+                            <i class="fas fa-building me-2"></i>
+                            Lab Settings
+                        </a>
+                        <button class="btn btn-outline-secondary" onclick="clearCache()">
+                            <i class="fas fa-broom me-2"></i>
+                            Clear Application Cache
+                            <span id="clearCacheSpinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
+                        </button>
+                        <hr>
+                        <button class="btn btn-outline-danger" onclick="restartApplication()">
+                            <i class="fas fa-redo me-2"></i>
+                            Restart Application
+                            <span id="restartAppSpinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Security Recommendations -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-shield-alt me-2"></i>
+                        Security Recommendations
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group list-group-flush">
+                        {% if config_settings.debug_mode %}
+                        <div class="list-group-item border-0 px-0">
+                            <div class="d-flex">
+                                <i class="fas fa-exclamation-triangle text-warning me-2 mt-1"></i>
+                                <div>
+                                    <strong>Debug Mode Enabled</strong><br>
+                                    <small class="text-muted">Disable DEBUG in production environments</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if 'sqlite' in config_settings.database_engine %}
+                        <div class="list-group-item border-0 px-0">
+                            <div class="d-flex">
+                                <i class="fas fa-info-circle text-info me-2 mt-1"></i>
+                                <div>
+                                    <strong>SQLite Database</strong><br>
+                                    <small class="text-muted">Consider PostgreSQL for production use</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        {% if 'console' in config_settings.email_backend %}
+                        <div class="list-group-item border-0 px-0">
+                            <div class="d-flex">
+                                <i class="fas fa-envelope text-warning me-2 mt-1"></i>
+                                <div>
+                                    <strong>Console Email Backend</strong><br>
+                                    <small class="text-muted">Configure SMTP for production</small>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="list-group-item border-0 px-0">
+                            <div class="d-flex">
+                                <i class="fas fa-check-circle text-success me-2 mt-1"></i>
+                                <div>
+                                    <strong>Regular Backups</strong><br>
+                                    <small class="text-muted">Ensure database backups are scheduled</small>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="list-group-item border-0 px-0">
+                            <div class="d-flex">
+                                <i class="fas fa-lock text-success me-2 mt-1"></i>
+                                <div>
+                                    <strong>HTTPS Enabled</strong><br>
+                                    <small class="text-muted">Use SSL certificates in production</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Environment Variables (if applicable) -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-file-alt me-2"></i>
+                        Environment Configuration Guide
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">
+                        For production deployment, ensure these environment variables are properly configured:
+                    </p>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Required Settings</h6>
+                            <pre class="bg-light p-3 rounded"><code>SECRET_KEY=your-secret-key-here
+DEBUG=False
+ALLOWED_HOSTS=yourdomain.com,www.yourdomain.com
+
+# Database
+DB_ENGINE=postgresql
+DB_NAME=labitory
+DB_USER=username
+DB_PASSWORD=password
+DB_HOST=localhost
+DB_PORT=5432</code></pre>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Email Configuration</h6>
+                            <pre class="bg-light p-3 rounded"><code># Email Settings
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=True
+EMAIL_HOST_USER=your-email@domain.com
+EMAIL_HOST_PASSWORD=your-password
+DEFAULT_FROM_EMAIL=noreply@yourdomain.com</code></pre>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% csrf_token %}
+
+<!-- Health Check Results Modal -->
+<div class="modal fade" id="healthCheckModal" tabindex="-1" aria-labelledby="healthCheckModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="healthCheckModalLabel">
+                    <i class="fas fa-heartbeat me-2"></i>
+                    System Health Check Results
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body" id="healthCheckResults">
+                <!-- Results will be populated here -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" id="refreshHealthCheck">
+                    <i class="fas fa-sync me-2"></i>
+                    Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+function checkSystemHealth() {
+    // Show loading indicator
+    const button = event.target;
+    const originalText = button.innerHTML;
+    button.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Running Health Check...';
+    button.disabled = true;
+    
+    // Make AJAX request to health check endpoint
+    fetch('{% url "booking:site_admin_health_check" %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => response.json())
+    .then(data => {
+        displayHealthCheckResults(data);
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('healthCheckModal'));
+        modal.show();
+    })
+    .catch(error => {
+        console.error('Health check failed:', error);
+        document.getElementById('healthCheckResults').innerHTML = `
+            <div class="alert alert-danger">
+                <h6><i class="fas fa-exclamation-triangle me-2"></i>Health Check Failed</h6>
+                <p>Unable to perform health check. Error: ${error.message}</p>
+            </div>
+        `;
+        
+        // Show modal with error
+        const modal = new bootstrap.Modal(document.getElementById('healthCheckModal'));
+        modal.show();
+    })
+    .finally(() => {
+        // Restore button
+        button.innerHTML = originalText;
+        button.disabled = false;
+    });
+}
+
+function displayHealthCheckResults(data) {
+    const overallStatusClass = data.overall_status === 'healthy' ? 'success' : 
+                              data.overall_status === 'warning' ? 'warning' : 'danger';
+    
+    const overallStatusIcon = data.overall_status === 'healthy' ? 'fa-check-circle' : 
+                             data.overall_status === 'warning' ? 'fa-exclamation-triangle' : 'fa-times-circle';
+    
+    let html = `
+        <div class="alert alert-${overallStatusClass}">
+            <h6><i class="fas ${overallStatusIcon} me-2"></i>Overall Status: ${data.overall_status.toUpperCase()}</h6>
+            <p class="mb-0">
+                <strong>Summary:</strong> ${data.summary.healthy} healthy, ${data.summary.warnings} warnings, ${data.summary.unhealthy} issues
+                <br><small>Checked at: ${new Date(data.timestamp).toLocaleString()}</small>
+            </p>
+        </div>
+    `;
+    
+    // Add individual check results
+    html += '<div class="row">';
+    
+    Object.entries(data.checks).forEach(([checkName, result]) => {
+        const statusClass = result.status === 'healthy' ? 'success' : 
+                           result.status === 'warning' ? 'warning' : 'danger';
+        
+        const statusIcon = result.status === 'healthy' ? 'fa-check-circle' : 
+                          result.status === 'warning' ? 'fa-exclamation-triangle' : 'fa-times-circle';
+        
+        html += `
+            <div class="col-md-6 mb-3">
+                <div class="card border-${statusClass}">
+                    <div class="card-header bg-${statusClass} text-white">
+                        <h6 class="mb-0">
+                            <i class="fas ${statusIcon} me-2"></i>
+                            ${checkName.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-1">${result.message}</p>
+                        
+                        ${result.response_time_ms ? `<small class="text-muted">Response time: ${result.response_time_ms}ms</small>` : ''}
+                        
+                        ${result.cpu_percent ? `
+                            <small class="d-block">CPU: ${result.cpu_percent}%</small>
+                            <small class="d-block">Memory: ${result.memory_percent}%</small>
+                            <small class="d-block">Disk: ${result.disk_percent}%</small>
+                        ` : ''}
+                        
+                        ${result.counts ? `
+                            <small class="d-block">${result.counts.join(', ')}</small>
+                        ` : ''}
+                        
+                        ${result.warnings && result.warnings.length > 0 ? `
+                            <div class="mt-2">
+                                <strong>Warnings:</strong>
+                                <ul class="mb-0">
+                                    ${result.warnings.map(warning => `<li>${warning}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        
+                        ${result.issues && result.issues.length > 0 ? `
+                            <div class="mt-2">
+                                <strong>Issues:</strong>
+                                <ul class="mb-0">
+                                    ${result.issues.map(issue => `<li>${issue}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                        
+                        ${result.error ? `
+                            <div class="mt-2 text-danger">
+                                <strong>Error:</strong> ${result.error}
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+    
+    html += '</div>';
+    
+    document.getElementById('healthCheckResults').innerHTML = html;
+}
+
+// Add refresh functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const refreshBtn = document.getElementById('refreshHealthCheck');
+    if (refreshBtn) {
+        refreshBtn.addEventListener('click', checkSystemHealth);
+    }
+});
+
+
+
+function clearCache() {
+    if (confirm('Are you sure you want to clear the application cache? This may temporarily slow down the application while the cache rebuilds.')) {
+        // Show loading indicator
+        const button = event.target;
+        const spinner = document.getElementById('clearCacheSpinner');
+        const originalText = button.innerHTML;
+        
+        spinner.classList.remove('d-none');
+        button.disabled = true;
+        
+        // Make AJAX request to clear cache endpoint
+        fetch('{% url "booking:site_admin_config" %}?action=clear_cache', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
+                alertDiv.innerHTML = `
+                    <i class="fas fa-check-circle me-2"></i>
+                    ${data.message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                
+                // Insert alert after the page header
+                const header = document.querySelector('.d-flex.justify-content-between.align-items-center.mb-4');
+                header.parentNode.insertBefore(alertDiv, header.nextSibling);
+                
+                // Auto-dismiss after 5 seconds
+                setTimeout(() => {
+                    if (alertDiv.parentNode) {
+                        alertDiv.remove();
+                    }
+                }, 5000);
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Cache clear failed:', error);
+            alert('Error: Failed to clear cache. ' + error.message);
+        })
+        .finally(() => {
+            // Hide loading indicator
+            spinner.classList.add('d-none');
+            button.disabled = false;
+        });
+    }
+}
+
+
+function restartApplication() {
+    if (confirm('Are you sure you want to restart the application? This will temporarily make the site unavailable for 10-30 seconds while the application restarts.')) {
+        // Show loading indicator
+        const button = event.target;
+        const spinner = document.getElementById('restartAppSpinner');
+        
+        spinner.classList.remove('d-none');
+        button.disabled = true;
+        
+        // Show immediate feedback
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-warning alert-dismissible fade show mt-3';
+        alertDiv.innerHTML = `
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>Application Restart Initiated!</strong> The application is restarting. You may experience a brief interruption in service.
+            <br><small>This page will automatically reload once the restart is complete.</small>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        `;
+        
+        // Insert alert after the page header
+        const header = document.querySelector('.d-flex.justify-content-between.align-items-center.mb-4');
+        header.parentNode.insertBefore(alertDiv, header.nextSibling);
+        
+        // Make AJAX request to restart endpoint
+        fetch('{% url "booking:site_admin_config" %}?action=restart_app', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'X-Requested-With': 'XMLHttpRequest',
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+        })
+        .then(response => {
+            if (response.ok) {
+                // Start polling to check when the application is back online
+                checkApplicationStatus();
+            } else {
+                throw new Error('Restart request failed');
+            }
+        })
+        .catch(error => {
+            console.error('Restart failed:', error);
+            
+            // Remove the warning alert and show error
+            if (alertDiv.parentNode) {
+                alertDiv.remove();
+            }
+            
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'alert alert-danger alert-dismissible fade show mt-3';
+            errorDiv.innerHTML = `
+                <i class="fas fa-times-circle me-2"></i>
+                <strong>Restart Failed!</strong> Unable to restart the application: ${error.message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            `;
+            header.parentNode.insertBefore(errorDiv, header.nextSibling);
+            
+            // Re-enable button
+            spinner.classList.add('d-none');
+            button.disabled = false;
+        });
+    }
+}
+
+function checkApplicationStatus() {
+    let pollCount = 0;
+    const maxPolls = 30; // Poll for up to 30 seconds
+    
+    const pollInterval = setInterval(() => {
+        pollCount++;
+        
+        fetch(window.location.href, {
+            method: 'HEAD',
+            cache: 'no-cache'
+        })
+        .then(response => {
+            if (response.ok) {
+                // Application is back online
+                clearInterval(pollInterval);
+                
+                // Show success message and reload
+                const successDiv = document.createElement('div');
+                successDiv.className = 'alert alert-success alert-dismissible fade show mt-3';
+                successDiv.innerHTML = `
+                    <i class="fas fa-check-circle me-2"></i>
+                    <strong>Application Restarted Successfully!</strong> The page will reload in 3 seconds.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                
+                const header = document.querySelector('.d-flex.justify-content-between.align-items-center.mb-4');
+                
+                // Remove warning alert
+                const warningAlert = document.querySelector('.alert-warning');
+                if (warningAlert) {
+                    warningAlert.remove();
+                }
+                
+                header.parentNode.insertBefore(successDiv, header.nextSibling);
+                
+                // Reload page after short delay
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
+            }
+        })
+        .catch(() => {
+            // Application still restarting, continue polling
+            if (pollCount >= maxPolls) {
+                clearInterval(pollInterval);
+                
+                // Show timeout warning
+                const timeoutDiv = document.createElement('div');
+                timeoutDiv.className = 'alert alert-warning alert-dismissible fade show mt-3';
+                timeoutDiv.innerHTML = `
+                    <i class="fas fa-clock me-2"></i>
+                    <strong>Restart Taking Longer Than Expected</strong> The application may still be restarting. 
+                    Try refreshing the page manually.
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                `;
+                
+                const header = document.querySelector('.d-flex.justify-content-between.align-items-center.mb-4');
+                header.parentNode.insertBefore(timeoutDiv, header.nextSibling);
+                
+                // Re-enable button
+                const spinner = document.getElementById('restartAppSpinner');
+                const button = document.querySelector('button[onclick="restartApplication()"]');
+                spinner.classList.add('d-none');
+                button.disabled = false;
+            }
+        });
+    }, 1000); // Poll every second
+}
+</script>
+{% endblock %}

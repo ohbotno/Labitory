@@ -1,0 +1,28 @@
+[Unit]
+Description=Labitory Background Scheduler
+After=network.target aperature-booking.service
+Requires=aperature-booking.service
+
+[Service]
+Type=simple
+User=aperature-booking
+Group=aperature-booking
+WorkingDirectory=/opt/aperature-booking
+ExecStart=/opt/aperature-booking/venv/bin/python manage.py scheduler
+Restart=on-failure
+RestartSec=10
+
+# Environment variables
+Environment=DJANGO_SETTINGS_MODULE=aperture_booking.settings_production
+Environment=PYTHONPATH=/opt/aperature-booking
+Environment=PYTHONUNBUFFERED=1
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/aperature-booking/media /opt/aperature-booking/logs /opt/aperature-booking/backups
+
+[Install]
+WantedBy=multi-user.target

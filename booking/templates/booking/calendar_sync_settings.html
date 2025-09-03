@@ -1,0 +1,467 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Calendar Sync Settings - {{ lab_name }}{% endblock %}
+
+{% block extra_css %}
+<style>
+.instruction-card {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 1rem;
+}
+.calendar-app-icon {
+    width: 48px;
+    height: 48px;
+    object-fit: contain;
+    margin-right: 1rem;
+}
+.url-input {
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    background-color: #f8f9fa;
+}
+.copy-btn {
+    transition: all 0.2s ease;
+}
+.copy-btn:hover {
+    transform: scale(1.05);
+}
+.copied {
+    background-color: #28a745 !important;
+    border-color: #28a745 !important;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-sync-alt me-2"></i>Calendar Synchronization</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:my_bookings' %}">My Bookings</a></li>
+                            <li class="breadcrumb-item active">Calendar Sync</li>
+                        </ol>
+                    </nav>
+                </div>
+                <a href="{% url 'booking:my_bookings' %}" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-2"></i>Back to My Bookings
+                </a>
+            </div>
+
+            <!-- Overview -->
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        <h5><i class="fas fa-info-circle me-2"></i>About Calendar Synchronization</h5>
+                        <p class="mb-0">Sync your Labitory calendar with external calendar applications like Outlook, Google Calendar, Apple Calendar, and more. Choose between downloading a one-time file or subscribing to an auto-updating feed.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- One-Time Export -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header bg-primary text-white">
+                            <h5 class="mb-0"><i class="fas fa-download me-2"></i>One-Time Export</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>Download your current bookings as an ICS file that you can import into any calendar application.</p>
+                            
+                            <div class="mb-3">
+                                <h6>Export Options:</h6>
+                                <form method="get" action="{% url 'booking:export_my_calendar' %}" target="_blank" class="mb-3">
+                                    <div class="row g-2">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Time Range</label>
+                                            <select name="days_ahead" class="form-select">
+                                                <option value="30">Next 30 days</option>
+                                                <option value="90" selected>Next 90 days</option>
+                                                <option value="180">Next 6 months</option>
+                                                <option value="365">Next year</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-6 d-flex align-items-end">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="include_past" value="true" id="includePast">
+                                                <label class="form-check-label" for="includePast">
+                                                    Include past bookings
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary mt-3">
+                                        <i class="fas fa-download me-2"></i>Download Calendar File
+                                    </button>
+                                </form>
+                            </div>
+
+                            <div class="instruction-card">
+                                <h6><i class="fas fa-lightbulb me-2"></i>How to import:</h6>
+                                <ol class="mb-0">
+                                    <li>Click "Download Calendar File" above</li>
+                                    <li>Open your calendar application</li>
+                                    <li>Look for "Import" or "Add Calendar" option</li>
+                                    <li>Select the downloaded .ics file</li>
+                                    <li>Your bookings will appear in your calendar</li>
+                                </ol>
+                            </div>
+
+                            <div class="alert alert-warning mt-3">
+                                <small><i class="fas fa-exclamation-triangle me-2"></i><strong>Note:</strong> Exported calendars are snapshots and won't update automatically when you make new bookings.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Google Calendar Integration -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header bg-warning text-dark">
+                            <h5 class="mb-0"><i class="fab fa-google me-2"></i>Google Calendar Sync</h5>
+                        </div>
+                        <div class="card-body">
+                            {% load booking_extras %}
+                            {% if user|has_google_calendar_integration %}
+                                {% with integration=user.google_calendar_integration %}
+                                    <div class="alert alert-success">
+                                        <i class="fas fa-check-circle me-2"></i>
+                                        <strong>Connected!</strong> Your bookings are syncing with Google Calendar.
+                                    </div>
+                                    
+                                    <div class="mb-3">
+                                        <h6>Connection Status:</h6>
+                                        <div class="d-flex justify-content-between align-items-center">
+                                            <span class="badge bg-{{ integration.get_status_display|lower|badge_color }} p-2">
+                                                {{ integration.get_status_display }}
+                                            </span>
+                                            {% if integration.last_sync %}
+                                                <small class="text-muted">Last sync: {{ integration.last_sync|timesince }} ago</small>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+
+                                    <div class="d-grid gap-2">
+                                        <a href="{% url 'booking:google_calendar_settings' %}" class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-cog me-1"></i>Sync Settings
+                                        </a>
+                                        <a href="{% url 'booking:google_calendar_sync' %}" class="btn btn-outline-success btn-sm">
+                                            <i class="fas fa-sync me-1"></i>Sync Now
+                                        </a>
+                                        <form method="post" action="{% url 'booking:google_calendar_disconnect' %}" class="d-inline">
+                                            {% csrf_token %}
+                                            <button type="submit" class="btn btn-outline-danger btn-sm w-100" 
+                                                    onclick="return confirm('Are you sure you want to disconnect Google Calendar?')">
+                                                <i class="fas fa-unlink me-1"></i>Disconnect
+                                            </button>
+                                        </form>
+                                    </div>
+                                {% endwith %}
+                            {% else %}
+                                <p>Connect your Google Calendar to automatically sync your bookings. Changes will appear in your Google Calendar instantly!</p>
+                                
+                                <div class="features-list mb-3">
+                                    <h6>Features:</h6>
+                                    <ul class="list-unstyled">
+                                        <li><i class="fas fa-check text-success me-2"></i>Automatic two-way sync</li>
+                                        <li><i class="fas fa-check text-success me-2"></i>Real-time updates</li>
+                                        <li><i class="fas fa-check text-success me-2"></i>Custom event details</li>
+                                        <li><i class="fas fa-check text-success me-2"></i>Conflict resolution</li>
+                                    </ul>
+                                </div>
+                                
+                                <div class="d-grid">
+                                    <a href="{% url 'booking:google_calendar_auth' %}" class="btn btn-primary">
+                                        <i class="fab fa-google me-2"></i>Connect Google Calendar
+                                    </a>
+                                </div>
+                                
+                                <div class="alert alert-info mt-3">
+                                    <small><i class="fas fa-shield-alt me-2"></i><strong>Privacy:</strong> We only access your calendar data to sync your bookings. You can disconnect at any time.</small>
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Subscription -->
+                <div class="col-lg-6 mb-4">
+                    <div class="card h-100">
+                        <div class="card-header bg-success text-white">
+                            <h5 class="mb-0"><i class="fas fa-rss me-2"></i>Live Calendar Subscription</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>Subscribe to an auto-updating calendar feed that stays in sync with your bookings. <strong>Recommended!</strong></p>
+                            
+                            <div class="mb-3">
+                                <label class="form-label">Your Calendar Feed URL:</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control url-input" value="{{ feed_url }}" readonly id="feedUrl">
+                                    <button class="btn btn-outline-secondary copy-btn" type="button" onclick="copyToClipboard('feedUrl', this)">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                                <div class="form-text">This URL is unique to your account and updates automatically.</div>
+                            </div>
+
+                            <div class="instruction-card">
+                                <h6><i class="fas fa-calendar-plus me-2"></i>How to subscribe:</h6>
+                                
+                                <!-- Outlook Instructions -->
+                                <div class="mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fab fa-microsoft" style="font-size: 2rem; color: #0078d4; margin-right: 0.5rem;"></i>
+                                        <strong>Microsoft Outlook</strong>
+                                    </div>
+                                    <ol class="small mb-0">
+                                        <li>Open Outlook and go to Calendar</li>
+                                        <li>Click "Add Calendar" → "Subscribe from web"</li>
+                                        <li>Paste the URL above and click "Import"</li>
+                                        <li>Name it "Labitory" and save</li>
+                                    </ol>
+                                </div>
+
+                                <!-- Google Calendar Instructions -->
+                                <div class="mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fab fa-google" style="font-size: 2rem; color: #4285f4; margin-right: 0.5rem;"></i>
+                                        <strong>Google Calendar</strong>
+                                    </div>
+                                    <ol class="small mb-0">
+                                        <li>Open Google Calendar</li>
+                                        <li>Click "+" next to "Other calendars"</li>
+                                        <li>Select "From URL" and paste the URL above</li>
+                                        <li>Click "Add calendar"</li>
+                                    </ol>
+                                </div>
+
+                                <!-- Apple Calendar Instructions -->
+                                <div class="mb-3">
+                                    <div class="d-flex align-items-center mb-2">
+                                        <i class="fab fa-apple" style="font-size: 2rem; color: #000; margin-right: 0.5rem;"></i>
+                                        <strong>Apple Calendar</strong>
+                                    </div>
+                                    <ol class="small mb-0">
+                                        <li>Open Calendar app</li>
+                                        <li>File → New Calendar Subscription</li>
+                                        <li>Paste the URL above and click "Subscribe"</li>
+                                        <li>Configure refresh frequency and click "OK"</li>
+                                    </ol>
+                                </div>
+                            </div>
+
+                            <div class="alert alert-success mt-3">
+                                <small><i class="fas fa-check-circle me-2"></i><strong>Automatic Updates:</strong> Subscribed calendars refresh every hour, keeping your external calendar in sync.</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resource Calendars -->
+            {% if user_resources %}
+            <div class="row">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-cog me-2"></i>Resource Calendars</h5>
+                        </div>
+                        <div class="card-body">
+                            <p>Export calendars for resources you have access to or manage:</p>
+                            <div class="row">
+                                {% for resource in user_resources %}
+                                <div class="col-md-6 col-lg-4 mb-3">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h6 class="card-title">{{ resource.name }}</h6>
+                                            <p class="card-text small text-muted">{{ resource.location }}</p>
+                                            <a href="{% url 'booking:export_resource_calendar' resource.id %}" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-download me-1"></i>Export
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Security & Privacy -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Security & Privacy</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <h6><i class="fas fa-key me-2"></i>Your Calendar Token</h6>
+                                    <p>Your calendar feed uses a unique, secure token to prevent unauthorized access.</p>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control url-input" value="{{ user_token }}" readonly id="userToken">
+                                        <button class="btn btn-outline-secondary copy-btn" type="button" onclick="copyToClipboard('userToken', this)">
+                                            <i class="fas fa-copy"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <h6><i class="fas fa-info-circle me-2"></i>Important Notes</h6>
+                                    <ul class="small">
+                                        <li>Keep your calendar feed URL private</li>
+                                        <li>Only confirmed and pending bookings are included</li>
+                                        <li>Cancelled bookings are automatically removed</li>
+                                        <li>Calendar feeds update every hour</li>
+                                        <li>Contact support if you need to regenerate your token</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Troubleshooting -->
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0"><i class="fas fa-question-circle me-2"></i>Troubleshooting</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="accordion" id="troubleshootingAccordion">
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="headingOne">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseOne">
+                                            Calendar not updating in Outlook
+                                        </button>
+                                    </h2>
+                                    <div id="collapseOne" class="accordion-collapse collapse" data-bs-parent="#troubleshootingAccordion">
+                                        <div class="accordion-body">
+                                            <p>If your calendar isn't updating in Outlook:</p>
+                                            <ol>
+                                                <li>Right-click on the calendar in Outlook</li>
+                                                <li>Select "Update Calendar" or "Refresh"</li>
+                                                <li>Wait a few minutes for the update to process</li>
+                                                <li>If still not working, try removing and re-adding the subscription</li>
+                                            </ol>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="headingTwo">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseTwo">
+                                            Events showing wrong time
+                                        </button>
+                                    </h2>
+                                    <div id="collapseTwo" class="accordion-collapse collapse" data-bs-parent="#troubleshootingAccordion">
+                                        <div class="accordion-body">
+                                            <p>If events are showing at the wrong time:</p>
+                                            <ol>
+                                                <li>Check your calendar app's timezone settings</li>
+                                                <li>Ensure your computer's timezone is correct</li>
+                                                <li>All times in the feed are in UTC and should auto-convert</li>
+                                                <li>Try removing and re-adding the calendar subscription</li>
+                                            </ol>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="accordion-item">
+                                    <h2 class="accordion-header" id="headingThree">
+                                        <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseThree">
+                                            Can't subscribe to calendar
+                                        </button>
+                                    </h2>
+                                    <div id="collapseThree" class="accordion-collapse collapse" data-bs-parent="#troubleshootingAccordion">
+                                        <div class="accordion-body">
+                                            <p>If you can't subscribe to the calendar:</p>
+                                            <ol>
+                                                <li>Make sure you're copying the complete URL</li>
+                                                <li>Check your internet connection</li>
+                                                <li>Try using the one-time export method instead</li>
+                                                <li>Some corporate firewalls may block external calendar feeds</li>
+                                                <li>Contact your IT department if needed</li>
+                                            </ol>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function copyToClipboard(elementId, button) {
+    const element = document.getElementById(elementId);
+    element.select();
+    element.setSelectionRange(0, 99999); // For mobile devices
+    
+    try {
+        document.execCommand('copy');
+        
+        // Visual feedback
+        const originalIcon = button.innerHTML;
+        const originalClass = button.className;
+        
+        button.innerHTML = '<i class="fas fa-check"></i>';
+        button.className = button.className.replace('btn-outline-secondary', 'btn-success');
+        
+        setTimeout(() => {
+            button.innerHTML = originalIcon;
+            button.className = originalClass;
+        }, 2000);
+        
+        // Show toast notification
+        showToast('Copied to clipboard!', 'success');
+        
+    } catch (err) {
+        console.error('Could not copy text: ', err);
+        showToast('Failed to copy to clipboard', 'error');
+    }
+}
+
+function showToast(message, type) {
+    // Create toast element
+    const toast = document.createElement('div');
+    toast.className = `alert alert-${type === 'success' ? 'success' : 'danger'} position-fixed`;
+    toast.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 200px;';
+    toast.innerHTML = `
+        <i class="fas fa-${type === 'success' ? 'check' : 'exclamation-triangle'} me-2"></i>
+        ${message}
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Remove after 3 seconds
+    setTimeout(() => {
+        document.body.removeChild(toast);
+    }, 3000);
+}
+
+// Auto-select URL when clicked
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.url-input').forEach(input => {
+        input.addEventListener('click', function() {
+            this.select();
+        });
+    });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,157 @@
+{% extends 'booking/base.html' %}
+
+{% block title %}Save as Template - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-file-earmark-plus"></i> Save Booking as Template</h2>
+    <a href="{% url 'booking:booking_detail' booking.pk %}" class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left"></i> Back to Booking
+    </a>
+</div>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Template Information</h5>
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    {% csrf_token %}
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.name.id_for_label }}" class="form-label">Template Name</label>
+                        {{ form.name }}
+                        {% if form.name.errors %}
+                            <div class="text-danger">
+                                {% for error in form.name.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="text-muted">Choose a descriptive name for this template.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="{{ form.description.id_for_label }}" class="form-label">Description</label>
+                        {{ form.description }}
+                        {% if form.description.errors %}
+                            <div class="text-danger">
+                                {% for error in form.description.errors %}
+                                    <small>{{ error }}</small>
+                                {% endfor %}
+                            </div>
+                        {% endif %}
+                        <small class="text-muted">Optional description to help identify this template later.</small>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check">
+                            {{ form.is_public }}
+                            <label class="form-check-label" for="{{ form.is_public.id_for_label }}">
+                                Make template public (visible to all users)
+                            </label>
+                        </div>
+                        <small class="text-muted">Public templates can be used by other users to create their own bookings.</small>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'booking:booking_detail' booking.pk %}" class="btn btn-secondary">Cancel</a>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-file-earmark-plus"></i> Save Template
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h6 class="mb-0">Booking Details</h6>
+            </div>
+            <div class="card-body">
+                <h6>{{ booking.title }}</h6>
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <tr>
+                            <td><strong>Resource:</strong></td>
+                            <td>{{ booking.resource.name }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Date:</strong></td>
+                            <td>{{ booking.start_time|date:"M d, Y" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Time:</strong></td>
+                            <td>{{ booking.start_time|time:"H:i" }} - {{ booking.end_time|time:"H:i" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Duration:</strong></td>
+                            <td>
+                                {% with duration=booking.duration %}
+                                    {{ duration.seconds|floatformat:0|add:0|div:3600|floatformat:0 }}h 
+                                    {{ duration.seconds|add:0|mod:3600|div:60|floatformat:0 }}m
+                                {% endwith %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td><strong>Status:</strong></td>
+                            <td><span class="badge bg-{{ booking.status }}">{{ booking.get_status_display }}</span></td>
+                        </tr>
+                    </table>
+                </div>
+                
+                {% if booking.description %}
+                    <p class="text-muted"><strong>Description:</strong><br>{{ booking.description }}</p>
+                {% endif %}
+                
+                {% if booking.notes %}
+                    <p class="text-muted"><strong>Notes:</strong><br>{{ booking.notes }}</p>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">What will be saved?</h6>
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled">
+                    <li><i class="bi bi-check text-success"></i> Resource: {{ booking.resource.name }}</li>
+                    <li><i class="bi bi-check text-success"></i> Title: {{ booking.title }}</li>
+                    <li><i class="bi bi-check text-success"></i> Duration: 
+                        {% with duration=booking.duration %}
+                            {{ duration.seconds|floatformat:0|add:0|div:3600|floatformat:0 }}h 
+                            {{ duration.seconds|add:0|mod:3600|div:60|floatformat:0 }}m
+                        {% endwith %}
+                    </li>
+                    <li><i class="bi bi-check text-success"></i> Preferred start time: {{ booking.start_time|time:"H:i" }}</li>
+                    {% if booking.description %}
+                        <li><i class="bi bi-check text-success"></i> Description template</li>
+                    {% endif %}
+                    {% if booking.notes %}
+                        <li><i class="bi bi-check text-success"></i> Notes template</li>
+                    {% endif %}
+                    <li><i class="bi bi-check text-success"></i> Group sharing preference</li>
+                </ul>
+                
+                <div class="alert alert-info mt-3">
+                    <small><i class="bi bi-info-circle"></i> The specific date and time will not be saved - only the duration and preferred start time.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
