@@ -24,5 +24,5 @@ from .main import *
 # Import new modular ViewSets for backward compatibility
 from .viewsets import *
 
-# Import licensing views module for URL routing
-from . import licensing
+# Removed licensing requirement - all features now available
+# from . import licensing

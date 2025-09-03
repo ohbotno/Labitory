@@ -32,7 +32,7 @@ from ...models import (
 from ...forms import (
     AccessRequestReviewForm, RiskAssessmentForm, UserRiskAssessmentForm
 )
-from ...services.licensing import require_license_feature
+# Removed licensing requirement - all features now available
 
 
 def is_lab_admin(user):
@@ -331,7 +331,7 @@ def create_risk_assessment_view(request):
 
 @login_required
 @user_passes_test(is_lab_admin)
-@require_license_feature('advanced_reports')
+# License feature removed - all features now available
 def approval_statistics_view(request):
     """User-friendly approval statistics dashboard."""
     from booking.models import ApprovalStatistics, AccessRequest, TrainingRequest

@@ -49,7 +49,8 @@ from ..forms import (
 )
 from ..recurring import RecurringBookingGenerator, RecurringBookingManager
 from ..conflicts import ConflictDetector, ConflictResolver, ConflictManager
-from ..services.licensing import require_license_feature
+# Removed licensing requirement - all features now available
+# from ..services.licensing import require_license_feature
 from booking.serializers import (
     UserProfileSerializer, ResourceSerializer, BookingSerializer,
     ApprovalRuleSerializer, MaintenanceSerializer, WaitingListEntrySerializer,
@@ -2938,7 +2939,7 @@ def resource_checkin_status_view(request, resource_id):
 
 
 @login_required
-@require_license_feature('advanced_reports')
+# Removed licensing requirement - all features now available
 def usage_analytics_view(request):
     """View usage analytics (managers only)."""
     try:
@@ -4342,7 +4343,7 @@ def is_lab_admin(user):
 
 @login_required
 @user_passes_test(is_lab_admin)
-@require_license_feature('advanced_reports')
+# Removed licensing requirement - all features now available
 def approval_statistics_view(request):
     """User-friendly approval statistics dashboard."""
     from booking.models import ApprovalStatistics, AccessRequest, TrainingRequest
@@ -6986,48 +6987,24 @@ def site_admin_dashboard_view(request):
         update_info = None
     
     # License Information
-    try:
-        from ..services.licensing import license_manager
-        from ..models import LicenseConfiguration, LicenseValidationLog
-        
-        license_info = license_manager.get_license_info()
-        license_config = license_manager.get_current_license()
-        
-        # Recent validation attempts
-        recent_validations = 0
-        validation_failures = 0
-        if license_config:
-            recent_validations = LicenseValidationLog.objects.filter(
-                license=license_config,
-                created_at__gte=thirty_days_ago
-            ).count()
-            validation_failures = LicenseValidationLog.objects.filter(
-                license=license_config,
-                result__in=['expired', 'invalid_key', 'domain_mismatch', 'usage_exceeded'],
-                created_at__gte=thirty_days_ago
-            ).count()
-        
-        license_stats = {
-            'license_type': license_info.get('type', 'open_source'),
-            'is_valid': license_info.get('is_valid', True),
-            'organization': license_info.get('organization', 'Open Source User'),
-            'expires_at': license_info.get('expires_at'),
-            'recent_validations': recent_validations,
-            'validation_failures': validation_failures,
-            'enabled_features': license_manager.get_enabled_features(),
-        }
-        
-    except Exception as e:
-        # Fallback to open source defaults
-        license_stats = {
-            'license_type': 'open_source',
-            'is_valid': True,
-            'organization': 'Open Source User',
-            'expires_at': None,
-            'recent_validations': 0,
-            'validation_failures': 0,
-            'enabled_features': {},
-        }
+    # Removed licensing requirement - all features now available
+    license_stats = {
+        'license_type': 'open_source',
+        'is_valid': True,
+        'organization': 'Open Source User',
+        'expires_at': None,
+        'recent_validations': 0,
+        'validation_failures': 0,
+        'enabled_features': {
+            'advanced_reports': True,
+            'custom_branding': True,
+            'sms_notifications': True,
+            'calendar_sync': True,
+            'maintenance_tracking': True,
+            'white_label': False,
+            'multi_tenant': False,
+        },
+    }
     
     context = {
         'system_info': system_info,
@@ -7056,7 +7033,8 @@ def site_admin_dashboard_view(request):
 def site_admin_license_management_view(request):
     """Site admin license management page."""
     try:
-        from ..services.licensing import license_manager
+        # Removed licensing requirement - all features now available
+        # from ..services.licensing import license_manager
         from ..models import LicenseConfiguration, BrandingConfiguration, LicenseValidationLog
         
         # Get current license information
@@ -7101,13 +7079,14 @@ def site_admin_license_management_view(request):
 
 
 @user_passes_test(lambda u: hasattr(u, 'userprofile') and u.userprofile.role == 'sysadmin')
-@require_license_feature('custom_branding')
+# Removed licensing requirement - all features now available
 def site_admin_branding_config_view(request):
     """Site admin branding configuration page."""
     try:
-        from ..services.licensing import license_manager, get_branding_config
-        from ..models import LicenseConfiguration, BrandingConfiguration
-        from ..views.licensing import BrandingConfigurationForm
+        # Removed licensing requirement - all features now available
+        # from ..services.licensing import license_manager, get_branding_config
+        # from ..models import LicenseConfiguration, BrandingConfiguration
+        # from ..views.licensing import BrandingConfigurationForm
         
         license_config = license_manager.get_current_license()
         
@@ -7155,8 +7134,9 @@ def site_admin_branding_config_view(request):
 def site_admin_license_activate_view(request):
     """Site admin license activation page."""
     try:
-        from ..views.licensing import LicenseActivationForm
-        from ..services.licensing import license_manager
+        # Removed licensing requirement - all features now available
+        # from ..views.licensing import LicenseActivationForm
+        # from ..services.licensing import license_manager
         from ..models import LicenseConfiguration, BrandingConfiguration
         from django.db import transaction
         
@@ -7211,7 +7191,8 @@ def site_admin_license_activate_view(request):
 def site_admin_license_select_open_source_view(request):
     """Site admin open source license selection page."""
     try:
-        from ..services.licensing import license_manager
+        # Removed licensing requirement - all features now available
+        # from ..services.licensing import license_manager
         from ..models import LicenseConfiguration, BrandingConfiguration
         from django.db import transaction
         
@@ -7262,7 +7243,8 @@ def site_admin_license_select_open_source_view(request):
 def site_admin_license_validation_logs_view(request):
     """Site admin license validation logs page."""
     try:
-        from ..services.licensing import license_manager
+        # Removed licensing requirement - all features now available
+        # from ..services.licensing import license_manager
         from ..models import LicenseValidationLog
         from django.core.paginator import Paginator
         
@@ -7309,7 +7291,8 @@ def site_admin_license_validate_ajax(request):
         return JsonResponse({'error': 'Method not allowed'}, status=405)
     
     try:
-        from ..services.licensing import license_manager
+        # Removed licensing requirement - all features now available
+        # from ..services.licensing import license_manager
         
         is_valid, error_msg = license_manager.validate_license(force_remote=True)
         
@@ -7331,7 +7314,8 @@ def site_admin_license_validate_ajax(request):
 def site_admin_license_export_view(request):
     """Export license information and validation logs to CSV."""
     try:
-        from ..services.licensing import license_manager
+        # Removed licensing requirement - all features now available
+        # from ..services.licensing import license_manager
         from ..models import LicenseValidationLog
         import csv
         from django.http import HttpResponse
@@ -8518,7 +8502,7 @@ def site_admin_email_config_edit_view(request, config_id):
 
 # Backup Management Views
 @user_passes_test(lambda u: hasattr(u, 'userprofile') and u.userprofile.role == 'sysadmin')
-@require_license_feature('advanced_reports')
+# Removed licensing requirement - all features now available
 def site_admin_backup_management_view(request):
     """Backup management interface."""
     from booking.backup_service import BackupService

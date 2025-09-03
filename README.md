@@ -2,7 +2,7 @@
 
 A comprehensive laboratory resource management system designed for academic institutions. Built with Django, Labitory provides conflict-free scheduling, collaborative booking management, and detailed analytics for efficient lab resource utilization.
 
-[![License: Dual](https://img.shields.io/badge/License-Dual%20(GPL%2FCommercial)-blue.svg)](LICENSING.md)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![Django 4.2+](https://img.shields.io/badge/django-4.2+-green.svg)](https://www.djangoproject.com/)
 
@@ -68,23 +68,26 @@ This script handles all dependencies, database setup, SSL certificates, and serv
 
 ## License
 
-Labitory is available under **dual licensing**:
+Labitory is **100% open source** under the Apache License 2.0.
 
-### Open Source License (GPL-3.0) - FREE
-- ✅ Full-featured lab booking system
-- ✅ Commercial use allowed
-- ✅ Complete source code access
-- ❗ Must retain "Labitory" branding and attribution
+### 🎆 Why Apache 2.0?
+- ✅ **Completely free** to use, modify, and distribute
+- ✅ **Commercial use allowed** - use it in your business
+- 👆 **Attribution required** - give credit where it's due
+- 🔒 **Patent protection** - prevents patent trolling
+- 📝 **State changes** - modifications must be documented
+- 🎯 **Professional** - used by Kubernetes, Android, Kafka
 
-### Commercial License - PAID
-- 🎨 Remove all Labitory branding
-- 🏷️ Add your own branding and customization
-- 💼 Professional support included
-- 🔒 No GPL obligations
+### 🙏 Attribution
 
-**Pricing:** Starting at £1,599/year
+If you use Labitory, we appreciate (but don't require) a mention like:
+> "Powered by [Labitory](https://github.com/ohbotno/labitory)"
 
-📋 **[View Complete Licensing Guide](LICENSING.md)** | 💼 **[Get Commercial License](mailto:commercial@labitory.org)**
+This helps us understand our impact in the scientific community.
+
+### 🤝 Contributing
+
+We welcome contributions! By contributing, you agree that your contributions will be licensed under Apache 2.0. See our [Contributing Guide](CONTRIBUTING.md) for details.
 
 ---
 

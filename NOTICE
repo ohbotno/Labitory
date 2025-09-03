@@ -1,0 +1,47 @@
+===============================================================================
+                              LABITORY
+           Laboratory Resource Management System
+===============================================================================
+
+Copyright 2025 Labitory Contributors
+
+This product includes software developed for the academic and research 
+community to provide efficient laboratory resource management, scheduling,
+and collaboration tools.
+
+Original Project: https://github.com/ohbotno/labitory
+Documentation: https://docs.labitory.org
+Support: https://github.com/ohbotno/labitory/issues
+
+===============================================================================
+                           ATTRIBUTION NOTICE
+===============================================================================
+
+If you use Labitory in your organization or as a basis for your own software,
+we kindly request (though not require) that you include a visible attribution
+such as "Powered by Labitory" with a link to our repository.
+
+This helps us understand our impact and motivates continued development of
+this free, open-source tool for the scientific community.
+
+===============================================================================
+                           THIRD-PARTY LICENSES
+===============================================================================
+
+This software includes the following third-party open source components:
+
+Django (BSD License)
+Copyright Django Software Foundation and individual contributors
+https://www.djangoproject.com/
+
+Bootstrap (MIT License)
+Copyright 2011-2025 The Bootstrap Authors
+https://getbootstrap.com/
+
+FullCalendar (MIT License)
+Copyright 2025 Adam Shaw
+https://fullcalendar.io/
+
+Additional dependencies and their licenses can be found in requirements.txt
+
+===============================================================================

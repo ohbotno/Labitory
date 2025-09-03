@@ -47,10 +47,11 @@ try:
 except ImportError:
     pass
 
-try:
-    from .licensing import *
-except ImportError:
-    pass
+# Removed licensing requirement - all features now available
+# try:
+#     from .licensing import *
+# except ImportError:
+#     pass
 
 __all__ = [
     'booking_service',

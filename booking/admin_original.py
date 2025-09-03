@@ -2,16 +2,9 @@
 """
 Django admin configuration for the Labitory.
 
-This file is part of the Labitory.
-Copyright (C) 2025 Labitory Contributors
-
-This software is dual-licensed:
-1. GNU General Public License v3.0 (GPL-3.0) - for open source use
-2. Commercial License - for proprietary and commercial use
-
-For GPL-3.0 license terms, see LICENSE file.
-For commercial licensing, see COMMERCIAL-LICENSE.txt or visit:
-https://labitory.org/commercial
+This file is part of Labitory.
+Copyright (c) 2025 Labitory Contributors
+Licensed under the MIT License - see LICENSE file for details.
 """
 
 from django.contrib import admin
@@ -2432,26 +2425,12 @@ class LicenseConfigurationAdmin(admin.ModelAdmin):
     
     def validate_licenses(self, request, queryset):
         """Manually validate selected licenses."""
-        from booking.services.licensing import license_manager
+        # Removed licensing requirement - all features now available
         
-        success_count = 0
-        for license_config in queryset:
-            try:
-                # Temporarily set as current license for validation
-                original_license = license_manager._current_license
-                license_manager._current_license = license_config
-                
-                is_valid, error_msg = license_manager.validate_license(force_remote=True)
-                if is_valid:
-                    success_count += 1
-                    
-                # Restore original license
-                license_manager._current_license = original_license
-                
-            except Exception as e:
-                self.message_user(request, f"Validation failed for {license_config.organization_name}: {e}")
+        # All licenses are considered valid in open source mode
+        success_count = queryset.count()
         
-        self.message_user(request, f"Successfully validated {success_count} licenses")
+        self.message_user(request, f"All {success_count} licenses are valid (licensing disabled)")
     
     validate_licenses.short_description = 'Validate selected licenses'
     

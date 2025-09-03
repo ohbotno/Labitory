@@ -43,7 +43,8 @@ from ...forms import (
     ResourceResponsibleForm, ResourceIssueReportForm, ResourceIssueUpdateForm,
     IssueFilterForm
 )
-from ...services.licensing import require_license_feature
+# Removed licensing requirement - all features now available
+# from ...services.licensing import require_license_feature
 from ...notifications import notification_service
 
 

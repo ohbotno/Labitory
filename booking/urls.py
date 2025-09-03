@@ -2,16 +2,9 @@
 """
 URL configuration for the booking app.
 
-This file is part of the Labitory.
-Copyright (C) 2025 Labitory Contributors
-
-This software is dual-licensed:
-1. GNU General Public License v3.0 (GPL-3.0) - for open source use
-2. Commercial License - for proprietary and commercial use
-
-For GPL-3.0 license terms, see LICENSE file.
-For commercial licensing, see COMMERCIAL-LICENSE.txt or visit:
-https://aperature-booking.org/commercial
+This file is part of Labitory.
+Copyright (c) 2025 Labitory Contributors
+Licensed under the MIT License - see LICENSE file for details.
 """
 
 from django.urls import path, include
@@ -213,24 +206,6 @@ urlpatterns = [
     path('site-admin/updates/', views.site_admin_updates_view, name='site_admin_updates'),
     path('site-admin/updates/ajax/', views.site_admin_updates_ajax_view, name='site_admin_updates_ajax'),
     
-    # Site Admin License Management URLs
-    path('site-admin/license/', views.site_admin_license_management_view, name='site_admin_license_management'),
-    path('site-admin/license/activate/', views.site_admin_license_activate_view, name='site_admin_license_activate'),
-    path('site-admin/license/select-open-source/', views.site_admin_license_select_open_source_view, name='site_admin_license_select_open_source'),
-    path('site-admin/license/branding/', views.site_admin_branding_config_view, name='site_admin_branding_config'),
-    path('site-admin/license/logs/', views.site_admin_license_validation_logs_view, name='site_admin_license_logs'),
-    path('site-admin/license/validate/ajax/', views.site_admin_license_validate_ajax, name='site_admin_license_validate_ajax'),
-    path('site-admin/license/export/', views.site_admin_license_export_view, name='site_admin_license_export'),
-    
-    # License Management URLs (redirects to site-admin)
-    path('license/', lambda request: redirect('booking:site_admin_license_management'), name='license_status'),
-    path('license/activate/', lambda request: redirect('booking:site_admin_license_activate'), name='license_activate'),
-    path('license/select-open-source/', lambda request: redirect('booking:site_admin_license_select_open_source'), name='license_select_open_source'),
-    path('license/configure/', lambda request: redirect('booking:site_admin_license_management'), name='license_configure'),
-    path('license/logs/', lambda request: redirect('booking:site_admin_license_logs'), name='license_validation_logs'),
-    path('license/validate/', views.licensing.license_validate_now, name='license_validate_now'),
-    path('license/api/status/', views.licensing.license_api_status, name='license_api_status'),
-    path('license/generate-key/', views.licensing.generate_license_key_view, name='generate_license_key'),
     
     # AJAX URLs
     path('ajax/checklist-item/create/', views.ajax_create_checklist_item, name='ajax_create_checklist_item'),
