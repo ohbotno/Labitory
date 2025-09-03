@@ -6,17 +6,17 @@
 {% block extra_css %}
 <style>
 .rule-card {
-    background: white;
+    background: var(--color-bg-primary);
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     margin-bottom: 1rem;
-    border-left: 4px solid #007bff;
+    border-left: 4px solid var(--color-primary);
 }
-.rule-auto { border-left-color: #28a745; }
-.rule-single { border-left-color: #ffc107; }
-.rule-tiered { border-left-color: #dc3545; }
-.rule-quota { border-left-color: #6f42c1; }
-.rule-conditional { border-left-color: #fd7e14; }
+.rule-auto { border-left-color: var(--color-success); }
+.rule-single { border-left-color: var(--color-warning); }
+.rule-tiered { border-left-color: var(--color-danger); }
+.rule-quota { border-left-color: var(--color-info); }
+.rule-conditional { border-left-color: var(--color-warning-hover); }
 
 .condition-badge {
     font-size: 0.75rem;
@@ -26,28 +26,28 @@
     margin-bottom: 0.25rem;
     display: inline-block;
 }
-.condition-time { background-color: #e3f2fd; color: #1565c0; }
-.condition-usage { background-color: #f3e5f5; color: #7b1fa2; }
-.condition-training { background-color: #e8f5e8; color: #2e7d32; }
-.condition-role { background-color: #fff3e0; color: #ef6c00; }
-.condition-resource { background-color: #fce4ec; color: #c2185b; }
+.condition-time { background-color: var(--color-info-lighter); color: var(--color-info-text); }
+.condition-usage { background-color: var(--color-primary-lighter); color: var(--color-primary-active); }
+.condition-training { background-color: var(--color-success-lighter); color: var(--color-success-text); }
+.condition-role { background-color: var(--color-warning-lighter); color: var(--color-warning-text); }
+.condition-resource { background-color: var(--color-danger-lighter); color: var(--color-danger-text); }
 
 .rule-builder {
-    background-color: #f8f9fa;
-    border: 2px dashed #dee2e6;
+    background-color: var(--color-bg-secondary);
+    border: 2px dashed var(--color-border-light);
     border-radius: 8px;
     padding: 2rem;
     text-align: center;
     margin-bottom: 1rem;
 }
 .rule-builder:hover {
-    border-color: #007bff;
-    background-color: #e7f3ff;
+    border-color: var(--color-primary);
+    background-color: var(--color-primary-lighter);
 }
 
 .condition-builder {
-    background-color: #ffffff;
-    border: 1px solid #dee2e6;
+    background-color: var(--color-bg-primary);
+    border: 1px solid var(--color-border-light);
     border-radius: 8px;
     padding: 1rem;
     margin-bottom: 1rem;

@@ -206,6 +206,14 @@ urlpatterns = [
     path('site-admin/updates/', views.site_admin_updates_view, name='site_admin_updates'),
     path('site-admin/updates/ajax/', views.site_admin_updates_ajax_view, name='site_admin_updates_ajax'),
     
+    # License Management URLs (Site Admin)
+    path('site-admin/license/', views.site_admin_license_management_view, name='site_admin_license_management'),
+    path('site-admin/license/activate/', views.site_admin_license_activate_view, name='site_admin_license_activate'),
+    path('site-admin/license/select-open-source/', views.site_admin_license_select_open_source_view, name='site_admin_license_select_open_source'),
+    path('site-admin/license/validation-logs/', views.site_admin_license_validation_logs_view, name='site_admin_license_validation_logs'),
+    path('site-admin/license/validate-ajax/', views.site_admin_license_validate_ajax, name='site_admin_license_validate_ajax'),
+    path('site-admin/license/export/', views.site_admin_license_export_view, name='site_admin_license_export'),
+    path('site-admin/branding/', views.site_admin_branding_config_view, name='site_admin_branding_config'),
     
     # AJAX URLs
     path('ajax/checklist-item/create/', views.ajax_create_checklist_item, name='ajax_create_checklist_item'),

@@ -14,6 +14,74 @@
     --focus-shadow-dark: 0 0 0 0.25rem rgba(66, 153, 225, 0.4);
     --high-contrast-text: #000000;
     --high-contrast-bg: #ffffff;
+    
+    /* === DESIGN TOKEN SYSTEM - LIGHT THEME === */
+    
+    /* Primary Colors */
+    --color-primary: #0d6efd;
+    --color-primary-hover: #0b5ed7;
+    --color-primary-active: #0a58ca;
+    --color-primary-light: #cfe2ff;
+    --color-primary-lighter: #e7f1ff;
+    
+    /* Success Colors */
+    --color-success: #1e7e34;
+    --color-success-hover: #218838;
+    --color-success-active: #155724;
+    --color-success-light: #d4edda;
+    --color-success-lighter: #f8fff9;
+    --color-success-text: #155724;
+    
+    /* Danger Colors */
+    --color-danger: #dc3545;
+    --color-danger-hover: #c82333;
+    --color-danger-active: #bd2130;
+    --color-danger-light: #f8d7da;
+    --color-danger-lighter: #fff8f8;
+    --color-danger-text: #721c24;
+    
+    /* Warning Colors */
+    --color-warning: #ffc107;
+    --color-warning-hover: #e0a800;
+    --color-warning-active: #d39e00;
+    --color-warning-light: #fff3cd;
+    --color-warning-lighter: #fffbf0;
+    --color-warning-text: #856404;
+    
+    /* Info Colors */
+    --color-info: #17a2b8;
+    --color-info-hover: #138496;
+    --color-info-active: #117a8b;
+    --color-info-light: #d1ecf1;
+    --color-info-lighter: #f0faff;
+    --color-info-text: #0c5460;
+    
+    /* Gray Scale */
+    --color-gray-100: #f8f9fa;
+    --color-gray-200: #e9ecef;
+    --color-gray-300: #dee2e6;
+    --color-gray-400: #ced4da;
+    --color-gray-500: #adb5bd;
+    --color-gray-600: #6c757d;
+    --color-gray-700: #495057;
+    --color-gray-800: #343a40;
+    --color-gray-900: #212529;
+    
+    /* Text Colors */
+    --color-text-primary: #212529;
+    --color-text-secondary: #495057;
+    --color-text-muted: #495057;
+    --color-text-light: #ffffff;
+    
+    /* Background Colors */
+    --color-bg-primary: #ffffff;
+    --color-bg-secondary: #f8f9fa;
+    --color-bg-tertiary: #e9ecef;
+    
+    /* Border Colors */
+    --color-border-light: #dee2e6;
+    --color-border-medium: #ced4da;
+    --color-border-dark: #adb5bd;
 }
 
 /* Dark Mode CSS Variables */
@@ -30,6 +98,74 @@
     --bs-dark: #f7fafc;
     --bs-border-color: #4a5568;
     --focus-color: #4299e1;
+    
+    /* === DESIGN TOKEN SYSTEM - DARK THEME === */
+    
+    /* Primary Colors */
+    --color-primary: #5bb3f0;
+    --color-primary-hover: #4299e1;
+    --color-primary-active: #3182ce;
+    --color-primary-light: #2d3748;
+    --color-primary-lighter: #1a202c;
+    
+    /* Success Colors */
+    --color-success: #4ade80;
+    --color-success-hover: #38a169;
+    --color-success-active: #2f855a;
+    --color-success-light: #22543d;
+    --color-success-lighter: #1a202c;
+    --color-success-text: #9ae6b4;
+    
+    /* Danger Colors */
+    --color-danger: #e53e3e;
+    --color-danger-hover: #c53030;
+    --color-danger-active: #9b2c2c;
+    --color-danger-light: #742a2a;
+    --color-danger-lighter: #1a202c;
+    --color-danger-text: #feb2b2;
+    
+    /* Warning Colors */
+    --color-warning: #d69e2e;
+    --color-warning-hover: #b7791f;
+    --color-warning-active: #975a16;
+    --color-warning-light: #744210;
+    --color-warning-lighter: #1a202c;
+    --color-warning-text: #f6e05e;
+    
+    /* Info Colors */
+    --color-info: #3182ce;
+    --color-info-hover: #2b77cb;
+    --color-info-active: #2c5282;
+    --color-info-light: #2a4365;
+    --color-info-lighter: #1a202c;
+    --color-info-text: #90cdf4;
+    
+    /* Gray Scale - Fixed dark theme mapping */
+    --color-gray-100: #f9fafb;  /* Lightest for dark theme text */
+    --color-gray-200: #e5e7eb;
+    --color-gray-300: #d1d5db;
+    --color-gray-400: #9ca3af;
+    --color-gray-500: #6b7280;
+    --color-gray-600: #4a5568;
+    --color-gray-700: #374151;
+    --color-gray-800: #2d3748;
+    --color-gray-900: #1a202c;  /* Darkest for dark theme backgrounds */
+    
+    /* Text Colors */
+    --color-text-primary: #e9ecef;
+    --color-text-secondary: #a0aec0;
+    --color-text-muted: #9ca3af;
+    --color-text-light: #ffffff;
+    
+    /* Background Colors */
+    --color-bg-primary: #1a1a1a;
+    --color-bg-secondary: #2d3748;
+    --color-bg-tertiary: #374151;
+    
+    /* Border Colors */
+    --color-border-light: #374151;
+    --color-border-medium: #4a5568;
+    --color-border-dark: #6b7280;
 }
 
 /* Global Dark Mode Styles */
@@ -38,9 +174,57 @@
     color: #e9ecef !important;
 }
 
-/* Navigation */
-[data-theme="dark"] .navbar-dark {
-    background-color: #212529 !important;
+/* Navigation - Enhanced specificity for dark mode */
+[data-theme="dark"] .navbar.navbar-dark.bg-dark,
+[data-theme="dark"] .navbar-dark.bg-dark,
+[data-theme="dark"] .navbar.bg-dark,
+[data-theme="dark"] nav.navbar.bg-dark,
+[data-theme="dark"] nav.navbar-dark {
+    background-color: var(--color-gray-900) !important;
+    border-bottom: 1px solid var(--color-border-medium);
+}
+
+[data-theme="dark"] .bg-dark,
+[data-theme="dark"] nav.bg-dark {
+    background-color: var(--color-gray-900) !important;
+}
+
+/* Extra specificity for Bootstrap navbar classes */
+[data-theme="dark"] nav.navbar.navbar-dark.bg-dark.fixed-top {
+    background-color: var(--color-gray-900) !important;
+}
+
+/* Navbar text and links - Enhanced specificity */
+[data-theme="dark"] .navbar-dark .navbar-brand,
+[data-theme="dark"] .navbar-dark .nav-link,
+[data-theme="dark"] .navbar .navbar-brand,
+[data-theme="dark"] .navbar .nav-link,
+[data-theme="dark"] .navbar .navbar-nav .nav-link {
+    color: var(--color-text-light) !important;
+}
+
+[data-theme="dark"] .navbar-dark .navbar-brand:hover,
+[data-theme="dark"] .navbar-dark .nav-link:hover,
+[data-theme="dark"] .navbar .navbar-brand:hover,
+[data-theme="dark"] .navbar .nav-link:hover,
+[data-theme="dark"] .navbar .navbar-nav .nav-link:hover {
+    color: var(--color-primary) !important;
+}
+
+/* Navbar brand text specifically */
+[data-theme="dark"] .navbar-brand span,
+[data-theme="dark"] .navbar-brand small {
+    color: var(--color-text-light) !important;
+}
+
+[data-theme="dark"] .navbar-brand small.text-muted {
+    color: var(--color-text-secondary) !important;
+}
+
+/* Dropdown menus in navbar */
+[data-theme="dark"] .navbar .dropdown-menu {
+    background-color: var(--color-bg-secondary) !important;
+    border-color: var(--color-border-medium) !important;
 }
 
 /* Sidebar */
@@ -498,4 +682,112 @@ a:focus,
 [data-theme="dark"] .btn-outline-secondary:hover {
     background-color: #a0aec0 !important;
     color: #1a1a1a !important;
+}
+
+/* ========================================
+   DESIGN TOKEN UTILITY CLASSES
+   ======================================== */
+
+/* Background Color Utilities */
+.bg-primary-custom { background-color: var(--color-primary) !important; }
+.bg-primary-light { background-color: var(--color-primary-light) !important; }
+.bg-primary-lighter { background-color: var(--color-primary-lighter) !important; }
+
+.bg-success-custom { background-color: var(--color-success) !important; }
+.bg-success-light { background-color: var(--color-success-light) !important; }
+.bg-success-lighter { background-color: var(--color-success-lighter) !important; }
+
+.bg-danger-custom { background-color: var(--color-danger) !important; }
+.bg-danger-light { background-color: var(--color-danger-light) !important; }
+.bg-danger-lighter { background-color: var(--color-danger-lighter) !important; }
+
+.bg-warning-custom { background-color: var(--color-warning) !important; }
+.bg-warning-light { background-color: var(--color-warning-light) !important; }
+.bg-warning-lighter { background-color: var(--color-warning-lighter) !important; }
+
+.bg-info-custom { background-color: var(--color-info) !important; }
+.bg-info-light { background-color: var(--color-info-light) !important; }
+.bg-info-lighter { background-color: var(--color-info-lighter) !important; }
+
+.bg-gray-100 { background-color: var(--color-gray-100) !important; }
+.bg-gray-200 { background-color: var(--color-gray-200) !important; }
+.bg-gray-300 { background-color: var(--color-gray-300) !important; }
+
+/* Text Color Utilities */
+.text-primary-custom { color: var(--color-primary) !important; }
+.text-success-custom { color: var(--color-success) !important; }
+.text-success-custom-text { color: var(--color-success-text) !important; }
+.text-danger-custom { color: var(--color-danger) !important; }
+.text-danger-custom-text { color: var(--color-danger-text) !important; }
+.text-warning-custom { color: var(--color-warning) !important; }
+.text-warning-custom-text { color: var(--color-warning-text) !important; }
+.text-info-custom { color: var(--color-info) !important; }
+.text-info-custom-text { color: var(--color-info-text) !important; }
+
+.text-primary-token { color: var(--color-text-primary) !important; }
+.text-secondary-token { color: var(--color-text-secondary) !important; }
+.text-muted-token { color: var(--color-text-muted) !important; }
+
+/* Border Color Utilities */
+.border-primary-custom { border-color: var(--color-primary) !important; }
+.border-success-custom { border-color: var(--color-success) !important; }
+.border-danger-custom { border-color: var(--color-danger) !important; }
+.border-warning-custom { border-color: var(--color-warning) !important; }
+.border-info-custom { border-color: var(--color-info) !important; }
+
+.border-light-token { border-color: var(--color-border-light) !important; }
+.border-medium-token { border-color: var(--color-border-medium) !important; }
+.border-dark-token { border-color: var(--color-border-dark) !important; }
+
+/* Button Hover States */
+.btn-primary-custom:hover { background-color: var(--color-primary-hover) !important; }
+.btn-success-custom:hover { background-color: var(--color-success-hover) !important; }
+.btn-danger-custom:hover { background-color: var(--color-danger-hover) !important; }
+.btn-warning-custom:hover { background-color: var(--color-warning-hover) !important; }
+.btn-info-custom:hover { background-color: var(--color-info-hover) !important; }
+
+/* Alert Styles Using Design Tokens */
+.alert-success-token {
+    background-color: var(--color-success-light) !important;
+    border-color: var(--color-success) !important;
+    color: var(--color-success-text) !important;
+}
+
+.alert-danger-token {
+    background-color: var(--color-danger-light) !important;
+    border-color: var(--color-danger) !important;
+    color: var(--color-danger-text) !important;
+}
+
+.alert-warning-token {
+    background-color: var(--color-warning-light) !important;
+    border-color: var(--color-warning) !important;
+    color: var(--color-warning-text) !important;
+}
+
+.alert-info-token {
+    background-color: var(--color-info-light) !important;
+    border-color: var(--color-info) !important;
+    color: var(--color-info-text) !important;
+}
+
+/* Badge Styles Using Design Tokens */
+.badge-success-token {
+    background-color: var(--color-success) !important;
+    color: var(--color-text-light) !important;
+}
+
+.badge-danger-token {
+    background-color: var(--color-danger) !important;
+    color: var(--color-text-light) !important;
+}
+
+.badge-warning-token {
+    background-color: var(--color-warning) !important;
+    color: var(--color-text-primary) !important;
+}
+
+.badge-info-token {
+    background-color: var(--color-info) !important;
+    color: var(--color-text-light) !important;
 }

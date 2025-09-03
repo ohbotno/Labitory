@@ -49,23 +49,23 @@
     <style>
         /* Critical dark theme styles to prevent flash */
         html {
-            background-color: #ffffff;
+            background-color: var(--color-bg-primary);
             transition: background-color 0s;
         }
         
         html[data-theme="dark"] {
-            background-color: #1a1a1a !important;
+            background-color: var(--color-bg-primary) !important;
         }
         
         body {
-            background-color: #ffffff;
-            color: #000000;
+            background-color: var(--color-bg-primary);
+            color: var(--color-text-primary);
             transition: none;
         }
         
         html[data-theme="dark"] body {
-            background-color: #1a1a1a !important;
-            color: #ffffff !important;
+            background-color: var(--color-bg-primary) !important;
+            color: var(--color-text-primary) !important;
         }
         
         /* Critical navbar styles for dark theme */
@@ -73,22 +73,25 @@
             transition: none;
         }
         
-        html[data-theme="dark"] .navbar {
-            background-color: #212529 !important;
+        html[data-theme="dark"] .navbar.navbar-dark.bg-dark,
+        html[data-theme="dark"] .navbar.bg-dark {
+            background-color: #1a202c !important; /* Use explicit dark color */
         }
         
-        html[data-theme="dark"] .navbar-dark {
-            background-color: #212529 !important;
+        html[data-theme="dark"] .navbar-brand,
+        html[data-theme="dark"] .navbar-brand span,
+        html[data-theme="dark"] .navbar .nav-link {
+            color: #ffffff !important;
         }
         
-        html[data-theme="dark"] .bg-dark {
-            background-color: #212529 !important;
+        html[data-theme="dark"] .navbar-brand small.text-muted {
+            color: #a0aec0 !important;
         }
         
         /* Critical sidebar styles for dark theme */
         html[data-theme="dark"] .sidebar {
-            background-color: #2b2b2b !important;
-            color: #ffffff !important;
+            background-color: var(--color-bg-secondary) !important;
+            color: var(--color-text-light) !important;
         }
         
         /* Smooth transition after initial load - but not for critical elements */
@@ -220,14 +223,14 @@
         }
         
         .notification-dropdown .dropdown-header {
-            background-color: #f8f9fa;
+            background-color: var(--color-bg-secondary);
             border-radius: 8px 8px 0 0;
             font-weight: 600;
-            color: #495057;
+            color: var(--color-text-secondary);
         }
         
         .notification-preview {
-            background-color: #f8f9fa;
+            background-color: var(--color-bg-secondary);
             border-radius: 6px;
             padding: 8px;
         }
@@ -238,7 +241,7 @@
         }
         
         .notification-dropdown .dropdown-item:hover {
-            background-color: #e9ecef;
+            background-color: var(--color-bg-tertiary);
         }
         
         /* Skip navigation link for accessibility */
@@ -246,8 +249,8 @@
             position: absolute;
             top: -40px;
             left: 6px;
-            background: #000;
-            color: #fff;
+            background: var(--color-gray-900);
+            color: var(--color-text-light);
             padding: 8px;
             text-decoration: none;
             border-radius: 0 0 6px 6px;
@@ -257,7 +260,7 @@
         
         .skip-link:focus {
             top: 0;
-            color: #fff;
+            color: var(--color-text-light);
             text-decoration: none;
         }
     </style>
@@ -609,7 +612,7 @@
             <main id="main-content" class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content" role="main" aria-label="Main content">
                 {% if messages %}
                     {% for message in messages %}
-                        <div class="alert alert-{{ message.level_tag }} alert-dismissible fade show{% if message.level_tag == 'success' %} alert-success-prominent{% endif %}{% if 'persistent-alert' in message.tags %} persistent-alert{% endif %}" role="alert" style="{% if message.level_tag == 'success' %}border-left: 5px solid #28a745; background: linear-gradient(135deg, #d4edda 0%, #c3e6cb 100%); font-size: 1.05em; color: #155724 !important;{% endif %}">
+                        <div class="alert alert-{{ message.level_tag }} alert-dismissible fade show{% if message.level_tag == 'success' %} alert-success-prominent{% endif %}{% if 'persistent-alert' in message.tags %} persistent-alert{% endif %}" role="alert" style="{% if message.level_tag == 'success' %}border-left: 5px solid var(--color-success); background: linear-gradient(135deg, var(--color-success-light) 0%, var(--color-success-light) 100%); font-size: 1.05em; color: var(--color-success-text) !important;{% endif %}">
                             {% if message.level_tag == 'success' %}
                                 {{ message|safe }}
                             {% else %}
@@ -1242,7 +1245,7 @@
             left: 0;
             right: 0;
             height: 3px;
-            background: linear-gradient(90deg, #28a745, #20c997, #28a745);
+            background: linear-gradient(90deg, var(--color-success), var(--color-info), var(--color-success));
             background-size: 200% 100%;
             animation: shimmer 2s infinite;
         }
@@ -1253,10 +1256,7 @@
         }
         
         
-        /* Dark mode navbar */
-        [data-theme="dark"] .navbar-dark {
-            background-color: #212529 !important;
-        }
+        /* Dark mode navbar - handled by dark-mode.css */
         
         /* Dark mode sidebar */
         [data-theme="dark"] .sidebar {
@@ -1507,7 +1507,7 @@
         .theme-toggle {
             background: none;
             border: none;
-            color: #ffffff;
+            color: var(--color-text-light);
             font-size: 1.2rem;
             padding: 0.5rem;
             margin-right: 0.5rem;
@@ -1527,7 +1527,7 @@
         }
         
         [data-theme="dark"] .theme-toggle {
-            color: #e9ecef;
+            color: var(--color-text-primary);
         }
         
         [data-theme="dark"] .theme-toggle:hover {
@@ -1581,7 +1581,7 @@
         }
         
         .loading-spinner {
-            background: white;
+            background: var(--color-bg-primary);
             border-radius: 8px;
             padding: 2rem;
             text-align: center;
@@ -1589,8 +1589,8 @@
         }
         
         [data-theme="dark"] .loading-spinner {
-            background: #2d3748;
-            color: #e9ecef;
+            background: var(--color-bg-secondary);
+            color: var(--color-text-primary);
         }
     </style>
     
