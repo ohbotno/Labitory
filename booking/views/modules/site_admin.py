@@ -30,32 +30,11 @@ def site_admin_dashboard_view(request):
     return render(request, 'booking/site_admin/dashboard.html')
 
 
-@login_required  
-def site_admin_license_management_view(request):
-    """License management placeholder."""
-    return JsonResponse({'message': 'License management functionality'})
-
-
 # Additional placeholder functions for all site_admin functions
 # These will need to be properly implemented based on the original main.py
 
 def site_admin_branding_config_view(request):
     return JsonResponse({'message': 'Branding config'})
-
-def site_admin_license_activate_view(request):
-    return JsonResponse({'message': 'License activate'})
-
-def site_admin_license_select_open_source_view(request):
-    return JsonResponse({'message': 'License select open source'})
-
-def site_admin_license_validation_logs_view(request):
-    return JsonResponse({'message': 'License validation logs'})
-
-def site_admin_license_validate_ajax(request):
-    return JsonResponse({'message': 'License validate ajax'})
-
-def site_admin_license_export_view(request):
-    return JsonResponse({'message': 'License export'})
 
 def site_admin_users_view(request):
     return JsonResponse({'message': 'Site admin users'})

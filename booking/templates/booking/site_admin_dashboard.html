@@ -4,6 +4,143 @@
 {% block title %}Site Administration - {{ lab_name }}{% endblock %}
 
 {% block content %}
+<style>
+/* Admin Action Cards Styling */
+.admin-action-card {
+    transition: all 0.2s ease-in-out;
+}
+
+.admin-card-hover {
+    transition: all 0.2s ease-in-out;
+    border: 1px solid transparent !important;
+}
+
+.admin-card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+.admin-card-clickable:hover {
+    cursor: pointer;
+}
+
+.admin-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    position: relative;
+}
+
+/* Category Headers */
+.admin-actions .text-muted {
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
+}
+
+/* Card title and description styling */
+.admin-action-card .card-title {
+    font-weight: 600;
+    color: #2d3748 !important;
+}
+
+.admin-action-card .card-text {
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+/* Badge positioning for notifications */
+.admin-action-card .position-absolute {
+    top: -5px !important;
+    right: -5px !important;
+}
+
+/* Dark theme support */
+[data-theme="dark"] .admin-card-hover {
+    background-color: var(--bs-dark) !important;
+    color: var(--bs-light) !important;
+}
+
+[data-theme="dark"] .admin-action-card .card-title {
+    color: var(--bs-light) !important;
+}
+
+[data-theme="dark"] .admin-card-hover:hover {
+    background-color: #2d3748 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Role Distribution Cards Styling */
+.role-stat-card {
+    transition: all 0.2s ease-in-out;
+}
+
+.role-card-hover {
+    transition: all 0.2s ease-in-out;
+    border: 1px solid transparent !important;
+}
+
+.role-card-hover:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+.role-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.1rem;
+    margin: 0 auto;
+}
+
+/* Dark theme support for role cards */
+[data-theme="dark"] .role-card-hover {
+    background-color: var(--bs-dark) !important;
+    color: var(--bs-light) !important;
+}
+
+[data-theme="dark"] .role-stat-card .card-title {
+    color: var(--bs-light) !important;
+}
+
+[data-theme="dark"] .role-card-hover:hover {
+    background-color: #2d3748 !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .admin-icon {
+        width: 40px;
+        height: 40px;
+        font-size: 1rem;
+    }
+    
+    .admin-action-card .card-title {
+        font-size: 0.95rem;
+    }
+    
+    .admin-action-card .card-text {
+        font-size: 0.8rem;
+    }
+    
+    .role-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+}
+</style>
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
@@ -15,40 +152,6 @@
                 <div class="text-muted">
                     <i class="fas fa-clock me-1"></i>
                     {{ system_info.server_time|date:"Y-m-d H:i:s T" }}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- System Information Card -->
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-server me-2"></i>
-                        System Information
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <strong>Python Version:</strong><br>
-                            <code>{{ system_info.python_version|slice:":10" }}</code>
-                        </div>
-                        <div class="col-md-3">
-                            <strong>Django Version:</strong><br>
-                            <code>{{ system_info.django_version }}</code>
-                        </div>
-                        <div class="col-md-3">
-                            <strong>Platform:</strong><br>
-                            <code>{{ system_info.platform }}</code>
-                        </div>
-                        <div class="col-md-3">
-                            <strong>Server Time:</strong><br>
-                            <code>{{ system_info.server_time|date:"Y-m-d H:i:s T" }}</code>
-                        </div>
-                    </div>
                 </div>
             </div>
         </div>
@@ -125,253 +228,217 @@
         </div>
     </div>
 
-    <div class="row">
-        <!-- Quick Actions -->
-        <div class="col-lg-6 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-bolt me-2"></i>
-                        Quick Actions
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div class="d-grid gap-2">
-                        <a href="{% url 'booking:site_admin_users' %}" class="btn btn-outline-primary">
-                            <i class="fas fa-users me-2"></i>
-                            Manage Users
-                        </a>
-                        <a href="{% url 'booking:lab_admin_resources' %}" class="btn btn-outline-success">
-                            <i class="fas fa-tools me-2"></i>
-                            Manage Resources
-                        </a>
-                        <a href="{% url 'booking:lab_admin_access_requests' %}" class="btn btn-outline-primary">
-                            <i class="fas fa-key me-2"></i>
-                            Review Access Requests
-                            {% if stats.pending_access_requests > 0 %}
-                                <span class="badge bg-warning">{{ stats.pending_access_requests }}</span>
-                            {% endif %}
-                        </a>
-                        <a href="{% url 'booking:site_admin_config' %}" class="btn btn-outline-info">
-                            <i class="fas fa-cog me-2"></i>
-                            System Configuration
-                        </a>
-                        <a href="{% url 'booking:site_admin_academic_hierarchy' %}" class="btn btn-outline-primary">
-                            <i class="fas fa-sitemap me-2"></i>
-                            Academic Hierarchy
-                        </a>
-                        <a href="{% url 'booking:site_admin_audit' %}" class="btn btn-outline-secondary">
-                            <i class="fas fa-list-alt me-2"></i>
-                            Audit Logs
-                        </a>
-                        <a href="{% url 'booking:site_admin_email_config' %}" class="btn btn-outline-success">
-                            <i class="fas fa-envelope-open-text me-2"></i>
-                            Email Configuration
-                        </a>
-                        <a href="{% url 'booking:site_admin_backup_management' %}" class="btn btn-outline-primary">
-                            <i class="fas fa-database me-2"></i>
-                            Backup Management
-                        </a>
-                        <a href="{% url 'booking:site_admin_updates' %}" class="btn btn-outline-info">
-                            <i class="fas fa-download me-2"></i>
-                            Application Updates
-                        </a>
-                        <a href="{% url 'booking:site_admin_license_management' %}" class="btn btn-outline-purple">
-                            <i class="fas fa-certificate me-2"></i>
-                            License Management
-                            {% if license_stats.license_type != 'open_source' %}
-                                {% if license_stats.is_valid %}
-                                    <span class="badge bg-success">Valid</span>
-                                {% else %}
-                                    <span class="badge bg-danger">Invalid</span>
-                                {% endif %}
-                            {% endif %}
-                        </a>
-                        <button id="healthCheckBtn" class="btn btn-outline-danger">
-                            <i class="fas fa-heartbeat me-2"></i>
-                            System Health Check
-                            <span id="healthCheckSpinner" class="spinner-border spinner-border-sm ms-2 d-none" role="status" aria-hidden="true"></span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- User Role Distribution -->
-        <div class="col-lg-6 mb-4">
-            <div class="card">
-                <div class="card-header">
-                    <h5 class="card-title mb-0">
-                        <i class="fas fa-chart-pie me-2"></i>
-                        User Role Distribution
-                    </h5>
-                </div>
-                <div class="card-body">
-                    {% for role in user_roles %}
-                    <div class="d-flex justify-content-between align-items-center mb-2">
-                        <div>
-                            <strong>{{ role.role|title }}</strong>
-                        </div>
-                        <div>
-                            <span class="badge bg-primary">{{ role.count }}</span>
-                        </div>
-                    </div>
-                    <div class="progress mb-3" style="height: 8px;">
-                        <div class="progress-bar" role="progressbar" 
-                             style="width: {% widthratio role.count stats.total_users 100 %}%;">
-                        </div>
-                    </div>
-                    {% endfor %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- License Information -->
+    <!-- Administrative Actions -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card">
                 <div class="card-header">
                     <h5 class="card-title mb-0">
-                        <i class="fas fa-certificate me-2"></i>
-                        License Information
+                        <i class="fas fa-tasks me-2"></i>
+                        Administrative Actions
                     </h5>
                 </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <div class="text-center p-3">
-                                <div class="mb-2">
-                                    {% if license_stats.license_type == 'open_source' %}
-                                        <i class="fas fa-code fa-3x text-success"></i>
-                                    {% elif license_stats.is_valid %}
-                                        <i class="fas fa-certificate fa-3x text-primary"></i>
-                                    {% else %}
-                                        <i class="fas fa-exclamation-triangle fa-3x text-danger"></i>
-                                    {% endif %}
+                    <!-- User & Access Management -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3">
+                            <i class="fas fa-users me-2"></i>
+                            User & Access Management
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-6 col-xl-4">
+                                <div class="admin-action-card">
+                                    <a href="{% url 'booking:site_admin_users' %}" class="text-decoration-none">
+                                        <div class="card border-0 h-100 shadow-sm admin-card-hover">
+                                            <div class="card-body d-flex align-items-center">
+                                                <div class="admin-icon bg-primary-subtle text-primary me-3">
+                                                    <i class="fas fa-users"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <h6 class="card-title mb-1 text-dark">Manage Users</h6>
+                                                    <p class="card-text text-muted small mb-0">Add, edit, and manage user accounts</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
                                 </div>
-                                <h5 class="mb-1">
-                                    {% if license_stats.license_type == 'open_source' %}
-                                        Open Source
-                                    {% elif license_stats.license_type == 'basic_commercial' %}
-                                        Basic Commercial
-                                    {% elif license_stats.license_type == 'premium_commercial' %}
-                                        Premium Commercial
-                                    {% elif license_stats.license_type == 'enterprise' %}
-                                        Enterprise
-                                    {% else %}
-                                        {{ license_stats.license_type|title }}
-                                    {% endif %}
-                                </h5>
-                                <p class="text-muted mb-0">License Type</p>
                             </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="text-center p-3">
-                                <div class="mb-2">
-                                    {% if license_stats.is_valid %}
-                                        <i class="fas fa-check-circle fa-3x text-success"></i>
-                                    {% else %}
-                                        <i class="fas fa-times-circle fa-3x text-danger"></i>
-                                    {% endif %}
+                            <div class="col-md-6 col-xl-4">
+                                <div class="admin-action-card">
+                                    <a href="{% url 'booking:lab_admin_access_requests' %}" class="text-decoration-none position-relative">
+                                        <div class="card border-0 h-100 shadow-sm admin-card-hover">
+                                            <div class="card-body d-flex align-items-center">
+                                                <div class="admin-icon bg-warning-subtle text-warning me-3">
+                                                    <i class="fas fa-key"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <h6 class="card-title mb-1 text-dark">Access Requests</h6>
+                                                    <p class="card-text text-muted small mb-0">Review and approve user access</p>
+                                                </div>
+                                                {% if stats.pending_access_requests > 0 %}
+                                                    <span class="badge bg-warning position-absolute top-0 start-100 translate-middle">
+                                                        {{ stats.pending_access_requests }}
+                                                    </span>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </a>
                                 </div>
-                                <h5 class="mb-1">
-                                    {% if license_stats.is_valid %}
-                                        Valid
-                                    {% else %}
-                                        Invalid
-                                    {% endif %}
-                                </h5>
-                                <p class="text-muted mb-0">Status</p>
                             </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="text-center p-3">
-                                <div class="mb-2">
-                                    <i class="fas fa-building fa-3x text-info"></i>
+                            <div class="col-md-6 col-xl-4">
+                                <div class="admin-action-card">
+                                    <a href="{% url 'booking:site_admin_academic_hierarchy' %}" class="text-decoration-none">
+                                        <div class="card border-0 h-100 shadow-sm admin-card-hover">
+                                            <div class="card-body d-flex align-items-center">
+                                                <div class="admin-icon bg-info-subtle text-info me-3">
+                                                    <i class="fas fa-sitemap"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <h6 class="card-title mb-1 text-dark">Academic Hierarchy</h6>
+                                                    <p class="card-text text-muted small mb-0">Manage faculties and departments</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
                                 </div>
-                                <h5 class="mb-1">{{ license_stats.organization|truncatechars:20 }}</h5>
-                                <p class="text-muted mb-0">Organization</p>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="text-center p-3">
-                                <div class="mb-2">
-                                    <i class="fas fa-calendar-alt fa-3x text-warning"></i>
-                                </div>
-                                <h5 class="mb-1">
-                                    {% if license_stats.expires_at %}
-                                        {{ license_stats.expires_at|date:"M Y" }}
-                                    {% else %}
-                                        Never
-                                    {% endif %}
-                                </h5>
-                                <p class="text-muted mb-0">Expires</p>
                             </div>
                         </div>
                     </div>
-                    <div class="row mt-3">
-                        <div class="col-md-6">
-                            <div class="d-flex justify-content-between">
-                                <span>Recent Validations (30 days):</span>
-                                <span class="fw-bold">{{ license_stats.recent_validations }}</span>
+
+                    <!-- System & Resources -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3">
+                            <i class="fas fa-cogs me-2"></i>
+                            System & Resources
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-6 col-xl-4">
+                                <div class="admin-action-card">
+                                    <a href="{% url 'booking:lab_admin_resources' %}" class="text-decoration-none">
+                                        <div class="card border-0 h-100 shadow-sm admin-card-hover">
+                                            <div class="card-body d-flex align-items-center">
+                                                <div class="admin-icon bg-success-subtle text-success me-3">
+                                                    <i class="fas fa-tools"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <h6 class="card-title mb-1 text-dark">Manage Resources</h6>
+                                                    <p class="card-text text-muted small mb-0">Configure lab equipment and rooms</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
                             </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="d-flex justify-content-between">
-                                <span>Validation Failures:</span>
-                                <span class="fw-bold {% if license_stats.validation_failures > 0 %}text-danger{% else %}text-success{% endif %}">
-                                    {{ license_stats.validation_failures }}
-                                </span>
+                            <div class="col-md-6 col-xl-4">
+                                <div class="admin-action-card">
+                                    <a href="{% url 'booking:site_admin_config' %}" class="text-decoration-none">
+                                        <div class="card border-0 h-100 shadow-sm admin-card-hover">
+                                            <div class="card-body d-flex align-items-center">
+                                                <div class="admin-icon bg-secondary-subtle text-secondary me-3">
+                                                    <i class="fas fa-cog"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <h6 class="card-title mb-1 text-dark">System Config</h6>
+                                                    <p class="card-text text-muted small mb-0">Configure system settings</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-xl-4">
+                                <div class="admin-action-card">
+                                    <a href="{% url 'booking:site_admin_email_config' %}" class="text-decoration-none">
+                                        <div class="card border-0 h-100 shadow-sm admin-card-hover">
+                                            <div class="card-body d-flex align-items-center">
+                                                <div class="admin-icon bg-primary-subtle text-primary me-3">
+                                                    <i class="fas fa-envelope"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <h6 class="card-title mb-1 text-dark">Email Settings</h6>
+                                                    <p class="card-text text-muted small mb-0">Configure email notifications</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>
-                    {% if license_stats.enabled_features %}
-                    <div class="row mt-3">
-                        <div class="col-12">
-                            <h6 class="mb-2">Enabled Features:</h6>
-                            <div class="d-flex flex-wrap gap-1">
-                                {% for feature, enabled in license_stats.enabled_features.items %}
-                                    {% if enabled %}
-                                        <span class="badge bg-success">
-                                            {% if feature == 'basic_booking' %}Basic Booking
-                                            {% elif feature == 'user_management' %}User Management
-                                            {% elif feature == 'resource_management' %}Resource Management
-                                            {% elif feature == 'email_notifications' %}Email Notifications
-                                            {% elif feature == 'custom_branding' %}Custom Branding
-                                            {% elif feature == 'white_label' %}White Label
-                                            {% elif feature == 'advanced_reports' %}Advanced Reports
-                                            {% elif feature == 'api_access' %}API Access
-                                            {% elif feature == 'premium_support' %}Premium Support
-                                            {% elif feature == 'usage_analytics' %}Usage Analytics
-                                            {% elif feature == 'priority_updates' %}Priority Updates
-                                            {% else %}{{ feature|title }}{% endif %}
-                                        </span>
-                                    {% endif %}
-                                {% endfor %}
+
+                    <!-- Operations & Maintenance -->
+                    <div class="mb-0">
+                        <h6 class="text-muted mb-3">
+                            <i class="fas fa-wrench me-2"></i>
+                            Operations & Maintenance
+                        </h6>
+                        <div class="row g-3">
+                            <div class="col-md-6 col-xl-4">
+                                <div class="admin-action-card">
+                                    <a href="{% url 'booking:site_admin_backup_management' %}" class="text-decoration-none">
+                                        <div class="card border-0 h-100 shadow-sm admin-card-hover">
+                                            <div class="card-body d-flex align-items-center">
+                                                <div class="admin-icon bg-info-subtle text-info me-3">
+                                                    <i class="fas fa-database"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <h6 class="card-title mb-1 text-dark">Backup Management</h6>
+                                                    <p class="card-text text-muted small mb-0">Create and manage data backups</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                    {% endif %}
-                    <div class="row mt-3">
-                        <div class="col-12">
-                            <div class="d-flex gap-2">
-                                <a href="{% url 'booking:site_admin_license_management' %}" class="btn btn-primary btn-sm">
-                                    <i class="fas fa-cogs me-1"></i>
-                                    Manage License
-                                </a>
-                                {% if license_stats.license_type != 'open_source' and license_stats.enabled_features.custom_branding %}
-                                <a href="{% url 'booking:site_admin_branding_config' %}" class="btn btn-outline-primary btn-sm">
-                                    <i class="fas fa-palette me-1"></i>
-                                    Configure Branding
-                                </a>
-                                {% endif %}
-                                {% if license_stats.license_type != 'open_source' %}
-                                <a href="{% url 'booking:site_admin_license_logs' %}" class="btn btn-outline-secondary btn-sm">
-                                    <i class="fas fa-list-alt me-1"></i>
-                                    View Logs
-                                </a>
-                                {% endif %}
+                            <div class="col-md-6 col-xl-4">
+                                <div class="admin-action-card">
+                                    <a href="{% url 'booking:site_admin_updates' %}" class="text-decoration-none">
+                                        <div class="card border-0 h-100 shadow-sm admin-card-hover">
+                                            <div class="card-body d-flex align-items-center">
+                                                <div class="admin-icon bg-success-subtle text-success me-3">
+                                                    <i class="fas fa-download"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <h6 class="card-title mb-1 text-dark">System Updates</h6>
+                                                    <p class="card-text text-muted small mb-0">Check for application updates</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-xl-4">
+                                <div class="admin-action-card">
+                                    <div class="card border-0 h-100 shadow-sm admin-card-hover admin-card-clickable" role="button" id="healthCheckBtn">
+                                        <div class="card-body d-flex align-items-center">
+                                            <div class="admin-icon bg-danger-subtle text-danger me-3">
+                                                <i class="fas fa-heartbeat"></i>
+                                                <span id="healthCheckSpinner" class="spinner-border spinner-border-sm position-absolute d-none" style="top: 50%; left: 50%; transform: translate(-50%, -50%);" role="status" aria-hidden="true"></span>
+                                            </div>
+                                            <div class="flex-grow-1">
+                                                <h6 class="card-title mb-1 text-dark">Health Check</h6>
+                                                <p class="card-text text-muted small mb-0">Run system diagnostics</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-xl-4">
+                                <div class="admin-action-card">
+                                    <a href="{% url 'booking:site_admin_audit' %}" class="text-decoration-none">
+                                        <div class="card border-0 h-100 shadow-sm admin-card-hover">
+                                            <div class="card-body d-flex align-items-center">
+                                                <div class="admin-icon bg-warning-subtle text-warning me-3">
+                                                    <i class="fas fa-list-alt"></i>
+                                                </div>
+                                                <div class="flex-grow-1">
+                                                    <h6 class="card-title mb-1 text-dark">Audit Logs</h6>
+                                                    <p class="card-text text-muted small mb-0">Review system activity logs</p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </a>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -379,6 +446,105 @@
             </div>
         </div>
     </div>
+
+    <!-- System Information Card -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-server me-2"></i>
+                        System Information
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>Python Version:</strong><br>
+                            <code>{{ system_info.python_version|slice:":10" }}</code>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Django Version:</strong><br>
+                            <code>{{ system_info.django_version }}</code>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Platform:</strong><br>
+                            <code>{{ system_info.platform }}</code>
+                        </div>
+                        <div class="col-md-3">
+                            <strong>Server Time:</strong><br>
+                            <code>{{ system_info.server_time|date:"Y-m-d H:i:s T" }}</code>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- User Role Distribution -->
+        <div class="col-12 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-users-cog me-2"></i>
+                        User Role Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        {% for role in user_roles %}
+                        <div class="col-lg-2 col-md-4 col-sm-6">
+                            <div class="role-stat-card">
+                                <div class="card border-0 h-100 shadow-sm role-card-hover">
+                                    <div class="card-body text-center p-3">
+                                        <div class="role-icon mb-2 
+                                            {% if role.role == 'sysadmin' %}bg-danger-subtle text-danger
+                                            {% elif role.role == 'technician' %}bg-warning-subtle text-warning
+                                            {% elif role.role == 'academic' %}bg-info-subtle text-info
+                                            {% elif role.role == 'researcher' %}bg-success-subtle text-success
+                                            {% else %}bg-primary-subtle text-primary
+                                            {% endif %}">
+                                            {% if role.role == 'sysadmin' %}
+                                                <i class="fas fa-user-shield"></i>
+                                            {% elif role.role == 'technician' %}
+                                                <i class="fas fa-user-cog"></i>
+                                            {% elif role.role == 'academic' %}
+                                                <i class="fas fa-user-graduate"></i>
+                                            {% elif role.role == 'researcher' %}
+                                                <i class="fas fa-user-tie"></i>
+                                            {% else %}
+                                                <i class="fas fa-user"></i>
+                                            {% endif %}
+                                        </div>
+                                        <h4 class="mb-1 text-dark">{{ role.count }}</h4>
+                                        <h6 class="card-title mb-1 text-dark">{{ role.role|title }}</h6>
+                                        <small class="text-muted">
+                                            {% widthratio role.count stats.total_users 100 %}% of total
+                                        </small>
+                                        <div class="progress mt-2" style="height: 4px;">
+                                            <div class="progress-bar 
+                                                {% if role.role == 'sysadmin' %}bg-danger
+                                                {% elif role.role == 'technician' %}bg-warning
+                                                {% elif role.role == 'academic' %}bg-info
+                                                {% elif role.role == 'researcher' %}bg-success
+                                                {% else %}bg-primary
+                                                {% endif %}" 
+                                                role="progressbar" 
+                                                style="width: {% widthratio role.count stats.total_users 100 %}%;">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Application Updates -->
     <div class="row mb-4">
@@ -403,7 +569,7 @@
                         </div>
                         <div class="col-md-3">
                             <div class="text-center p-3">
-                                {% if update_info.is_update_available %}
+                                {% if update_info and update_info.is_update_available %}
                                     <div class="text-warning mb-2">
                                         <i class="fas fa-exclamation-triangle fa-2x"></i>
                                     </div>
@@ -425,7 +591,7 @@
                                 </div>
                                 <h6>Last Check</h6>
                                 <small class="text-muted" id="lastCheck">
-                                    {% if update_info.last_check %}
+                                    {% if update_info and update_info.last_check %}
                                         {{ update_info.last_check|date:"M d, H:i" }}
                                     {% else %}
                                         Never
@@ -449,7 +615,7 @@
                         </div>
                     </div>
                     
-                    {% if update_info.is_update_available %}
+                    {% if update_info and update_info.is_update_available %}
                     <div class="row mt-3">
                         <div class="col-12">
                             <div class="alert alert-warning" role="alert">
@@ -466,7 +632,7 @@
                                         <i class="fas fa-download me-1"></i>
                                         Download Update
                                     </a>
-                                    {% if update_info.release_notes %}
+                                    {% if update_info and update_info.release_notes %}
                                     <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-toggle="modal" data-bs-target="#releaseNotesModal">
                                         <i class="fas fa-file-alt me-1"></i>
                                         View Release Notes
@@ -478,7 +644,7 @@
                     </div>
                     {% endif %}
                     
-                    {% if update_info.error_message %}
+                    {% if update_info and update_info.error_message %}
                     <div class="row mt-3">
                         <div class="col-12">
                             <div class="alert alert-danger" role="alert">
@@ -595,7 +761,7 @@
 </div>
 
 <!-- Release Notes Modal -->
-{% if update_info.release_notes %}
+{% if update_info and update_info.release_notes %}
 <div class="modal fade" id="releaseNotesModal" tabindex="-1" aria-labelledby="releaseNotesModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
