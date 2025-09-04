@@ -82,6 +82,8 @@
                                 <tr>
                                     <th>User</th>
                                     <th>Role</th>
+                                    <th>ID Number</th>
+                                    <th>Academic Path</th>
                                     <th>Status</th>
                                     <th>Joined</th>
                                     <th>Last Login</th>
@@ -109,6 +111,28 @@
                                             </span>
                                         {% else %}
                                             <span class="badge bg-light text-dark">No Profile</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.userprofile %}
+                                            {% if user.userprofile.student_id %}
+                                                <small class="text-muted">Student ID:</small><br>
+                                                {{ user.userprofile.student_id }}
+                                            {% elif user.userprofile.staff_number %}
+                                                <small class="text-muted">Staff ID:</small><br>
+                                                {{ user.userprofile.staff_number }}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.userprofile and user.userprofile.academic_path != "Not specified" %}
+                                            <small>{{ user.userprofile.academic_path }}</small>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
                                         {% endif %}
                                     </td>
                                     <td>
@@ -179,26 +203,75 @@
                                                         <p><strong>Last Name:</strong> {{ user.last_name|default:"Not set" }}</p>
                                                         <p><strong>Joined:</strong> {{ user.date_joined|date:"F d, Y H:i" }}</p>
                                                         <p><strong>Last Login:</strong> {{ user.last_login|date:"F d, Y H:i"|default:"Never" }}</p>
+                                                        {% if user.userprofile.first_login %}
+                                                            <p><strong>First Login:</strong> {{ user.userprofile.first_login|date:"F d, Y H:i" }}</p>
+                                                        {% endif %}
                                                     </div>
                                                     <div class="col-md-6">
                                                         {% if user.userprofile %}
                                                         <h6>Profile Information</h6>
                                                         <p><strong>Role:</strong> {{ user.userprofile.get_role_display }}</p>
                                                         <p><strong>Phone:</strong> {{ user.userprofile.phone|default:"Not set" }}</p>
+                                                        
+                                                        <!-- Role-specific fields -->
                                                         {% if user.userprofile.student_id %}
                                                             <p><strong>Student ID:</strong> {{ user.userprofile.student_id }}</p>
+                                                            {% if user.userprofile.student_level %}
+                                                                <p><strong>Student Level:</strong> {{ user.userprofile.get_student_level_display }}</p>
+                                                            {% endif %}
                                                         {% endif %}
                                                         {% if user.userprofile.staff_number %}
                                                             <p><strong>Staff Number:</strong> {{ user.userprofile.staff_number }}</p>
                                                         {% endif %}
-                                                        {% if user.userprofile.department %}
-                                                            <p><strong>Department:</strong> {{ user.userprofile.department }}</p>
+                                                        
+                                                        <!-- Academic structure -->
+                                                        {% if user.userprofile.faculty or user.userprofile.college or user.userprofile.department %}
+                                                            <p><strong>Academic Path:</strong> {{ user.userprofile.academic_path }}</p>
+                                                        {% endif %}
+                                                        
+                                                        <!-- Group information -->
+                                                        {% if user.userprofile.group %}
+                                                            <p><strong>Research Group:</strong> {{ user.userprofile.group }}</p>
                                                         {% endif %}
                                                         {% else %}
                                                         <p class="text-muted">No profile information available</p>
                                                         {% endif %}
                                                     </div>
                                                 </div>
+                                                
+                                                {% if user.userprofile %}
+                                                <!-- Training & Safety Information -->
+                                                <hr>
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <h6>Training & Safety</h6>
+                                                        <p><strong>Training Level:</strong> 
+                                                            <span class="badge bg-info">Level {{ user.userprofile.training_level }}</span>
+                                                        </p>
+                                                        <p><strong>Safety Induction:</strong> 
+                                                            {% if user.userprofile.is_inducted %}
+                                                                <span class="badge bg-success">Completed</span>
+                                                            {% else %}
+                                                                <span class="badge bg-warning">Pending</span>
+                                                            {% endif %}
+                                                        </p>
+                                                        <p><strong>Email Verified:</strong> 
+                                                            {% if user.userprofile.email_verified %}
+                                                                <span class="badge bg-success">Yes</span>
+                                                            {% else %}
+                                                                <span class="badge bg-warning">No</span>
+                                                            {% endif %}
+                                                        </p>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <h6>Preferences</h6>
+                                                        <p><strong>Timezone:</strong> {{ user.userprofile.timezone|default:"UTC" }}</p>
+                                                        <p><strong>Date Format:</strong> {{ user.userprofile.get_date_format_display }}</p>
+                                                        <p><strong>Time Format:</strong> {{ user.userprofile.get_time_format_display }}</p>
+                                                        <p><strong>Theme:</strong> {{ user.userprofile.get_theme_preference_display }}</p>
+                                                    </div>
+                                                </div>
+                                                {% endif %}
                                             </div>
                                             <div class="modal-footer">
                                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>

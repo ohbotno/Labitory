@@ -1,0 +1,308 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Billing Analytics - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-chart-line me-2"></i>Billing Analytics</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_dashboard' %}">Lab Admin</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:billing_dashboard' %}">Billing</a></li>
+                            <li class="breadcrumb-item active">Analytics</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{% url 'booking:export_billing_data' %}?type=analytics" class="btn btn-outline-success">
+                        <i class="fas fa-download me-1"></i>Export Analytics
+                    </a>
+                </div>
+            </div>
+
+            <!-- Date Range Filter -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Analytics Period</h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">From Date</label>
+                            <input type="date" name="date_from" class="form-control" value="{{ filters.date_from }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">To Date</label>
+                            <input type="date" name="date_to" class="form-control" value="{{ filters.date_to }}">
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">Update</button>
+                            <a href="{% url 'booking:billing_analytics' %}" class="btn btn-outline-secondary">Reset</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Overview Cards -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body text-center">
+                            <h3 class="mb-0">£{{ analytics.total_revenue|default:"0.00"|floatformat:2 }}</h3>
+                            <small>Total Revenue</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body text-center">
+                            <h3 class="mb-0">{{ analytics.total_sessions|default:"0" }}</h3>
+                            <small>Billable Sessions</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body text-center">
+                            <h3 class="mb-0">{{ analytics.total_hours|default:"0.0"|floatformat:1 }}h</h3>
+                            <small>Total Hours</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body text-center">
+                            <h3 class="mb-0">£{{ analytics.avg_session_value|default:"0.00"|floatformat:2 }}</h3>
+                            <small>Avg Session Value</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <!-- Revenue by Department -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Revenue by Department</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if department_revenue %}
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Department</th>
+                                                <th>Sessions</th>
+                                                <th>Revenue</th>
+                                                <th>Share</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for dept in department_revenue %}
+                                            <tr>
+                                                <td>{{ dept.department.name }}</td>
+                                                <td>{{ dept.session_count }}</td>
+                                                <td>£{{ dept.total_revenue|floatformat:2 }}</td>
+                                                <td>{{ dept.percentage|floatformat:1 }}%</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <p class="text-muted text-center">No departmental revenue data available</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Revenue by Resource -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Revenue by Resource</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if resource_revenue %}
+                                <div class="table-responsive">
+                                    <table class="table table-sm">
+                                        <thead>
+                                            <tr>
+                                                <th>Resource</th>
+                                                <th>Sessions</th>
+                                                <th>Revenue</th>
+                                                <th>Share</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for resource in resource_revenue %}
+                                            <tr>
+                                                <td>{{ resource.resource.name }}</td>
+                                                <td>{{ resource.session_count }}</td>
+                                                <td>£{{ resource.total_revenue|floatformat:2 }}</td>
+                                                <td>{{ resource.percentage|floatformat:1 }}%</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <p class="text-muted text-center">No resource revenue data available</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Usage Patterns -->
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Usage Patterns</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if usage_patterns %}
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <h6>Peak Hours</h6>
+                                        <ul class="list-unstyled">
+                                            {% for hour in usage_patterns.peak_hours %}
+                                            <li>{{ hour.hour }}:00 - {{ hour.session_count }} sessions</li>
+                                            {% empty %}
+                                            <li class="text-muted">No peak hour data</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <h6>Peak Days</h6>
+                                        <ul class="list-unstyled">
+                                            {% for day in usage_patterns.peak_days %}
+                                            <li>{{ day.day_name }} - {{ day.session_count }} sessions</li>
+                                            {% empty %}
+                                            <li class="text-muted">No peak day data</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <h6>Average Session Duration</h6>
+                                        <p class="h4">{{ usage_patterns.avg_duration|default:"0.0"|floatformat:1 }} hours</p>
+                                        
+                                        <h6 class="mt-3">Most Active Users</h6>
+                                        <ul class="list-unstyled">
+                                            {% for user in usage_patterns.top_users %}
+                                            <li>{{ user.user.get_full_name|default:user.user.username }} - {{ user.session_count }} sessions</li>
+                                            {% empty %}
+                                            <li class="text-muted">No user data</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                </div>
+                            {% else %}
+                                <p class="text-muted text-center">No usage pattern data available</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Monthly Trends -->
+            {% if monthly_trends %}
+            <div class="row mb-4">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Monthly Revenue Trends</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Month</th>
+                                            <th>Sessions</th>
+                                            <th>Hours</th>
+                                            <th>Revenue</th>
+                                            <th>Change</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for month in monthly_trends %}
+                                        <tr>
+                                            <td>{{ month.month_name }}</td>
+                                            <td>{{ month.session_count }}</td>
+                                            <td>{{ month.total_hours|floatformat:1 }}h</td>
+                                            <td>£{{ month.total_revenue|floatformat:2 }}</td>
+                                            <td>
+                                                {% if month.change_percentage %}
+                                                    <span class="badge bg-{% if month.change_percentage > 0 %}success{% else %}danger{% endif %}">
+                                                        {{ month.change_percentage|floatformat:1 }}%
+                                                    </span>
+                                                {% else %}
+                                                    <span class="text-muted">-</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Rate Effectiveness -->
+            <div class="row">
+                <div class="col-md-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Rate Effectiveness</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if rate_effectiveness %}
+                                <div class="table-responsive">
+                                    <table class="table">
+                                        <thead>
+                                            <tr>
+                                                <th>Rate Type</th>
+                                                <th>Usage Count</th>
+                                                <th>Total Revenue</th>
+                                                <th>Avg Session Value</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for rate in rate_effectiveness %}
+                                            <tr>
+                                                <td>
+                                                    <span class="badge bg-{% if rate.rate_type == 'standard' %}primary{% elif rate.rate_type == 'peak' %}warning{% elif rate.rate_type == 'off_peak' %}success{% else %}info{% endif %}">
+                                                        {{ rate.get_rate_type_display }}
+                                                    </span>
+                                                </td>
+                                                <td>{{ rate.usage_count }}</td>
+                                                <td>£{{ rate.total_revenue|floatformat:2 }}</td>
+                                                <td>£{{ rate.avg_session_value|floatformat:2 }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            {% else %}
+                                <p class="text-muted text-center">No rate effectiveness data available</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -6974,7 +6974,7 @@ def site_admin_dashboard_view(request):
     # Update Information
     try:
         from booking.models import UpdateInfo
-        from booking.update_service import UpdateService
+        from booking.services.update_service import UpdateService
         
         update_info = UpdateInfo.objects.first()
         if not update_info:

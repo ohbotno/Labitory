@@ -97,10 +97,11 @@
                                     </th>
                                     <th>User</th>
                                     <th>Role</th>
-                                    <th>Department</th>
+                                    <th>ID Number</th>
+                                    <th>Academic Path</th>
+                                    <th>Safety Status</th>
                                     <th>Email Verified</th>
                                     <th>Joined</th>
-                                    <th>Last Login</th>
                                     <th>Status</th>
                                     <th width="200">Actions</th>
                                 </tr>
@@ -122,15 +123,45 @@
                                     <td>
                                         {% if user.userprofile %}
                                         <span class="badge bg-secondary">{{ user.userprofile.get_role_display }}</span>
+                                        {% if user.userprofile.student_level %}
+                                            <br><small class="text-muted">{{ user.userprofile.get_student_level_display }}</small>
+                                        {% endif %}
                                         {% else %}
                                         <span class="text-muted">-</span>
                                         {% endif %}
                                     </td>
                                     <td>
-                                        {% if user.userprofile.department %}
-                                        {{ user.userprofile.department.name }}
+                                        {% if user.userprofile %}
+                                            {% if user.userprofile.student_id %}
+                                                <small class="text-muted">Student:</small><br>
+                                                {{ user.userprofile.student_id }}
+                                            {% elif user.userprofile.staff_number %}
+                                                <small class="text-muted">Staff:</small><br>
+                                                {{ user.userprofile.staff_number }}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
                                         {% else %}
-                                        <span class="text-muted">-</span>
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.userprofile and user.userprofile.academic_path != "Not specified" %}
+                                            <small>{{ user.userprofile.academic_path }}</small>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if user.userprofile %}
+                                            {% if user.userprofile.is_inducted %}
+                                                <span class="badge bg-success">Inducted</span>
+                                            {% else %}
+                                                <span class="badge bg-warning text-dark">Pending</span>
+                                            {% endif %}
+                                            <br><small class="text-muted">Level {{ user.userprofile.training_level }}</small>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
                                         {% endif %}
                                     </td>
                                     <td>
@@ -142,13 +173,6 @@
                                     </td>
                                     <td>
                                         <small>{{ user.date_joined|date:"M j, Y" }}</small>
-                                    </td>
-                                    <td>
-                                        {% if user.last_login %}
-                                        <small>{{ user.last_login|date:"M j, Y" }}</small>
-                                        {% else %}
-                                        <span class="text-muted">Never</span>
-                                        {% endif %}
                                     </td>
                                     <td>
                                         {% if user.is_active %}
@@ -184,7 +208,7 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="9" class="text-center py-4">
+                                    <td colspan="10" class="text-center py-4">
                                         <i class="fas fa-users fa-2x text-muted mb-2"></i>
                                         <p class="text-muted mb-0">No users found matching the current filters.</p>
                                     </td>
@@ -301,7 +325,7 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">Role *</label>
-                                <select name="role" class="form-select" required>
+                                <select name="role" class="form-select" required onchange="toggleRoleSpecificFields('add')">
                                     {% for value, display in role_choices %}
                                     <option value="{{ value }}">{{ display }}</option>
                                     {% endfor %}
@@ -312,6 +336,41 @@
                             <div class="mb-3">
                                 <label class="form-label">Phone</label>
                                 <input type="tel" name="phone" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Role-specific fields for add -->
+                    <div id="addStudentFields" class="row" style="display: none;">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Student ID</label>
+                                <input type="text" name="student_id" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Student Level</label>
+                                <select name="student_level" class="form-select">
+                                    <option value="">Select level</option>
+                                    <option value="undergraduate">Undergraduate</option>
+                                    <option value="postgraduate">Postgraduate</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="addStaffFields" class="row" style="display: none;">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Staff Number</label>
+                                <input type="text" name="staff_number" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Research Group</label>
+                                <input type="text" name="group" class="form-control">
                             </div>
                         </div>
                     </div>
@@ -389,7 +448,7 @@
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label class="form-label">Role *</label>
-                                <select name="role" id="editRole" class="form-select" required>
+                                <select name="role" id="editRole" class="form-select" required onchange="toggleRoleSpecificFields('edit')">
                                     {% for value, display in role_choices %}
                                     <option value="{{ value }}">{{ display }}</option>
                                     {% endfor %}
@@ -400,6 +459,41 @@
                             <div class="mb-3">
                                 <label class="form-label">Phone</label>
                                 <input type="tel" name="phone" id="editPhone" class="form-control">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Role-specific fields -->
+                    <div id="editStudentFields" class="row" style="display: none;">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Student ID</label>
+                                <input type="text" name="student_id" id="editStudentId" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Student Level</label>
+                                <select name="student_level" id="editStudentLevel" class="form-select">
+                                    <option value="">Select level</option>
+                                    <option value="undergraduate">Undergraduate</option>
+                                    <option value="postgraduate">Postgraduate</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div id="editStaffFields" class="row" style="display: none;">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Staff Number</label>
+                                <input type="text" name="staff_number" id="editStaffNumber" class="form-control">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Research Group</label>
+                                <input type="text" name="group" id="editGroup" class="form-control">
                             </div>
                         </div>
                     </div>
@@ -522,6 +616,15 @@ function editUser(userId) {
                 document.getElementById('editRole').value = user.role;
                 document.getElementById('editPhone').value = user.phone || '';
                 document.getElementById('editIsActive').checked = user.is_active;
+                
+                // Role-specific fields
+                document.getElementById('editStudentId').value = user.student_id || '';
+                document.getElementById('editStudentLevel').value = user.student_level || '';
+                document.getElementById('editStaffNumber').value = user.staff_number || '';
+                document.getElementById('editGroup').value = user.group || '';
+                
+                // Show appropriate role-specific fields
+                toggleRoleSpecificFields('edit');
                 
                 new bootstrap.Modal(document.getElementById('editUserModal')).show();
             } else {
@@ -793,6 +896,28 @@ function performBulkAction(action, userIds) {
         console.error('Bulk action error:', error);
         alert('Action failed: ' + error.message);
     });
+}
+
+// Role-specific field visibility
+function toggleRoleSpecificFields(modalType) {
+    const roleSelect = document.getElementById(modalType + 'Role');
+    const studentFields = document.getElementById(modalType + 'StudentFields');
+    const staffFields = document.getElementById(modalType + 'StaffFields');
+    
+    if (!roleSelect) return;
+    
+    const selectedRole = roleSelect.value;
+    
+    // Hide all role-specific fields first
+    if (studentFields) studentFields.style.display = 'none';
+    if (staffFields) staffFields.style.display = 'none';
+    
+    // Show appropriate fields based on role
+    if (selectedRole === 'student') {
+        if (studentFields) studentFields.style.display = 'block';
+    } else if (['researcher', 'academic', 'technician', 'sysadmin'].includes(selectedRole)) {
+        if (staffFields) staffFields.style.display = 'block';
+    }
 }
 </script>
 {% endblock %}

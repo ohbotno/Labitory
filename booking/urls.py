@@ -238,4 +238,22 @@ urlpatterns = [
     path('issues/<int:issue_id>/', views.issue_detail, name='issue_detail'),
     path('my-issues/', views.my_reported_issues, name='my_reported_issues'),
     
+    # Billing Management URLs
+    path('lab-admin/billing/', views.billing_dashboard, name='billing_dashboard'),
+    path('lab-admin/billing/periods/', views.billing_periods, name='billing_periods'),
+    path('lab-admin/billing/periods/create/', views.create_monthly_period, name='create_billing_period'),
+    path('lab-admin/billing/periods/<int:period_id>/', views.billing_period_detail, name='billing_period_detail'),
+    path('lab-admin/billing/periods/<int:period_id>/close/', views.close_billing_period, name='close_billing_period'),
+    path('lab-admin/billing/departments/<int:department_id>/', views.department_billing, name='department_billing'),
+    path('lab-admin/billing/departments/<int:department_id>/<int:period_id>/', views.department_billing, name='department_billing_period'),
+    path('lab-admin/billing/rates/', views.billing_rates, name='billing_rates'),
+    path('lab-admin/billing/rates/create/', views.create_billing_rate, name='create_billing_rate'),
+    path('lab-admin/billing/rates/<int:rate_id>/edit/', views.edit_billing_rate, name='edit_billing_rate'),
+    path('lab-admin/billing/rates/<int:rate_id>/delete/', views.delete_billing_rate, name='delete_billing_rate'),
+    path('lab-admin/billing/records/', views.billing_records, name='billing_records'),
+    path('lab-admin/billing/records/confirm/', views.confirm_billing_records, name='confirm_billing_records'),
+    path('lab-admin/billing/analytics/', views.billing_analytics, name='billing_analytics'),
+    path('lab-admin/billing/users/<int:user_id>/', views.user_billing_history, name='user_billing_history'),
+    path('lab-admin/billing/export/', views.export_billing_data, name='export_billing_data'),
+    
 ]

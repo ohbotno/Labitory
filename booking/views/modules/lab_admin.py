@@ -728,11 +728,26 @@ def lab_admin_user_detail_view(request, user_id):
                 'role': user.userprofile.role,
                 'phone': user.userprofile.phone,
                 'department': user.userprofile.department.name if user.userprofile.department else None,
+                'academic_path': user.userprofile.academic_path,
+                'student_id': user.userprofile.student_id,
+                'staff_number': user.userprofile.staff_number,
+                'student_level': user.userprofile.student_level,
+                'group': user.userprofile.group,
+                'training_level': user.userprofile.training_level,
                 'email_verified': user.userprofile.email_verified,
                 'is_inducted': user.userprofile.is_inducted,
+                'first_login': user.userprofile.first_login,
+                'timezone': user.userprofile.timezone,
+                'date_format': user.userprofile.date_format,
+                'time_format': user.userprofile.time_format,
+                'theme_preference': user.userprofile.theme_preference,
             })
 
         # Render HTML for modal
+        student_id_display = user_data.get('student_id', '')
+        staff_number_display = user_data.get('staff_number', '')
+        student_level_display = dict(user.userprofile.STUDENT_LEVEL_CHOICES).get(user_data.get('student_level', ''), '') if hasattr(user, 'userprofile') and user_data.get('student_level') else ''
+        
         html = f"""
         <div class="row">
             <div class="col-md-6">
@@ -744,6 +759,8 @@ def lab_admin_user_detail_view(request, user_id):
                     <dd class="col-sm-8">{user.get_full_name() or '-'}</dd>
                     <dt class="col-sm-4">Email:</dt>
                     <dd class="col-sm-8">{user.email}</dd>
+                    <dt class="col-sm-4">Phone:</dt>
+                    <dd class="col-sm-8">{user_data.get('phone') or '-'}</dd>
                     <dt class="col-sm-4">Status:</dt>
                     <dd class="col-sm-8">
                         {'<span class="badge bg-success">Active</span>' if user.is_active else '<span class="badge bg-danger">Inactive</span>'}
@@ -755,26 +772,45 @@ def lab_admin_user_detail_view(request, user_id):
                 <dl class="row">
                     <dt class="col-sm-4">Role:</dt>
                     <dd class="col-sm-8">{user.userprofile.get_role_display() if hasattr(user, 'userprofile') else '-'}</dd>
-                    <dt class="col-sm-4">Department:</dt>
-                    <dd class="col-sm-8">{user_data.get('department', '-')}</dd>
-                    <dt class="col-sm-4">Phone:</dt>
-                    <dd class="col-sm-8">{user_data.get('phone', '-')}</dd>
-                    <dt class="col-sm-4">Email Verified:</dt>
-                    <dd class="col-sm-8">
-                        {'<span class="badge bg-success">Yes</span>' if user_data.get('email_verified') else '<span class="badge bg-warning text-dark">No</span>'}
-                    </dd>
+                    {'<dt class="col-sm-4">Student ID:</dt>' if student_id_display else ''}
+                    {'<dd class="col-sm-8">' + student_id_display + '</dd>' if student_id_display else ''}
+                    {'<dt class="col-sm-4">Student Level:</dt>' if student_level_display else ''}
+                    {'<dd class="col-sm-8">' + student_level_display + '</dd>' if student_level_display else ''}
+                    {'<dt class="col-sm-4">Staff Number:</dt>' if staff_number_display else ''}
+                    {'<dd class="col-sm-8">' + staff_number_display + '</dd>' if staff_number_display else ''}
+                    <dt class="col-sm-4">Academic Path:</dt>
+                    <dd class="col-sm-8">{user_data.get('academic_path', '-')}</dd>
+                    {'<dt class="col-sm-4">Research Group:</dt>' if user_data.get('group') else ''}
+                    {'<dd class="col-sm-8">' + user_data.get('group', '') + '</dd>' if user_data.get('group') else ''}
                 </dl>
             </div>
         </div>
         <hr>
         <div class="row">
-            <div class="col-12">
+            <div class="col-md-6">
+                <h6>Training & Safety</h6>
+                <dl class="row">
+                    <dt class="col-sm-5">Training Level:</dt>
+                    <dd class="col-sm-7"><span class="badge bg-info">Level {user_data.get('training_level', 1)}</span></dd>
+                    <dt class="col-sm-5">Safety Induction:</dt>
+                    <dd class="col-sm-7">
+                        {'<span class="badge bg-success">Completed</span>' if user_data.get('is_inducted') else '<span class="badge bg-warning text-dark">Pending</span>'}
+                    </dd>
+                    <dt class="col-sm-5">Email Verified:</dt>
+                    <dd class="col-sm-7">
+                        {'<span class="badge bg-success">Yes</span>' if user_data.get('email_verified') else '<span class="badge bg-warning text-dark">No</span>'}
+                    </dd>
+                </dl>
+            </div>
+            <div class="col-md-6">
                 <h6>Account Activity</h6>
                 <dl class="row">
-                    <dt class="col-sm-3">Date Joined:</dt>
-                    <dd class="col-sm-9">{user.date_joined.strftime('%B %d, %Y at %I:%M %p')}</dd>
-                    <dt class="col-sm-3">Last Login:</dt>
-                    <dd class="col-sm-9">{user.last_login.strftime('%B %d, %Y at %I:%M %p') if user.last_login else 'Never'}</dd>
+                    <dt class="col-sm-4">Date Joined:</dt>
+                    <dd class="col-sm-8">{user.date_joined.strftime('%B %d, %Y at %I:%M %p')}</dd>
+                    <dt class="col-sm-4">Last Login:</dt>
+                    <dd class="col-sm-8">{user.last_login.strftime('%B %d, %Y at %I:%M %p') if user.last_login else 'Never'}</dd>
+                    {'<dt class="col-sm-4">First Login:</dt>' if user_data.get('first_login') else ''}
+                    {'<dd class="col-sm-8">' + user_data.get('first_login').strftime('%B %d, %Y at %I:%M %p') + '</dd>' if user_data.get('first_login') else ''}
                 </dl>
             </div>
         </div>
@@ -819,6 +855,21 @@ def lab_admin_user_edit_view(request, user_id):
 
         profile.role = request.POST.get('role', profile.role)
         profile.phone = request.POST.get('phone', profile.phone)
+        
+        # Role-specific fields
+        role = request.POST.get('role')
+        if role == 'student':
+            profile.student_id = request.POST.get('student_id', profile.student_id)
+            profile.student_level = request.POST.get('student_level', profile.student_level)
+            # Clear staff fields for students
+            profile.staff_number = ''
+        elif role in ['researcher', 'academic', 'technician', 'sysadmin']:
+            profile.staff_number = request.POST.get('staff_number', profile.staff_number)
+            profile.group = request.POST.get('group', profile.group)
+            # Clear student fields for staff
+            profile.student_id = ''
+            profile.student_level = ''
+        
         profile.save()
 
         messages.success(request, f'User {user.username} updated successfully.')
@@ -997,11 +1048,22 @@ def lab_admin_user_add_view(request):
         user.save()
 
         # Create user profile
-        UserProfile.objects.create(
-            user=user,
-            role=request.POST.get('role'),
-            phone=request.POST.get('phone', ''),
-        )
+        role = request.POST.get('role')
+        profile_data = {
+            'user': user,
+            'role': role,
+            'phone': request.POST.get('phone', ''),
+        }
+        
+        # Add role-specific fields
+        if role == 'student':
+            profile_data['student_id'] = request.POST.get('student_id', '')
+            profile_data['student_level'] = request.POST.get('student_level', '')
+        elif role in ['researcher', 'academic', 'technician', 'sysadmin']:
+            profile_data['staff_number'] = request.POST.get('staff_number', '')
+            profile_data['group'] = request.POST.get('group', '')
+        
+        UserProfile.objects.create(**profile_data)
 
         messages.success(request, f'User {user.username} created successfully.')
         return JsonResponse({'success': True})

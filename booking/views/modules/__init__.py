@@ -22,6 +22,7 @@ from .site_admin import *
 from .calendar import *
 from .hierarchy import *
 from .maintenance import *
+from .billing import *
 
 # Re-export commonly used items
 __all__ = [
@@ -111,6 +112,23 @@ __all__ = [
     
     # Analytics views
     'usage_analytics_view',
+    
+    # Billing views
+    'billing_dashboard',
+    'billing_periods',
+    'billing_period_detail',
+    'department_billing',
+    'billing_rates',
+    'billing_records',
+    'export_billing_data',
+    'create_monthly_period',
+    'close_billing_period',
+    'confirm_billing_records',
+    'billing_analytics',
+    'user_billing_history',
+    'create_billing_rate',
+    'edit_billing_rate',
+    'delete_billing_rate',
     
     # Permissions
     'IsOwnerOrManagerPermission',

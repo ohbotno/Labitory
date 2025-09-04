@@ -1,0 +1,279 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}{{ department.name }} - Department Billing - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-building me-2"></i>{{ department.name }}</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_dashboard' %}">Lab Admin</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:billing_dashboard' %}">Billing</a></li>
+                            <li class="breadcrumb-item active">{{ department.name }}</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{% url 'booking:export_billing_data' %}?type=department&department={{ department.id }}" class="btn btn-outline-success">
+                        <i class="fas fa-download me-1"></i>Export Data
+                    </a>
+                </div>
+            </div>
+
+            <!-- Department Summary -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Department Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>College:</strong> {{ department.college.name }}</p>
+                                    <p><strong>Faculty:</strong> {{ department.college.faculty.name }}</p>
+                                    <p><strong>Active Users:</strong> {{ active_users_count }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Total Sessions:</strong> {{ dept_summary.total_sessions|default:"0" }}</p>
+                                    <p><strong>Total Hours:</strong> {{ dept_summary.total_hours|default:"0.0"|floatformat:1 }}h</p>
+                                    <p><strong>Total Charges:</strong> £{{ dept_summary.total_charges|default:"0.00"|floatformat:2 }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Filters</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="get">
+                                <div class="mb-3">
+                                    <label class="form-label">Billing Period</label>
+                                    <select name="period" class="form-select">
+                                        <option value="">All Periods</option>
+                                        {% for period in periods %}
+                                        <option value="{{ period.id }}"{% if period_filter == period.id|stringformat:"s" %} selected{% endif %}>
+                                            {{ period.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Status</label>
+                                    <select name="status" class="form-select">
+                                        <option value="">All Status</option>
+                                        <option value="draft"{% if status_filter == "draft" %} selected{% endif %}>Draft</option>
+                                        <option value="confirmed"{% if status_filter == "confirmed" %} selected{% endif %}>Confirmed</option>
+                                        <option value="billed"{% if status_filter == "billed" %} selected{% endif %}>Billed</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">Filter</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Billing Status Overview -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body text-center">
+                            <h3 class="mb-0">£{{ status_totals.draft|default:"0.00"|floatformat:2 }}</h3>
+                            <small>Draft Charges</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body text-center">
+                            <h3 class="mb-0">£{{ status_totals.confirmed|default:"0.00"|floatformat:2 }}</h3>
+                            <small>Confirmed Charges</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body text-center">
+                            <h3 class="mb-0">£{{ status_totals.billed|default:"0.00"|floatformat:2 }}</h3>
+                            <small>Billed Charges</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body text-center">
+                            <h3 class="mb-0">£{{ status_totals.total|default:"0.00"|floatformat:2 }}</h3>
+                            <small>Total Charges</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resource Usage Breakdown -->
+            {% if resource_usage %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Resource Usage Breakdown</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Resource</th>
+                                    <th>Sessions</th>
+                                    <th>Total Hours</th>
+                                    <th>Total Charges</th>
+                                    <th>Avg Session Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for resource in resource_usage %}
+                                <tr>
+                                    <td><strong>{{ resource.resource.name }}</strong></td>
+                                    <td>{{ resource.session_count }}</td>
+                                    <td>{{ resource.total_hours|floatformat:1 }}h</td>
+                                    <td>£{{ resource.total_charges|floatformat:2 }}</td>
+                                    <td>£{{ resource.avg_session_value|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Top Users -->
+            {% if top_users %}
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between">
+                    <h5 class="mb-0">Top Users by Charges</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>User</th>
+                                    <th>Sessions</th>
+                                    <th>Total Hours</th>
+                                    <th>Total Charges</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for user in top_users %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ user.user.get_full_name|default:user.user.username }}</strong>
+                                        <br>
+                                        <small class="text-muted">{{ user.user.email }}</small>
+                                    </td>
+                                    <td>{{ user.session_count }}</td>
+                                    <td>{{ user.total_hours|floatformat:1 }}h</td>
+                                    <td>£{{ user.total_charges|floatformat:2 }}</td>
+                                    <td>
+                                        <a href="{% url 'booking:user_billing_history' user.user.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-history"></i> History
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Recent Billing Records -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between">
+                    <h5 class="mb-0">Recent Billing Records</h5>
+                    <a href="{% url 'booking:billing_records' %}?department={{ department.id }}" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body">
+                    {% if recent_records %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Resource</th>
+                                    <th>User</th>
+                                    <th>Duration</th>
+                                    <th>Charge</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in recent_records %}
+                                <tr>
+                                    <td>{{ record.session_start|date:"M d, H:i" }}</td>
+                                    <td>{{ record.resource.name }}</td>
+                                    <td>{{ record.user.get_full_name|default:record.user.username }}</td>
+                                    <td>{{ record.billable_hours|floatformat:1 }}h</td>
+                                    <td>£{{ record.total_charge|floatformat:2 }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if record.status == 'confirmed' %}success{% elif record.status == 'billed' %}primary{% else %}warning{% endif %}">
+                                            {{ record.get_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if recent_records.has_other_pages %}
+                    <nav aria-label="Records pagination" class="mt-3">
+                        <ul class="pagination justify-content-center">
+                            {% if recent_records.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if period_filter %}&period={{ period_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">First</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ recent_records.previous_page_number }}{% if period_filter %}&period={{ period_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Previous</a>
+                            </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">Page {{ recent_records.number }} of {{ recent_records.paginator.num_pages }}</span>
+                            </li>
+                            
+                            {% if recent_records.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ recent_records.next_page_number }}{% if period_filter %}&period={{ period_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ recent_records.paginator.num_pages }}{% if period_filter %}&period={{ period_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Last</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                        <h4>No Billing Records</h4>
+                        <p class="text-muted">No billing records found for this department.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

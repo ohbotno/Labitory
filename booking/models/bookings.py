@@ -18,6 +18,7 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from datetime import timedelta
+import logging
 
 
 class BookingTemplate(models.Model):
@@ -321,6 +322,9 @@ class Booking(models.Model):
             timestamp=now,
             actual_time=self.actual_end_time
         )
+        
+        # Create billing record if resource is billable
+        self._create_billing_record_if_needed()
     
     def mark_no_show(self, user=None):
         """Mark booking as no-show."""
@@ -362,6 +366,9 @@ class Booking(models.Model):
             timestamp=now,
             actual_time=self.actual_end_time
         )
+        
+        # Create billing record if resource is billable
+        self._create_billing_record_if_needed()
         
         return True
     
@@ -499,6 +506,41 @@ class Booking(models.Model):
             return False
         
         return has_dependency_path(new_prerequisite, self)
+    
+    def _create_billing_record_if_needed(self):
+        """Create a billing record if resource is billable and usage is complete."""
+        logger = logging.getLogger('booking')
+        
+        # Skip if not billable or billing record already exists
+        if not self.resource.is_billable:
+            return
+        
+        if hasattr(self, 'billing_record'):
+            logger.debug(f"Billing record already exists for booking {self.id}")
+            return
+        
+        # Skip if missing actual times
+        if not self.actual_start_time or not self.actual_end_time:
+            logger.warning(f"Cannot create billing record for booking {self.id}: missing actual start/end times")
+            return
+        
+        try:
+            # Import here to avoid circular imports
+            from .billing import BillingRecord
+            billing_record = BillingRecord.create_from_booking(self)
+            logger.info(f"Created billing record {billing_record.id} for booking {self.id} (£{billing_record.total_charge})")
+            
+            # Update department billing summary
+            if billing_record.department:
+                from .billing import DepartmentBilling
+                summary = DepartmentBilling.get_or_create_for_period(
+                    billing_record.department, billing_record.billing_period
+                )
+                logger.debug(f"Updated department billing summary for {billing_record.department.name}")
+            
+        except Exception as e:
+            logger.error(f"Failed to create billing record for booking {self.id}: {str(e)}")
+            # Don't raise the exception to avoid breaking checkout process
     
     def save_as_template(self, template_name, template_description="", is_public=False):
         """Save this booking as a template for future use."""

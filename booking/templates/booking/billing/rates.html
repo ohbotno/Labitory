@@ -1,0 +1,193 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Billing Rates - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-tag me-2"></i>Billing Rates</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_dashboard' %}">Lab Admin</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:billing_dashboard' %}">Billing</a></li>
+                            <li class="breadcrumb-item active">Rates</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{% url 'booking:create_billing_rate' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Add Rate
+                    </a>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Filters</h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Resource</label>
+                            <select name="resource" class="form-select">
+                                <option value="">All Resources</option>
+                                {% for resource in resources %}
+                                <option value="{{ resource.id }}"{% if resource_filter == resource.id|stringformat:"s" %} selected{% endif %}>
+                                    {{ resource.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Active Status</label>
+                            <select name="active" class="form-select">
+                                <option value="">All Rates</option>
+                                <option value="true"{% if active_filter == "true" %} selected{% endif %}>Active Only</option>
+                                <option value="false"{% if active_filter == "false" %} selected{% endif %}>Inactive Only</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary me-2">Filter</button>
+                            <a href="{% url 'booking:billing_rates' %}" class="btn btn-outline-secondary">Clear</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Rates -->
+            <div class="card">
+                <div class="card-body">
+                    {% if rates %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Resource</th>
+                                    <th>Rate Type</th>
+                                    <th>Hourly Rate</th>
+                                    <th>User Type</th>
+                                    <th>Department</th>
+                                    <th>Time Conditions</th>
+                                    <th>Priority</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for rate in rates %}
+                                <tr{% if not rate.is_active %} class="table-secondary"{% endif %}>
+                                    <td><strong>{{ rate.resource.name }}</strong></td>
+                                    <td>
+                                        <span class="badge bg-{% if rate.rate_type == 'standard' %}primary{% elif rate.rate_type == 'peak' %}warning{% elif rate.rate_type == 'off_peak' %}success{% else %}info{% endif %}">
+                                            {{ rate.get_rate_type_display }}
+                                        </span>
+                                    </td>
+                                    <td>£{{ rate.hourly_rate|floatformat:2 }}/hr</td>
+                                    <td>{{ rate.get_user_type_display }}</td>
+                                    <td>{{ rate.department.name|default:"All" }}</td>
+                                    <td>
+                                        {% if rate.applies_from_time and rate.applies_to_time %}
+                                            {{ rate.applies_from_time|time:"H:i" }} - {{ rate.applies_to_time|time:"H:i" }}
+                                        {% elif rate.applies_weekdays_only %}
+                                            Weekdays only
+                                        {% elif rate.applies_weekends_only %}
+                                            Weekends only
+                                        {% else %}
+                                            Any time
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ rate.priority }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if rate.is_active %}success{% else %}secondary{% endif %}">
+                                            {% if rate.is_active %}Active{% else %}Inactive{% endif %}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{% url 'booking:edit_billing_rate' rate.id %}" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if rates.has_other_pages %}
+                    <nav aria-label="Rates pagination" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if rates.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if resource_filter %}&resource={{ resource_filter }}{% endif %}{% if active_filter %}&active={{ active_filter }}{% endif %}">First</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ rates.previous_page_number }}{% if resource_filter %}&resource={{ resource_filter }}{% endif %}{% if active_filter %}&active={{ active_filter }}{% endif %}">Previous</a>
+                            </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">Page {{ rates.number }} of {{ rates.paginator.num_pages }}</span>
+                            </li>
+                            
+                            {% if rates.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ rates.next_page_number }}{% if resource_filter %}&resource={{ resource_filter }}{% endif %}{% if active_filter %}&active={{ active_filter }}{% endif %}">Next</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ rates.paginator.num_pages }}{% if resource_filter %}&resource={{ resource_filter }}{% endif %}{% if active_filter %}&active={{ active_filter }}{% endif %}">Last</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-tag fa-3x text-muted mb-3"></i>
+                        <h4>No Billing Rates</h4>
+                        <p class="text-muted">No billing rates found. Create rates to enable resource charging.</p>
+                        <a href="{% url 'booking:create_billing_rate' %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i>Create First Rate
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Rate Configuration Help -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Rate Configuration Guide</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Rate Types</h6>
+                            <ul class="list-unstyled">
+                                <li><span class="badge bg-primary me-2">Standard</span> Default rate for regular hours</li>
+                                <li><span class="badge bg-warning me-2">Peak</span> Higher rate for high-demand periods</li>
+                                <li><span class="badge bg-success me-2">Off-Peak</span> Lower rate for low-demand periods</li>
+                                <li><span class="badge bg-info me-2">Weekend</span> Special rate for weekend usage</li>
+                            </ul>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Priority System</h6>
+                            <p class="small">Higher priority rates are applied first when multiple rates match. Use this to create specific rates that override general ones.</p>
+                            
+                            <h6 class="mt-3">User Types</h6>
+                            <p class="small">Configure different rates for different user roles (e.g., discounted rates for students).</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

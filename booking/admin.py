@@ -28,7 +28,7 @@ from .models import (
     MaintenanceAlert, MaintenanceAnalytics, EmailConfiguration,
     ChecklistItem, ResourceChecklistItem, ChecklistResponse,
     BackupSchedule, UpdateInfo, UpdateHistory,
-    LicenseConfiguration, BrandingConfiguration, LicenseValidationLog
+    BillingPeriod, BillingRate, BillingRecord, DepartmentBilling
 )
 
 
@@ -1969,11 +1969,11 @@ class ResourceAdmin(admin.ModelAdmin):
     
     list_display = [
         'name', 'resource_type', 'location', 'capacity', 'is_active', 
-        'requires_checkout_checklist', 'checklist_items_count'
+        'is_billable', 'default_billing_rate', 'requires_checkout_checklist', 'checklist_items_count'
     ]
     
     list_filter = [
-        'resource_type', 'is_active', 'requires_induction', 'requires_checkout_checklist'
+        'resource_type', 'is_active', 'is_billable', 'requires_induction', 'requires_checkout_checklist'
     ]
     
     search_fields = ['name', 'description', 'location']
@@ -1988,6 +1988,10 @@ class ResourceAdmin(admin.ModelAdmin):
         ('Access Requirements', {
             'fields': ('required_training_level', 'requires_induction'),
             'classes': ('collapse',)
+        }),
+        ('Billing Configuration', {
+            'fields': ('is_billable', 'default_billing_rate', 'billing_description'),
+            'description': 'Configure resource billing and charging'
         }),
         ('Checkout Checklist', {
             'fields': ('requires_checkout_checklist', 'checkout_checklist_title', 'checkout_checklist_description'),
@@ -2588,6 +2592,201 @@ class LicenseValidationLogAdmin(admin.ModelAdmin):
             # Non-superusers can only see their own organization's logs
             qs = qs.filter(license__contact_email=request.user.email)
         return qs
+
+
+# =============================================================================
+# BILLING ADMINISTRATION
+# =============================================================================
+
+@admin.register(BillingPeriod)
+class BillingPeriodAdmin(admin.ModelAdmin):
+    list_display = ('name', 'period_type', 'start_date', 'end_date', 'status', 'is_current', 'total_charges', 'total_hours')
+    list_filter = ('period_type', 'status', 'is_current', 'start_date')
+    search_fields = ('name',)
+    readonly_fields = ('total_charges', 'total_hours', 'created_at', 'closed_at')
+    fieldsets = (
+        (None, {
+            'fields': ('name', 'period_type', 'start_date', 'end_date', 'status', 'is_current')
+        }),
+        ('Automation', {
+            'fields': ('auto_close_date',),
+            'classes': ('collapse',)
+        }),
+        ('Audit Trail', {
+            'fields': ('created_at', 'created_by', 'closed_at', 'closed_by'),
+            'classes': ('collapse',)
+        }),
+        ('Summary', {
+            'fields': ('total_charges', 'total_hours'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_readonly_fields(self, request, obj=None):
+        readonly = list(self.readonly_fields)
+        if obj and obj.status == 'closed':
+            readonly.extend(['name', 'period_type', 'start_date', 'end_date', 'is_current'])
+        return readonly
+    
+    def save_model(self, request, obj, form, change):
+        if not change:  # Creating new object
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+    
+    actions = ['close_periods']
+    
+    def close_periods(self, request, queryset):
+        count = 0
+        for period in queryset.filter(status='active'):
+            period.close_period(request.user)
+            count += 1
+        self.message_user(request, f"Closed {count} billing periods.")
+    close_periods.short_description = "Close selected billing periods"
+
+
+@admin.register(BillingRate)
+class BillingRateAdmin(admin.ModelAdmin):
+    list_display = ('resource', 'rate_type', 'hourly_rate', 'user_type', 'department', 'is_active', 'priority')
+    list_filter = ('rate_type', 'user_type', 'is_active', 'resource__resource_type', 'department', 'applies_weekdays_only', 'applies_weekends_only')
+    search_fields = ('resource__name', 'department__name')
+    readonly_fields = ('created_at', 'created_by')
+    fieldsets = (
+        (None, {
+            'fields': ('resource', 'rate_type', 'hourly_rate', 'priority', 'is_active')
+        }),
+        ('Minimum Charge & Rounding', {
+            'fields': ('minimum_charge_minutes', 'rounding_minutes'),
+            'classes': ('collapse',)
+        }),
+        ('Conditions', {
+            'fields': ('user_type', 'department'),
+        }),
+        ('Time-based Conditions', {
+            'fields': ('applies_from_time', 'applies_to_time', 'applies_weekdays_only', 'applies_weekends_only'),
+            'classes': ('collapse',)
+        }),
+        ('Validity', {
+            'fields': ('valid_from', 'valid_until'),
+        }),
+        ('Audit', {
+            'fields': ('created_at', 'created_by'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def save_model(self, request, obj, form, change):
+        if not change:  # Creating new object
+            obj.created_by = request.user
+        super().save_model(request, obj, form, change)
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('resource', 'department', 'created_by')
+
+
+@admin.register(BillingRecord)
+class BillingRecordAdmin(admin.ModelAdmin):
+    list_display = ('resource', 'user', 'department', 'session_start', 'duration_minutes', 'total_charge', 'status', 'billing_period')
+    list_filter = ('status', 'billing_period', 'resource', 'department', 'session_start')
+    search_fields = ('user__username', 'user__first_name', 'user__last_name', 'resource__name', 'project_code', 'cost_center')
+    readonly_fields = ('booking', 'duration_minutes', 'created_at', 'confirmed_at', 'adjusted_at')
+    date_hierarchy = 'session_start'
+    
+    fieldsets = (
+        (None, {
+            'fields': ('booking', 'billing_period', 'resource', 'user', 'department', 'status')
+        }),
+        ('Project/Cost Information', {
+            'fields': ('project_code', 'cost_center'),
+            'classes': ('collapse',)
+        }),
+        ('Usage Details', {
+            'fields': ('session_start', 'session_end', 'duration_minutes'),
+        }),
+        ('Billing Calculation', {
+            'fields': ('billing_rate', 'billable_minutes', 'billable_hours', 'hourly_rate_applied', 'total_charge'),
+        }),
+        ('Adjustments', {
+            'fields': ('original_charge', 'adjustment_reason', 'adjusted_by', 'adjusted_at'),
+            'classes': ('collapse',)
+        }),
+        ('Audit', {
+            'fields': ('created_at', 'confirmed_at', 'confirmed_by'),
+            'classes': ('collapse',)
+        }),
+        ('Notes', {
+            'fields': ('notes', 'billing_metadata'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_readonly_fields(self, request, obj=None):
+        readonly = list(self.readonly_fields)
+        if obj and obj.status in ['billed', 'cancelled']:
+            readonly.extend([
+                'billing_period', 'resource', 'user', 'department',
+                'session_start', 'session_end', 'billable_minutes', 
+                'billable_hours', 'hourly_rate_applied'
+            ])
+        return readonly
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related(
+            'booking', 'billing_period', 'resource', 'user', 'department', 'billing_rate'
+        )
+    
+    actions = ['confirm_records', 'mark_as_billed']
+    
+    def confirm_records(self, request, queryset):
+        count = 0
+        for record in queryset.filter(status='draft'):
+            record.confirm(request.user)
+            count += 1
+        self.message_user(request, f"Confirmed {count} billing records.")
+    confirm_records.short_description = "Confirm selected billing records"
+    
+    def mark_as_billed(self, request, queryset):
+        count = queryset.filter(status='confirmed').update(status='billed')
+        self.message_user(request, f"Marked {count} billing records as billed.")
+    mark_as_billed.short_description = "Mark selected records as billed"
+
+
+@admin.register(DepartmentBilling)
+class DepartmentBillingAdmin(admin.ModelAdmin):
+    list_display = ('department', 'billing_period', 'total_sessions', 'total_hours', 'total_charges', 'last_updated')
+    list_filter = ('billing_period', 'department', 'last_updated')
+    search_fields = ('department__name', 'billing_period__name')
+    readonly_fields = ('total_sessions', 'total_hours', 'total_charges', 'draft_charges', 'confirmed_charges', 
+                      'billed_charges', 'resource_breakdown', 'user_breakdown', 'last_updated')
+    
+    fieldsets = (
+        (None, {
+            'fields': ('department', 'billing_period')
+        }),
+        ('Summary Totals', {
+            'fields': ('total_sessions', 'total_hours', 'total_charges', 'last_updated'),
+        }),
+        ('Status Breakdown', {
+            'fields': ('draft_charges', 'confirmed_charges', 'billed_charges'),
+            'classes': ('collapse',)
+        }),
+        ('Detailed Breakdowns', {
+            'fields': ('resource_breakdown', 'user_breakdown'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('department', 'billing_period')
+    
+    actions = ['refresh_totals']
+    
+    def refresh_totals(self, request, queryset):
+        count = 0
+        for summary in queryset:
+            summary.refresh_totals()
+            count += 1
+        self.message_user(request, f"Refreshed totals for {count} department billing summaries.")
+    refresh_totals.short_description = "Refresh totals for selected summaries"
 
 
 # Custom admin URLs integration

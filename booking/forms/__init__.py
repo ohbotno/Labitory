@@ -8,6 +8,7 @@ from .auth import *
 from .bookings import *
 from .resources import *
 from .admin import *
+from .billing import *
 
 # Import any remaining forms from the original forms.py for backward compatibility
 # This will be needed while we transition to the modular structure
@@ -44,6 +45,9 @@ __all__ = [
     
     # Admin forms
     'AboutPageEditForm',
+    
+    # Billing forms
+    'BillingRateForm',
     
     # Utility function
     'get_logo_base64',

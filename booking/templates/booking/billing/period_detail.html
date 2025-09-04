@@ -1,0 +1,219 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}{{ period.name }} - Billing Period Detail - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-calendar-alt me-2"></i>{{ period.name }}</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_dashboard' %}">Lab Admin</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:billing_dashboard' %}">Billing</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:billing_periods' %}">Periods</a></li>
+                            <li class="breadcrumb-item active">{{ period.name }}</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{% url 'booking:export_billing_data' %}?type=records&period={{ period.id }}" class="btn btn-outline-success me-2">
+                        <i class="fas fa-download me-1"></i>Export Records
+                    </a>
+                    {% if period.status == 'active' %}
+                    <form method="post" action="{% url 'booking:close_billing_period' period.id %}" class="d-inline">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger" 
+                                onclick="return confirm('Are you sure you want to close this billing period?')">
+                            <i class="fas fa-lock me-1"></i>Close Period
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Period Summary -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Period Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Period:</strong> {{ period.start_date|date:"M d, Y" }} - {{ period.end_date|date:"M d, Y" }}</p>
+                                    <p><strong>Type:</strong> {{ period.get_period_type_display }}</p>
+                                    <p><strong>Status:</strong> 
+                                        <span class="badge bg-{% if period.status == 'active' %}success{% elif period.status == 'closed' %}secondary{% else %}warning{% endif %}">
+                                            {{ period.get_status_display }}
+                                        </span>
+                                    </p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Total Charges:</strong> £{{ period.total_charges|floatformat:2 }}</p>
+                                    <p><strong>Total Hours:</strong> {{ period.total_hours|floatformat:1 }}h</p>
+                                    <p><strong>Records Count:</strong> {{ records.paginator.count }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Filters</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="get">
+                                <div class="mb-3">
+                                    <label class="form-label">Department</label>
+                                    <select name="department" class="form-select">
+                                        <option value="">All Departments</option>
+                                        {% for dept in departments %}
+                                        <option value="{{ dept.id }}"{% if dept_filter == dept.id|stringformat:"s" %} selected{% endif %}>
+                                            {{ dept.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Status</label>
+                                    <select name="status" class="form-select">
+                                        <option value="">All Status</option>
+                                        <option value="draft"{% if status_filter == "draft" %} selected{% endif %}>Draft</option>
+                                        <option value="confirmed"{% if status_filter == "confirmed" %} selected{% endif %}>Confirmed</option>
+                                        <option value="billed"{% if status_filter == "billed" %} selected{% endif %}>Billed</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">Filter</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Department Summaries -->
+            {% if dept_summaries %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Department Summaries</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Department</th>
+                                    <th>Sessions</th>
+                                    <th>Hours</th>
+                                    <th>Total Charges</th>
+                                    <th>Draft</th>
+                                    <th>Confirmed</th>
+                                    <th>Billed</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for summary in dept_summaries %}
+                                <tr>
+                                    <td><strong>{{ summary.department.name }}</strong></td>
+                                    <td>{{ summary.total_sessions }}</td>
+                                    <td>{{ summary.total_hours|floatformat:1 }}h</td>
+                                    <td>£{{ summary.total_charges|floatformat:2 }}</td>
+                                    <td>£{{ summary.draft_charges|floatformat:2 }}</td>
+                                    <td>£{{ summary.confirmed_charges|floatformat:2 }}</td>
+                                    <td>£{{ summary.billed_charges|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Billing Records -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Billing Records</h5>
+                </div>
+                <div class="card-body">
+                    {% if records %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Resource</th>
+                                    <th>User</th>
+                                    <th>Department</th>
+                                    <th>Duration</th>
+                                    <th>Charge</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in records %}
+                                <tr>
+                                    <td>{{ record.session_start|date:"M d, H:i" }}</td>
+                                    <td>{{ record.resource.name }}</td>
+                                    <td>{{ record.user.get_full_name|default:record.user.username }}</td>
+                                    <td>{{ record.department.name|default:"N/A" }}</td>
+                                    <td>{{ record.billable_hours|floatformat:1 }}h</td>
+                                    <td>£{{ record.total_charge|floatformat:2 }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if record.status == 'confirmed' %}success{% elif record.status == 'billed' %}primary{% else %}warning{% endif %}">
+                                            {{ record.get_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if records.has_other_pages %}
+                    <nav aria-label="Records pagination">
+                        <ul class="pagination justify-content-center">
+                            {% if records.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if dept_filter %}&department={{ dept_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">First</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ records.previous_page_number }}{% if dept_filter %}&department={{ dept_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Previous</a>
+                            </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">Page {{ records.number }} of {{ records.paginator.num_pages }}</span>
+                            </li>
+                            
+                            {% if records.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ records.next_page_number }}{% if dept_filter %}&department={{ dept_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ records.paginator.num_pages }}{% if dept_filter %}&department={{ dept_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Last</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                        <h4>No Billing Records</h4>
+                        <p class="text-muted">No billing records found for this period.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

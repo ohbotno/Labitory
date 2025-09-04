@@ -1,0 +1,217 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Billing Records - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-list me-2"></i>Billing Records</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_dashboard' %}">Lab Admin</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:billing_dashboard' %}">Billing</a></li>
+                            <li class="breadcrumb-item active">Records</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{% url 'booking:export_billing_data' %}?type=records" class="btn btn-outline-success">
+                        <i class="fas fa-download me-1"></i>Export All
+                    </a>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Filters</h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-2">
+                            <label class="form-label">Period</label>
+                            <select name="period" class="form-select">
+                                <option value="">All Periods</option>
+                                {% for period in periods %}
+                                <option value="{{ period.id }}"{% if filters.period == period.id|stringformat:"s" %} selected{% endif %}>
+                                    {{ period.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Department</label>
+                            <select name="department" class="form-select">
+                                <option value="">All Departments</option>
+                                {% for dept in departments %}
+                                <option value="{{ dept.id }}"{% if filters.department == dept.id|stringformat:"s" %} selected{% endif %}>
+                                    {{ dept.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Resource</label>
+                            <select name="resource" class="form-select">
+                                <option value="">All Resources</option>
+                                {% for resource in resources %}
+                                <option value="{{ resource.id }}"{% if filters.resource == resource.id|stringformat:"s" %} selected{% endif %}>
+                                    {{ resource.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="">All Status</option>
+                                <option value="draft"{% if filters.status == "draft" %} selected{% endif %}>Draft</option>
+                                <option value="confirmed"{% if filters.status == "confirmed" %} selected{% endif %}>Confirmed</option>
+                                <option value="billed"{% if filters.status == "billed" %} selected{% endif %}>Billed</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">From Date</label>
+                            <input type="date" name="date_from" class="form-control" value="{{ filters.date_from }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">To Date</label>
+                            <input type="date" name="date_to" class="form-control" value="{{ filters.date_to }}">
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary">Apply Filters</button>
+                            <a href="{% url 'booking:billing_records' %}" class="btn btn-outline-secondary">Clear</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Records -->
+            <div class="card">
+                <div class="card-body">
+                    {% if records %}
+                    <form method="post" action="{% url 'booking:confirm_billing_records' %}">
+                        {% csrf_token %}
+                        <div class="table-responsive">
+                            <table class="table table-striped">
+                                <thead>
+                                    <tr>
+                                        <th>
+                                            <input type="checkbox" id="selectAll" class="form-check-input">
+                                        </th>
+                                        <th>Date/Time</th>
+                                        <th>Resource</th>
+                                        <th>User</th>
+                                        <th>Department</th>
+                                        <th>Duration</th>
+                                        <th>Rate</th>
+                                        <th>Charge</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for record in records %}
+                                    <tr>
+                                        <td>
+                                            {% if record.status == 'draft' %}
+                                            <input type="checkbox" name="record_ids" value="{{ record.id }}" class="form-check-input record-checkbox">
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ record.session_start|date:"M d, Y H:i" }}</td>
+                                        <td>{{ record.resource.name }}</td>
+                                        <td>{{ record.user.get_full_name|default:record.user.username }}</td>
+                                        <td>{{ record.department.name|default:"N/A" }}</td>
+                                        <td>{{ record.billable_hours|floatformat:1 }}h</td>
+                                        <td>£{{ record.hourly_rate_applied|floatformat:2 }}/hr</td>
+                                        <td>£{{ record.total_charge|floatformat:2 }}</td>
+                                        <td>
+                                            <span class="badge bg-{% if record.status == 'confirmed' %}success{% elif record.status == 'billed' %}primary{% else %}warning{% endif %}">
+                                                {{ record.get_status_display }}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center mt-3">
+                            <div>
+                                <button type="submit" class="btn btn-success" id="confirmBtn" style="display: none;">
+                                    <i class="fas fa-check me-1"></i>Confirm Selected
+                                </button>
+                            </div>
+                            <div>
+                                <small class="text-muted">Total: {{ records.paginator.count }} records</small>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Pagination -->
+                    {% if records.has_other_pages %}
+                    <nav aria-label="Records pagination" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if records.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1">First</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ records.previous_page_number }}">Previous</a>
+                            </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">Page {{ records.number }} of {{ records.paginator.num_pages }}</span>
+                            </li>
+                            
+                            {% if records.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ records.next_page_number }}">Next</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ records.paginator.num_pages }}">Last</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-receipt fa-3x text-muted mb-3"></i>
+                        <h4>No Billing Records</h4>
+                        <p class="text-muted">No billing records found matching your criteria.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.record-checkbox');
+    const confirmBtn = document.getElementById('confirmBtn');
+
+    function updateConfirmButton() {
+        const checked = document.querySelectorAll('.record-checkbox:checked').length;
+        confirmBtn.style.display = checked > 0 ? 'inline-block' : 'none';
+    }
+
+    selectAll.addEventListener('change', function() {
+        checkboxes.forEach(cb => cb.checked = this.checked);
+        updateConfirmButton();
+    });
+
+    checkboxes.forEach(cb => {
+        cb.addEventListener('change', updateConfirmButton);
+    });
+});
+</script>
+{% endblock %}

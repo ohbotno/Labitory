@@ -114,6 +114,14 @@ from .analytics import (
     UsageAnalytics,
 )
 
+# Billing models
+from .billing import (
+    BillingPeriod,
+    BillingRate,
+    BillingRecord,
+    DepartmentBilling,
+)
+
 # Checklist models
 from .checklists import (
     ChecklistItem,
@@ -188,6 +196,11 @@ __all__ = [
     'CalendarSyncPreferences',
     # Analytics
     'UsageAnalytics',
+    # Billing
+    'BillingPeriod',
+    'BillingRate',
+    'BillingRecord',
+    'DepartmentBilling',
     # Checklists
     'ChecklistItem',
     'ResourceChecklistItem',

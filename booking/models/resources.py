@@ -77,6 +77,23 @@ class Resource(models.Model):
         help_text="Instructions or description shown above the checklist"
     )
     
+    # Billing configuration
+    is_billable = models.BooleanField(
+        default=False,
+        help_text="Whether this resource charges for usage"
+    )
+    default_billing_rate = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Default hourly rate (£) for this resource"
+    )
+    billing_description = models.TextField(
+        blank=True,
+        help_text="Description of billing policy for this resource"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     

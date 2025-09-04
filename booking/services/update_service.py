@@ -30,7 +30,7 @@ from django.conf import settings
 from django.utils import timezone
 from django.core.management import call_command
 
-from .models import UpdateInfo, UpdateHistory
+from ..models.system import UpdateInfo, UpdateHistory
 
 logger = logging.getLogger(__name__)
 

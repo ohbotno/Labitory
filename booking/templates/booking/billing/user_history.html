@@ -1,0 +1,302 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}{{ target_user.get_full_name|default:target_user.username }} - Billing History - {{ lab_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1><i class="fas fa-user me-2"></i>{{ target_user.get_full_name|default:target_user.username }}</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_dashboard' %}">Lab Admin</a></li>
+                            <li class="breadcrumb-item"><a href="{% url 'booking:billing_dashboard' %}">Billing</a></li>
+                            <li class="breadcrumb-item active">User History</li>
+                        </ol>
+                    </nav>
+                </div>
+                <div>
+                    <a href="{% url 'booking:export_billing_data' %}?type=user&user={{ target_user.id }}" class="btn btn-outline-success">
+                        <i class="fas fa-download me-1"></i>Export History
+                    </a>
+                </div>
+            </div>
+
+            <!-- User Summary -->
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">User Information</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <p><strong>Name:</strong> {{ target_user.get_full_name|default:"N/A" }}</p>
+                                    <p><strong>Username:</strong> {{ target_user.username }}</p>
+                                    <p><strong>Email:</strong> {{ target_user.email }}</p>
+                                </div>
+                                <div class="col-md-6">
+                                    <p><strong>Department:</strong> {{ target_user.userprofile.department.name|default:"N/A" }}</p>
+                                    <p><strong>Total Sessions:</strong> {{ user_summary.total_sessions|default:"0" }}</p>
+                                    <p><strong>Total Hours:</strong> {{ user_summary.total_hours|default:"0.0"|floatformat:1 }}h</p>
+                                    <p><strong>Total Charges:</strong> £{{ user_summary.total_charges|default:"0.00"|floatformat:2 }}</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Filters</h5>
+                        </div>
+                        <div class="card-body">
+                            <form method="get">
+                                <div class="mb-3">
+                                    <label class="form-label">Billing Period</label>
+                                    <select name="period" class="form-select">
+                                        <option value="">All Periods</option>
+                                        {% for period in periods %}
+                                        <option value="{{ period.id }}"{% if period_filter == period.id|stringformat:"s" %} selected{% endif %}>
+                                            {{ period.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Resource</label>
+                                    <select name="resource" class="form-select">
+                                        <option value="">All Resources</option>
+                                        {% for resource in resources %}
+                                        <option value="{{ resource.id }}"{% if resource_filter == resource.id|stringformat:"s" %} selected{% endif %}>
+                                            {{ resource.name }}
+                                        </option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label">Status</label>
+                                    <select name="status" class="form-select">
+                                        <option value="">All Status</option>
+                                        <option value="draft"{% if status_filter == "draft" %} selected{% endif %}>Draft</option>
+                                        <option value="confirmed"{% if status_filter == "confirmed" %} selected{% endif %}>Confirmed</option>
+                                        <option value="billed"{% if status_filter == "billed" %} selected{% endif %}>Billed</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">Filter</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Billing Status Overview -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body text-center">
+                            <h3 class="mb-0">£{{ status_totals.draft|default:"0.00"|floatformat:2 }}</h3>
+                            <small>Draft Charges</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body text-center">
+                            <h3 class="mb-0">£{{ status_totals.confirmed|default:"0.00"|floatformat:2 }}</h3>
+                            <small>Confirmed Charges</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body text-center">
+                            <h3 class="mb-0">£{{ status_totals.billed|default:"0.00"|floatformat:2 }}</h3>
+                            <small>Billed Charges</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body text-center">
+                            <h3 class="mb-0">£{{ status_totals.total|default:"0.00"|floatformat:2 }}</h3>
+                            <small>Total Charges</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resource Usage Summary -->
+            {% if resource_summary %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Resource Usage Summary</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Resource</th>
+                                    <th>Sessions</th>
+                                    <th>Total Hours</th>
+                                    <th>Total Charges</th>
+                                    <th>Avg Session Duration</th>
+                                    <th>Avg Session Value</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for resource in resource_summary %}
+                                <tr>
+                                    <td><strong>{{ resource.resource.name }}</strong></td>
+                                    <td>{{ resource.session_count }}</td>
+                                    <td>{{ resource.total_hours|floatformat:1 }}h</td>
+                                    <td>£{{ resource.total_charges|floatformat:2 }}</td>
+                                    <td>{{ resource.avg_duration|floatformat:1 }}h</td>
+                                    <td>£{{ resource.avg_session_value|floatformat:2 }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Billing History -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Billing History</h5>
+                </div>
+                <div class="card-body">
+                    {% if billing_records %}
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Date/Time</th>
+                                    <th>Resource</th>
+                                    <th>Duration</th>
+                                    <th>Rate Applied</th>
+                                    <th>Charge</th>
+                                    <th>Period</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in billing_records %}
+                                <tr>
+                                    <td>
+                                        {{ record.session_start|date:"M d, Y" }}<br>
+                                        <small class="text-muted">{{ record.session_start|time:"H:i" }} - {{ record.session_end|time:"H:i" }}</small>
+                                    </td>
+                                    <td>
+                                        <strong>{{ record.resource.name }}</strong>
+                                        {% if record.resource.description %}
+                                        <br><small class="text-muted">{{ record.resource.description|truncatewords:5 }}</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ record.billable_hours|floatformat:1 }}h</td>
+                                    <td>
+                                        £{{ record.hourly_rate_applied|floatformat:2 }}/hr
+                                        {% if record.rate_applied %}
+                                        <br>
+                                        <span class="badge bg-{% if record.rate_applied.rate_type == 'standard' %}primary{% elif record.rate_applied.rate_type == 'peak' %}warning{% elif record.rate_applied.rate_type == 'off_peak' %}success{% else %}info{% endif %} badge-sm">
+                                            {{ record.rate_applied.get_rate_type_display }}
+                                        </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <strong>£{{ record.total_charge|floatformat:2 }}</strong>
+                                    </td>
+                                    <td>{{ record.billing_period.name }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if record.status == 'confirmed' %}success{% elif record.status == 'billed' %}primary{% else %}warning{% endif %}">
+                                            {{ record.get_status_display }}
+                                        </span>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Pagination -->
+                    {% if billing_records.has_other_pages %}
+                    <nav aria-label="Billing history pagination" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            {% if billing_records.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if period_filter %}&period={{ period_filter }}{% endif %}{% if resource_filter %}&resource={{ resource_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">First</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ billing_records.previous_page_number }}{% if period_filter %}&period={{ period_filter }}{% endif %}{% if resource_filter %}&resource={{ resource_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Previous</a>
+                            </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">Page {{ billing_records.number }} of {{ billing_records.paginator.num_pages }}</span>
+                            </li>
+                            
+                            {% if billing_records.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ billing_records.next_page_number }}{% if period_filter %}&period={{ period_filter }}{% endif %}{% if resource_filter %}&resource={{ resource_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Next</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ billing_records.paginator.num_pages }}{% if period_filter %}&period={{ period_filter }}{% endif %}{% if resource_filter %}&resource={{ resource_filter }}{% endif %}{% if status_filter %}&status={{ status_filter }}{% endif %}">Last</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+
+                    <!-- Summary Footer -->
+                    <div class="mt-4 p-3 bg-light rounded">
+                        <div class="row text-center">
+                            <div class="col-md-3">
+                                <strong>{{ billing_records.paginator.count }}</strong>
+                                <br>
+                                <small class="text-muted">Total Records</small>
+                            </div>
+                            <div class="col-md-3">
+                                <strong>{{ user_summary.total_hours|floatformat:1 }}h</strong>
+                                <br>
+                                <small class="text-muted">Total Hours</small>
+                            </div>
+                            <div class="col-md-3">
+                                <strong>£{{ user_summary.total_charges|floatformat:2 }}</strong>
+                                <br>
+                                <small class="text-muted">Total Charges</small>
+                            </div>
+                            <div class="col-md-3">
+                                <strong>£{{ user_summary.avg_session_value|default:"0.00"|floatformat:2 }}</strong>
+                                <br>
+                                <small class="text-muted">Avg Session Value</small>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5">
+                        <i class="fas fa-history fa-3x text-muted mb-3"></i>
+                        <h4>No Billing History</h4>
+                        <p class="text-muted">No billing records found for this user with the current filters.</p>
+                        <a href="?{% if period_filter %}period={{ period_filter }}&{% endif %}{% if resource_filter %}resource={{ resource_filter }}&{% endif %}" class="btn btn-outline-primary">Clear Status Filter</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.badge-sm {
+    font-size: 0.75em;
+}
+</style>
+{% endblock %}
