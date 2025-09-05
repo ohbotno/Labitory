@@ -223,34 +223,27 @@ class UserRegistrationForm(UserCreationForm):
         
         if commit:
             user.save()
-            profile, created = UserProfile.objects.get_or_create(
-                user=user,
-                defaults={
-                    'role': self.cleaned_data['role'],
-                    'faculty': self.cleaned_data.get('faculty'),
-                    'college': self.cleaned_data.get('college'),
-                    'department': self.cleaned_data.get('department'),
-                    'group': self.cleaned_data.get('group', ''),
-                    'student_id': self.cleaned_data.get('student_id', '') if self.cleaned_data['role'] == 'student' else '',
-                    'student_level': self.cleaned_data.get('student_level', '') if self.cleaned_data['role'] == 'student' else '',
-                    'staff_number': self.cleaned_data.get('staff_number', '') if self.cleaned_data['role'] != 'student' else '',
-                    'phone': self.cleaned_data.get('phone', ''),
-                    'email_verified': False
-                }
-            )
-            # If profile was created by signal, update it with form data
-            if not created:
-                profile.role = self.cleaned_data['role']
-                profile.faculty = self.cleaned_data.get('faculty')
-                profile.college = self.cleaned_data.get('college')
-                profile.department = self.cleaned_data.get('department')
-                profile.group = self.cleaned_data.get('group', '')
-                profile.student_id = self.cleaned_data.get('student_id', '') if self.cleaned_data['role'] == 'student' else ''
-                profile.student_level = self.cleaned_data.get('student_level', '') if self.cleaned_data['role'] == 'student' else ''
-                profile.staff_number = self.cleaned_data.get('staff_number', '') if self.cleaned_data['role'] != 'student' else ''
-                profile.phone = self.cleaned_data.get('phone', '')
-                profile.email_verified = False
-                profile.save()
+            
+            # Since the User post_save signal creates a UserProfile automatically,
+            # we need to get and update the existing profile instead of creating a new one
+            try:
+                profile = user.userprofile
+            except UserProfile.DoesNotExist:
+                # Fallback: create profile if signal didn't work for some reason
+                profile = UserProfile.objects.create(user=user)
+            
+            # Update profile with form data
+            profile.role = self.cleaned_data['role']
+            profile.faculty = self.cleaned_data.get('faculty')
+            profile.college = self.cleaned_data.get('college')
+            profile.department = self.cleaned_data.get('department')
+            profile.group = self.cleaned_data.get('group', '')
+            profile.student_id = self.cleaned_data.get('student_id', '') if self.cleaned_data['role'] == 'student' else ''
+            profile.student_level = self.cleaned_data.get('student_level', '') if self.cleaned_data['role'] == 'student' else ''
+            profile.staff_number = self.cleaned_data.get('staff_number', '') if self.cleaned_data['role'] != 'student' else ''
+            profile.phone = self.cleaned_data.get('phone', '')
+            profile.email_verified = False
+            profile.save()
             
             # Create email verification token
             token = EmailVerificationToken.objects.create(user=user)
