@@ -1,4 +1,4 @@
-# Labitory v1.0.0
+# Labitory v2.0.0
 
 A comprehensive laboratory resource management system designed for academic institutions. Built with Django, Labitory provides conflict-free scheduling, collaborative booking management, and detailed analytics for efficient lab resource utilization.
 
