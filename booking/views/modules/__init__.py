@@ -51,6 +51,8 @@ __all__ = [
     'edit_booking_view',
     'cancel_booking_view',
     'duplicate_booking_view',
+    'create_recurring_booking_view',
+    'cancel_recurring_series_view',
     'template_list_view',
     'template_create_view',
     'create_booking_from_template_view',
@@ -62,6 +64,7 @@ __all__ = [
     'request_resource_access_view',
     'access_requests_view',
     'access_request_detail_view',
+    'ajax_create_checklist_item',
     
     # Core views
     'dashboard_view',
@@ -71,6 +74,9 @@ __all__ = [
     'about_page_edit_view',
     'ajax_load_colleges',
     'ajax_load_departments',
+    'group_management_view',
+    'group_detail_view',
+    'add_user_to_group',
     
     # Checkin views
     'checkin_view',
@@ -109,9 +115,17 @@ __all__ = [
     'save_booking_as_template_view',
     'bulk_booking_operations_view',
     'booking_management_view',
+    'delete_booking_view',
     
     # Analytics views
     'usage_analytics_view',
+    
+    # Risk Assessment views  
+    'risk_assessments_view',
+    'risk_assessment_detail_view',
+    'start_risk_assessment_view',
+    'submit_risk_assessment_view',
+    'create_risk_assessment_view',
     
     # Billing views
     'billing_dashboard',
@@ -133,4 +147,5 @@ __all__ = [
     # Permissions
     'IsOwnerOrManagerPermission',
     'IsManagerPermission',
+    'IsManagerOrReadOnly',
 ]

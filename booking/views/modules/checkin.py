@@ -222,3 +222,50 @@ def api_checkout_booking(request, booking_id):
         return JsonResponse({'success': True, 'message': message})
     else:
         return JsonResponse({'success': False, 'message': message}, status=400)
+
+
+@login_required
+def usage_analytics_view(request):
+    """View usage analytics (managers only)."""
+    try:
+        user_profile = request.user.userprofile
+        if user_profile.role not in ['technician', 'sysadmin']:
+            messages.error(request, 'You do not have permission to view usage analytics.')
+            return redirect('booking:dashboard')
+    except UserProfile.DoesNotExist:
+        messages.error(request, 'You do not have permission to view usage analytics.')
+        return redirect('booking:dashboard')
+    
+    # Get filter parameters
+    resource_id = request.GET.get('resource')
+    days = int(request.GET.get('days', 30))
+    
+    # Calculate date range
+    end_date = timezone.now()
+    start_date = end_date - timedelta(days=days)
+    
+    # Get analytics
+    resource = None
+    if resource_id:
+        try:
+            resource = Resource.objects.get(id=resource_id)
+        except Resource.DoesNotExist:
+            pass
+    
+    analytics = checkin_service.get_usage_analytics(
+        resource=resource,
+        start_date=start_date,
+        end_date=end_date
+    )
+    
+    # Get all resources for filter
+    resources = Resource.objects.filter(is_active=True).order_by('name')
+    
+    return render(request, 'booking/usage_analytics.html', {
+        'analytics': analytics,
+        'resource': resource,
+        'resources': resources,
+        'days': days,
+        'start_date': start_date,
+        'end_date': end_date,
+    })

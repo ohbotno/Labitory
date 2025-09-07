@@ -623,3 +623,220 @@ Labitory System
                 'description': 'Mailgun email service SMTP configuration'
             }
         ]
+
+
+class SMSConfiguration(models.Model):
+    """Store and manage SMS configuration settings."""
+    
+    # Basic Configuration
+    is_active = models.BooleanField(
+        default=False,
+        help_text="Enable this configuration as the active SMS settings"
+    )
+    is_enabled = models.BooleanField(
+        default=True,
+        help_text="Enable SMS notifications globally"
+    )
+    name = models.CharField(
+        max_length=100,
+        help_text="Descriptive name for this SMS configuration"
+    )
+    description = models.TextField(
+        blank=True,
+        help_text="Optional description of this configuration"
+    )
+    
+    # Twilio Configuration
+    twilio_account_sid = models.CharField(
+        max_length=255,
+        help_text="Twilio Account SID"
+    )
+    twilio_auth_token = models.CharField(
+        max_length=255,
+        help_text="Twilio Auth Token (stored encrypted)"
+    )
+    twilio_phone_number = models.CharField(
+        max_length=20,
+        help_text="Twilio phone number in international format (e.g., +1234567890)"
+    )
+    
+    # Advanced Settings
+    message_character_limit = models.PositiveIntegerField(
+        default=1600,
+        help_text="Maximum characters per SMS message"
+    )
+    retry_count = models.PositiveIntegerField(
+        default=3,
+        help_text="Number of retry attempts for failed messages"
+    )
+    
+    # Validation and Testing
+    is_validated = models.BooleanField(
+        default=False,
+        help_text="Whether this configuration has been successfully tested"
+    )
+    last_test_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Last time this configuration was tested"
+    )
+    last_test_result = models.TextField(
+        blank=True,
+        help_text="Result of the last configuration test"
+    )
+    
+    # Metadata
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='created_sms_configs',
+        help_text="User who created this configuration"
+    )
+    
+    class Meta:
+        verbose_name = "SMS Configuration"
+        verbose_name_plural = "SMS Configurations"
+        ordering = ['-is_active', '-updated_at']
+        db_table = 'booking_smsconfiguration'
+    
+    def __str__(self):
+        active_indicator = " (Active)" if self.is_active else ""
+        enabled_indicator = " (Disabled)" if not self.is_enabled else ""
+        return f"{self.name}{active_indicator}{enabled_indicator}"
+    
+    def clean(self):
+        """Validate the configuration settings."""
+        super().clean()
+        
+        # Validate that only one configuration can be active
+        if self.is_active:
+            existing_active = SMSConfiguration.objects.filter(is_active=True)
+            if self.pk:
+                existing_active = existing_active.exclude(pk=self.pk)
+            
+            if existing_active.exists():
+                raise ValidationError(
+                    "Only one SMS configuration can be active at a time. "
+                    "Please deactivate the current active configuration first."
+                )
+        
+        # Validate phone number format
+        if self.twilio_phone_number and not self.twilio_phone_number.startswith('+'):
+            raise ValidationError(
+                "Phone number must be in international format starting with '+'"
+            )
+    
+    def save(self, *args, **kwargs):
+        """Override save to ensure only one active configuration."""
+        self.full_clean()
+        
+        # If this configuration is being set as active, deactivate others
+        if self.is_active:
+            SMSConfiguration.objects.filter(is_active=True).update(is_active=False)
+        
+        super().save(*args, **kwargs)
+    
+    def activate(self):
+        """Activate this configuration and deactivate others."""
+        SMSConfiguration.objects.filter(is_active=True).update(is_active=False)
+        self.is_active = True
+        self.save()
+    
+    def deactivate(self):
+        """Deactivate this configuration."""
+        self.is_active = False
+        self.save()
+    
+    def test_configuration(self, test_phone_number=None):
+        """Test this SMS configuration by sending a test message."""
+        try:
+            from twilio.rest import Client
+            from twilio.base.exceptions import TwilioException
+            
+            # Create Twilio client with this configuration
+            client = Client(self.twilio_account_sid, self.twilio_auth_token)
+            
+            # Use provided phone number or default to a test format
+            if not test_phone_number:
+                # Can't send to a real number without user input, so just validate credentials
+                # by trying to fetch account details
+                account = client.api.accounts(self.twilio_account_sid).fetch()
+                
+                # Update test results
+                self.is_validated = True
+                self.last_test_date = timezone.now()
+                self.last_test_result = f"Success: Credentials validated. Account status: {account.status}"
+                self.save()
+                
+                return True, f"Configuration validated successfully. Account status: {account.status}"
+            else:
+                # Send actual test SMS
+                message = client.messages.create(
+                    body=f"SMS Configuration Test - {self.name}\n\nThis is a test message to verify SMS configuration. If you received this, the configuration is working correctly!\n\n-- Labitory System",
+                    from_=self.twilio_phone_number,
+                    to=test_phone_number
+                )
+                
+                # Update test results
+                self.is_validated = True
+                self.last_test_date = timezone.now()
+                self.last_test_result = f"Success: Test SMS sent to {test_phone_number}. Message SID: {message.sid}"
+                self.save()
+                
+                return True, f"Test SMS sent successfully to {test_phone_number}"
+        
+        except TwilioException as e:
+            # Update test results with error
+            self.is_validated = False
+            self.last_test_date = timezone.now()
+            self.last_test_result = f"Twilio Error: {str(e)}"
+            self.save()
+            
+            return False, f"Twilio error: {str(e)}"
+        
+        except Exception as e:
+            # Update test results with error
+            self.is_validated = False
+            self.last_test_date = timezone.now()
+            self.last_test_result = f"Error: {str(e)}"
+            self.save()
+            
+            return False, f"Test failed: {str(e)}"
+    
+    def is_available(self):
+        """Check if SMS service is available and configured."""
+        try:
+            from twilio.rest import Client
+            return (
+                self.is_active and 
+                self.is_enabled and
+                self.twilio_account_sid and 
+                self.twilio_auth_token and 
+                self.twilio_phone_number
+            )
+        except ImportError:
+            return False
+    
+    def get_configuration_dict(self):
+        """Return configuration as a dictionary."""
+        return {
+            'TWILIO_ACCOUNT_SID': self.twilio_account_sid,
+            'TWILIO_AUTH_TOKEN': '***' if self.twilio_auth_token else '',
+            'TWILIO_PHONE_NUMBER': self.twilio_phone_number,
+            'SMS_ENABLED': self.is_enabled,
+            'MESSAGE_CHARACTER_LIMIT': self.message_character_limit,
+            'RETRY_COUNT': self.retry_count,
+        }
+    
+    @classmethod
+    def get_active_configuration(cls):
+        """Get the currently active SMS configuration."""
+        return cls.objects.filter(is_active=True).first()
+    
+    @classmethod
+    def is_sms_enabled(cls):
+        """Check if SMS is globally enabled."""
+        active_config = cls.get_active_configuration()
+        return active_config and active_config.is_enabled and active_config.is_available()

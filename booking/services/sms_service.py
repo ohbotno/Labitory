@@ -45,9 +45,33 @@ class SMSService:
             logger.warning("Twilio SDK not available. SMS functionality disabled.")
             return
         
-        account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
-        auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
-        self.from_number = getattr(settings, 'TWILIO_PHONE_NUMBER', None)
+        # Try to get configuration from database first
+        try:
+            from ..models import SMSConfiguration
+            sms_config = SMSConfiguration.get_active_configuration()
+            
+            if sms_config and sms_config.is_enabled:
+                account_sid = sms_config.twilio_account_sid
+                auth_token = sms_config.twilio_auth_token
+                self.from_number = sms_config.twilio_phone_number
+                self.sms_config = sms_config
+                logger.info(f"Using SMS configuration: {sms_config.name}")
+            else:
+                # Fallback to environment variables for backward compatibility
+                account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
+                auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
+                self.from_number = getattr(settings, 'TWILIO_PHONE_NUMBER', None)
+                self.sms_config = None
+                if account_sid:
+                    logger.info("Using SMS configuration from environment variables")
+                
+        except Exception as e:
+            logger.warning(f"Could not load SMS configuration from database: {e}")
+            # Fallback to environment variables
+            account_sid = getattr(settings, 'TWILIO_ACCOUNT_SID', None)
+            auth_token = getattr(settings, 'TWILIO_AUTH_TOKEN', None)
+            self.from_number = getattr(settings, 'TWILIO_PHONE_NUMBER', None)
+            self.sms_config = None
         
         if account_sid and auth_token and self.from_number:
             try:
@@ -61,7 +85,21 @@ class SMSService:
     
     def is_available(self) -> bool:
         """Check if SMS service is available and configured."""
-        return TWILIO_AVAILABLE and self.client is not None
+        if not TWILIO_AVAILABLE or self.client is None:
+            return False
+        
+        # Check if we have a database configuration
+        if hasattr(self, 'sms_config') and self.sms_config:
+            return self.sms_config.is_enabled and self.sms_config.is_active
+        
+        # If using environment variables, check settings
+        return getattr(settings, 'SMS_ENABLED', True)
+    
+    def reload_configuration(self):
+        """Reload SMS configuration from database."""
+        self.client = None
+        self.from_number = None
+        self._initialize_client()
     
     def send_sms(self, to_number: str, message: str) -> bool:
         """
@@ -88,9 +126,13 @@ class SMSService:
             return False
         
         # Truncate message if too long
-        if len(message) > 1600:
-            message = message[:1597] + "..."
-            logger.warning(f"SMS message truncated to 1600 characters for {to_number}")
+        max_length = 1600  # Default
+        if hasattr(self, 'sms_config') and self.sms_config:
+            max_length = self.sms_config.message_character_limit
+        
+        if len(message) > max_length:
+            message = message[:max_length-3] + "..."
+            logger.warning(f"SMS message truncated to {max_length} characters for {to_number}")
         
         try:
             message_instance = self.client.messages.create(

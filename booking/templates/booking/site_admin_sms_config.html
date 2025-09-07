@@ -1,0 +1,462 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}SMS Configuration - Site Administration{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-sms me-2"></i>
+                    SMS Configuration
+                </h1>
+                <div>
+                    <a href="{% url 'booking:site_admin_dashboard' %}" class="btn btn-outline-secondary me-2">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Back to Admin Dashboard
+                    </a>
+                    <a href="{% url 'booking:site_admin_sms_config_create' %}" class="btn btn-primary">
+                        <i class="fas fa-plus me-2"></i>
+                        Add SMS Configuration
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SMS Status Alert -->
+    {% if active_config %}
+        {% if active_config.is_enabled %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="alert alert-success">
+                    <h6><i class="fas fa-check-circle me-2"></i>SMS Notifications Active</h6>
+                    <p class="mb-0">
+                        <strong>{{ active_config.name }}</strong> is currently active and enabled.
+                        {% if active_config.is_validated %}
+                            <span class="badge bg-success ms-2">Validated</span>
+                        {% else %}
+                            <span class="badge bg-warning ms-2">Not Tested</span>
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="alert alert-warning">
+                    <h6><i class="fas fa-pause-circle me-2"></i>SMS Notifications Disabled</h6>
+                    <p class="mb-0">
+                        <strong>{{ active_config.name }}</strong> is active but SMS notifications are disabled.
+                        <a href="#" class="btn btn-sm btn-warning ms-2" onclick="enableSMS({{ active_config.id }})">Enable SMS</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    {% else %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-warning">
+                <h6><i class="fas fa-exclamation-triangle me-2"></i>No Active SMS Configuration</h6>
+                <p class="mb-0">No SMS configuration is currently active. Create and activate a configuration to enable SMS functionality.</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Twilio Setup Guide -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Twilio Setup Guide
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-3">To use SMS notifications, you'll need a Twilio account and phone number:</p>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-user-plus me-2"></i>Step 1: Create Account</h6>
+                            <p class="small text-muted">
+                                Sign up for a <a href="https://www.twilio.com/try-twilio" target="_blank">Twilio account</a> if you don't have one.
+                                New accounts get free credits to get started.
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-key me-2"></i>Step 2: Get Credentials</h6>
+                            <p class="small text-muted">
+                                From your Twilio Console, copy your Account SID and Auth Token.
+                                These are found on your account dashboard.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-phone me-2"></i>Step 3: Get Phone Number</h6>
+                            <p class="small text-muted">
+                                Purchase a phone number from Twilio that supports SMS.
+                                This will be your "from" number for all SMS messages.
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6><i class="fas fa-cog me-2"></i>Step 4: Configure</h6>
+                            <p class="small text-muted">
+                                Create an SMS configuration here with your credentials,
+                                test it, and activate it to start sending SMS notifications.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SMS Configurations List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        SMS Configurations
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if configurations %}
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Status</th>
+                                    <th>Phone Number</th>
+                                    <th>Created</th>
+                                    <th>Last Test</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for config in configurations %}
+                                <tr class="{% if config.is_active %}table-success{% endif %}">
+                                    <td>
+                                        <div class="d-flex align-items-center">
+                                            {% if config.is_active %}
+                                                <i class="fas fa-star text-warning me-2" title="Active Configuration"></i>
+                                            {% endif %}
+                                            <div>
+                                                <strong>{{ config.name }}</strong>
+                                                {% if config.description %}
+                                                    <br><small class="text-muted">{{ config.description|truncatechars:50 }}</small>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if config.is_active and config.is_enabled %}
+                                            <span class="badge bg-success">Active</span>
+                                        {% elif config.is_active and not config.is_enabled %}
+                                            <span class="badge bg-warning">Active (Disabled)</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Inactive</span>
+                                        {% endif %}
+                                        
+                                        {% if config.is_validated %}
+                                            <span class="badge bg-success ms-1">Validated</span>
+                                        {% elif config.last_test_date %}
+                                            <span class="badge bg-danger ms-1">Test Failed</span>
+                                        {% else %}
+                                            <span class="badge bg-warning ms-1">Not Tested</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <code>{{ config.twilio_phone_number|default:"Not set" }}</code>
+                                    </td>
+                                    <td>
+                                        <small>{{ config.created_at|date:"M j, Y" }}</small><br>
+                                        <small class="text-muted">by {{ config.created_by.get_full_name|default:config.created_by.username }}</small>
+                                    </td>
+                                    <td>
+                                        {% if config.last_test_date %}
+                                            <small>{{ config.last_test_date|date:"M j, Y H:i" }}</small><br>
+                                            {% if config.is_validated %}
+                                                <small class="text-success">Success</small>
+                                            {% else %}
+                                                <small class="text-danger">Failed</small>
+                                            {% endif %}
+                                        {% else %}
+                                            <small class="text-muted">Never tested</small>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <!-- Test Button -->
+                                            <button class="btn btn-outline-info btn-sm" 
+                                                    onclick="showTestModal({{ config.id }}, '{{ config.name|escapejs }}')"
+                                                    title="Test Configuration">
+                                                <i class="fas fa-flask"></i>
+                                            </button>
+                                            
+                                            <!-- Enable/Disable Button -->
+                                            {% if config.is_active %}
+                                                {% if config.is_enabled %}
+                                                    <button class="btn btn-outline-warning btn-sm" 
+                                                            onclick="disableSMS({{ config.id }})"
+                                                            title="Disable SMS">
+                                                        <i class="fas fa-pause"></i>
+                                                    </button>
+                                                {% else %}
+                                                    <button class="btn btn-outline-success btn-sm" 
+                                                            onclick="enableSMS({{ config.id }})"
+                                                            title="Enable SMS">
+                                                        <i class="fas fa-play"></i>
+                                                    </button>
+                                                {% endif %}
+                                            {% endif %}
+                                            
+                                            <!-- Activate/Deactivate Button -->
+                                            {% if config.is_active %}
+                                                <button class="btn btn-outline-secondary btn-sm" 
+                                                        onclick="deactivateConfig({{ config.id }})"
+                                                        title="Deactivate">
+                                                    <i class="fas fa-power-off"></i>
+                                                </button>
+                                            {% else %}
+                                                <button class="btn btn-outline-primary btn-sm" 
+                                                        onclick="activateConfig({{ config.id }})"
+                                                        title="Activate">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                            {% endif %}
+                                            
+                                            <!-- Edit Button -->
+                                            <a href="{% url 'booking:site_admin_sms_config_edit' config.id %}" 
+                                               class="btn btn-outline-primary btn-sm"
+                                               title="Edit Configuration">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            
+                                            <!-- Delete Button -->
+                                            {% if not config.is_active %}
+                                                <button class="btn btn-outline-danger btn-sm" 
+                                                        onclick="deleteConfig({{ config.id }}, '{{ config.name|escapejs }}')"
+                                                        title="Delete Configuration">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="fas fa-sms text-muted mb-3" style="font-size: 3rem;"></i>
+                        <h5 class="text-muted">No SMS Configurations</h5>
+                        <p class="text-muted mb-3">Get started by creating your first SMS configuration.</p>
+                        <a href="{% url 'booking:site_admin_sms_config_create' %}" class="btn btn-primary">
+                            <i class="fas fa-plus me-2"></i>
+                            Create SMS Configuration
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Test SMS Modal -->
+<div class="modal fade" id="testSMSModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Test SMS Configuration</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="testSMSForm">
+                    <input type="hidden" id="testConfigId" name="config_id">
+                    
+                    <div class="mb-3">
+                        <label for="testType" class="form-label">Test Type</label>
+                        <select class="form-control" id="testType" name="test_type" onchange="togglePhoneField()">
+                            <option value="validate">Validate Credentials Only</option>
+                            <option value="send_sms">Send Test SMS</option>
+                        </select>
+                        <div class="form-text">Choose whether to validate credentials or send an actual SMS.</div>
+                    </div>
+                    
+                    <div class="mb-3" id="phoneNumberField" style="display: none;">
+                        <label for="testPhoneNumber" class="form-label">Test Phone Number</label>
+                        <input type="tel" class="form-control" id="testPhoneNumber" name="test_phone_number" 
+                               placeholder="+1234567890" pattern="^\+[1-9]\d{1,14}$">
+                        <div class="form-text">Phone number in international format (+1234567890).</div>
+                    </div>
+                    
+                    <div id="testResult" class="mt-3" style="display: none;"></div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="runSMSTest()">
+                    <span id="testSpinner" class="spinner-border spinner-border-sm me-2" style="display: none;"></span>
+                    Run Test
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function showTestModal(configId, configName) {
+    document.getElementById('testConfigId').value = configId;
+    document.querySelector('#testSMSModal .modal-title').textContent = 'Test SMS Configuration: ' + configName;
+    document.getElementById('testResult').style.display = 'none';
+    document.getElementById('testType').value = 'validate';
+    togglePhoneField();
+    new bootstrap.Modal(document.getElementById('testSMSModal')).show();
+}
+
+function togglePhoneField() {
+    const testType = document.getElementById('testType').value;
+    const phoneField = document.getElementById('phoneNumberField');
+    const phoneInput = document.getElementById('testPhoneNumber');
+    
+    if (testType === 'send_sms') {
+        phoneField.style.display = 'block';
+        phoneInput.required = true;
+    } else {
+        phoneField.style.display = 'none';
+        phoneInput.required = false;
+    }
+}
+
+function runSMSTest() {
+    const form = document.getElementById('testSMSForm');
+    const formData = new FormData(form);
+    const spinner = document.getElementById('testSpinner');
+    const resultDiv = document.getElementById('testResult');
+    
+    spinner.style.display = 'inline-block';
+    resultDiv.style.display = 'none';
+    
+    fetch('{% url "booking:site_admin_sms_config" %}?action=test', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        spinner.style.display = 'none';
+        resultDiv.innerHTML = `
+            <div class="alert alert-${data.success ? 'success' : 'danger'}">
+                <i class="fas fa-${data.success ? 'check-circle' : 'exclamation-triangle'} me-2"></i>
+                ${data.message}
+            </div>
+        `;
+        resultDiv.style.display = 'block';
+        
+        if (data.success) {
+            // Refresh the page after a delay to show updated test status
+            setTimeout(() => location.reload(), 2000);
+        }
+    })
+    .catch(error => {
+        spinner.style.display = 'none';
+        resultDiv.innerHTML = `
+            <div class="alert alert-danger">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Test failed: ${error.message}
+            </div>
+        `;
+        resultDiv.style.display = 'block';
+    });
+}
+
+function activateConfig(configId) {
+    performAction('activate', configId, 'Activating configuration...');
+}
+
+function deactivateConfig(configId) {
+    performAction('deactivate', configId, 'Deactivating configuration...');
+}
+
+function enableSMS(configId) {
+    performAction('enable', configId, 'Enabling SMS notifications...');
+}
+
+function disableSMS(configId) {
+    performAction('disable', configId, 'Disabling SMS notifications...');
+}
+
+function deleteConfig(configId, configName) {
+    if (confirm(`Are you sure you want to delete the SMS configuration "${configName}"? This action cannot be undone.`)) {
+        performAction('delete', configId, 'Deleting configuration...');
+    }
+}
+
+function performAction(action, configId, loadingMessage) {
+    const formData = new FormData();
+    formData.append('config_id', configId);
+    
+    // Show loading indicator
+    showToast('info', loadingMessage);
+    
+    fetch(`{% url "booking:site_admin_sms_config" %}?action=${action}`, {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'X-CSRFToken': '{{ csrf_token }}'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showToast('success', data.message);
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast('error', data.message);
+        }
+    })
+    .catch(error => {
+        showToast('error', 'Operation failed: ' + error.message);
+    });
+}
+
+function showToast(type, message) {
+    // Simple toast notification - replace with your preferred notification system
+    const alertClass = type === 'success' ? 'alert-success' : type === 'error' ? 'alert-danger' : 'alert-info';
+    const icon = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle';
+    
+    const toast = document.createElement('div');
+    toast.className = `alert ${alertClass} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+    toast.style.zIndex = '9999';
+    toast.innerHTML = `
+        <i class="fas fa-${icon} me-2"></i>
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    document.body.appendChild(toast);
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (toast.parentNode) {
+            toast.parentNode.removeChild(toast);
+        }
+    }, 5000);
+}
+</script>
+{% endblock %}

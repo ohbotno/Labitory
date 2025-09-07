@@ -33,6 +33,7 @@ from .notifications import (
     Notification,
     EmailTemplate,
     EmailConfiguration,
+    SMSConfiguration,
 )
 
 # Resource models
@@ -147,6 +148,7 @@ __all__ = [
     'Notification',
     'EmailTemplate',
     'EmailConfiguration',
+    'SMSConfiguration',
     # Resources
     'Resource',
     'ResourceAccess',

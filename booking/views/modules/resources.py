@@ -19,12 +19,21 @@ from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.core.paginator import Paginator
 from django.db.models import Q, Count
+from django.http import JsonResponse
+from django.template.loader import render_to_string
+from django.views.decorators.http import require_http_methods
+from django.utils import timezone
+from datetime import timedelta
 
 from ...models import (
     Resource, ResourceAccess, AccessRequest, UserProfile, 
-    WaitingListEntry, Booking
+    WaitingListEntry, Booking, ResourceIssue
 )
-from ...forms import AccessRequestForm, ResourceForm
+from ...forms import (
+    AccessRequestForm, ResourceForm, ResourceResponsibleForm, 
+    ResourceIssueReportForm, ResourceIssueUpdateForm, IssueFilterForm,
+    ChecklistItemForm
+)
 
 
 def is_lab_admin(user):
@@ -34,149 +43,292 @@ def is_lab_admin(user):
 
 @login_required
 def resources_list_view(request):
-    """List available resources."""
-    resources = Resource.objects.filter(is_active=True)
+    """View to display all available resources with access control."""
+    resources = Resource.objects.filter(is_active=True).order_by('resource_type', 'name')
     
-    # Filter by resource type if specified
-    resource_type = request.GET.get('type')
-    if resource_type:
-        resources = resources.filter(resource_type=resource_type)
+    # Add access information for each resource
+    for resource in resources:
+        resource.user_has_access_result = resource.user_has_access(request.user)
+        resource.can_view_calendar_result = resource.can_user_view_calendar(request.user)
+        
+        # Check if user has pending access request
+        resource.has_pending_request = AccessRequest.objects.filter(
+            resource=resource,
+            user=request.user,
+            status='pending'
+        ).exists()
+        
+        # Check if user has pending training request
+        from ...models import TrainingRequest
+        resource.has_pending_training = TrainingRequest.objects.filter(
+            resource=resource,
+            user=request.user,
+            status__in=['pending', 'scheduled']
+        ).exists()
     
-    # Search functionality
-    search_query = request.GET.get('search')
-    if search_query:
-        resources = resources.filter(
-            Q(name__icontains=search_query) |
-            Q(description__icontains=search_query) |
-            Q(location__icontains=search_query)
-        )
-    
-    # Filter by availability for current user
-    show_available_only = request.GET.get('available_only') == 'true'
-    if show_available_only:
-        try:
-            user_profile = request.user.userprofile
-            available_resources = []
-            for resource in resources:
-                if resource.is_available_for_user(user_profile):
-                    available_resources.append(resource.pk)
-            resources = resources.filter(pk__in=available_resources)
-        except UserProfile.DoesNotExist:
-            resources = resources.none()
-    
-    # Pagination
-    paginator = Paginator(resources, 12)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
-    # Get unique resource types for filter dropdown
-    resource_types = Resource.objects.values_list('resource_type', flat=True).distinct()
-    
-    context = {
-        'page_obj': page_obj,
-        'resource_types': resource_types,
-        'current_type': resource_type,
-        'search_query': search_query,
-        'show_available_only': show_available_only,
-    }
-    
-    return render(request, 'booking/resources_list.html', context)
+    return render(request, 'booking/resources_list.html', {
+        'resources': resources,
+        'user': request.user,
+    })
 
 
 @login_required
 def resource_detail_view(request, resource_id):
-    """View resource details and handle access requests."""
+    """View to show resource details and calendar or access request form."""
+    from django.utils import timezone
+    from ...models import RiskAssessment, UserRiskAssessment, TrainingRequest
+    
     resource = get_object_or_404(Resource, id=resource_id, is_active=True)
     
-    # Check if user has access to this resource
-    user_has_access = False
-    access_request_pending = False
+    # Check user's access
+    user_has_access = resource.user_has_access(request.user)
+    can_view_calendar = resource.can_user_view_calendar(request.user)
     
-    try:
-        user_profile = request.user.userprofile
-        user_has_access = resource.is_available_for_user(user_profile)
-        
-        # Check for pending access requests
-        access_request_pending = AccessRequest.objects.filter(
-            user=request.user,
-            resource=resource,
-            status='pending'
-        ).exists()
-    except UserProfile.DoesNotExist:
-        pass
-    
-    # Get recent bookings for this resource (for managers)
-    recent_bookings = []
-    try:
-        if hasattr(request.user, 'userprofile') and request.user.userprofile.role in ['technician', 'sysadmin']:
-            recent_bookings = Booking.objects.filter(
-                resource=resource
-            ).order_by('-start_time')[:10]
-    except (UserProfile.DoesNotExist, AttributeError):
-        pass
-    
-    # Check if user is on waiting list
-    on_waiting_list = WaitingListEntry.objects.filter(
+    # Check if user has pending access request
+    has_pending_request = AccessRequest.objects.filter(
+        resource=resource,
         user=request.user,
-        resource=resource
+        status='pending'
     ).exists()
     
-    context = {
+    # Check if user has pending training request
+    has_pending_training = TrainingRequest.objects.filter(
+        resource=resource,
+        user=request.user,
+        status__in=['pending', 'scheduled']
+    ).exists()
+    
+    # Get approval progress for the user
+    approval_progress = resource.get_approval_progress(request.user)
+    
+    # Check required risk assessments for this resource
+    required_risk_assessments = RiskAssessment.objects.filter(
+        resource=resource,
+        is_active=True,
+        valid_until__gte=timezone.now().date()
+    ).order_by('risk_level', 'title')
+    
+    # Check user's status for each required risk assessment
+    user_risk_assessments = {}
+    risk_assessment_status = {'completed': 0, 'pending': 0, 'not_started': 0}
+    
+    for ra in required_risk_assessments:
+        try:
+            user_ra = UserRiskAssessment.objects.get(
+                user=request.user,
+                risk_assessment=ra
+            )
+            user_risk_assessments[ra.id] = user_ra
+            if user_ra.status == 'approved':
+                risk_assessment_status['completed'] += 1
+            elif user_ra.status in ['submitted', 'in_progress']:
+                risk_assessment_status['pending'] += 1
+            else:
+                risk_assessment_status['not_started'] += 1
+        except UserRiskAssessment.DoesNotExist:
+            user_risk_assessments[ra.id] = None
+            risk_assessment_status['not_started'] += 1
+    
+    # Determine if user needs to complete risk assessments
+    # Only consider risk assessment if the resource requires it via boolean field
+    needs_risk_assessments = (
+        resource.requires_risk_assessment and
+        (required_risk_assessments.exists() and 
+         risk_assessment_status['completed'] < required_risk_assessments.count())
+    )
+    
+    # Check if training is actually complete by examining approval progress
+    training_completed = False
+    if approval_progress and approval_progress.get('stages'):
+        for stage in approval_progress['stages']:
+            if stage.get('key') == 'training' and stage.get('status') == 'completed':
+                training_completed = True
+                break
+    
+    # Override has_pending_training if training is actually completed
+    # This ensures we don't show "Training Pending" when training is done
+    if training_completed:
+        has_pending_training = False
+    
+    # If user can view calendar and resource is not closed, show calendar view
+    if can_view_calendar and not resource.is_closed:
+        return render(request, 'booking/resource_detail.html', {
+            'resource': resource,
+            'user_has_access': user_has_access,
+            'can_view_calendar': can_view_calendar,
+            'has_pending_training': has_pending_training,
+            'approval_progress': approval_progress,
+            'required_risk_assessments': required_risk_assessments,
+            'user_risk_assessments': user_risk_assessments,
+            'risk_assessment_status': risk_assessment_status,
+            'needs_risk_assessments': needs_risk_assessments,
+            'show_calendar': True,
+        })
+    
+    # Otherwise show access request form
+    return render(request, 'booking/resource_detail.html', {
         'resource': resource,
         'user_has_access': user_has_access,
-        'access_request_pending': access_request_pending,
-        'recent_bookings': recent_bookings,
-        'on_waiting_list': on_waiting_list,
-    }
-    
-    return render(request, 'booking/resource_detail.html', context)
+        'can_view_calendar': can_view_calendar,
+        'has_pending_request': has_pending_request,
+        'has_pending_training': has_pending_training,
+        'approval_progress': approval_progress,
+        'required_risk_assessments': required_risk_assessments,
+        'user_risk_assessments': user_risk_assessments,
+        'risk_assessment_status': risk_assessment_status,
+        'needs_risk_assessments': needs_risk_assessments,
+        'show_calendar': False,
+    })
 
 
 @login_required
 def request_resource_access_view(request, resource_id):
-    """Request access to a resource."""
+    """Handle resource access requests."""
+    from ...models import TrainingRequest
+    
     resource = get_object_or_404(Resource, id=resource_id, is_active=True)
     
-    # Check if user already has access
-    try:
-        user_profile = request.user.userprofile
-        if resource.is_available_for_user(user_profile):
-            messages.info(request, 'You already have access to this resource.')
-            return redirect('booking:resource_detail', resource_id=resource.id)
-    except UserProfile.DoesNotExist:
-        messages.error(request, 'Please complete your profile first.')
-        return redirect('booking:profile')
+    # Check if user already has access or pending request
+    if resource.user_has_access(request.user):
+        messages.info(request, 'You already have access to this resource.', extra_tags='persistent-alert')
+        return redirect('booking:resource_detail', resource_id=resource.id)
     
-    # Check if there's already a pending request
-    existing_request = AccessRequest.objects.filter(
-        user=request.user,
-        resource=resource,
-        status='pending'
-    ).first()
+    if AccessRequest.objects.filter(resource=resource, user=request.user, status='pending').exists():
+        messages.info(request, 'You already have a pending access request for this resource.', extra_tags='persistent-alert')
+        return redirect('booking:resource_detail', resource_id=resource.id)
     
-    if existing_request:
-        messages.info(request, 'You already have a pending access request for this resource.')
+    # Check if user has pending training request
+    if TrainingRequest.objects.filter(resource=resource, user=request.user, status__in=['pending', 'scheduled']).exists():
+        messages.info(request, 'You already have a pending training request for this resource.', extra_tags='persistent-alert')
         return redirect('booking:resource_detail', resource_id=resource.id)
     
     if request.method == 'POST':
-        form = AccessRequestForm(request.POST, request.FILES)
-        if form.is_valid():
-            access_request = form.save(commit=False)
-            access_request.user = request.user
-            access_request.resource = resource
-            access_request.save()
+        access_type = request.POST.get('access_type', 'book')
+        justification = request.POST.get('justification', '').strip()
+        requested_duration_days = request.POST.get('requested_duration_days')
+        has_training = request.POST.get('has_training', '')
+        supervisor_name = request.POST.get('supervisor_name', '').strip()
+        supervisor_email = request.POST.get('supervisor_email', '').strip()
+        
+        if not justification:
+            messages.error(request, 'Please provide a justification for your access request.')
+            return redirect('booking:request_resource_access', resource_id=resource.id)
+        
+        # Check supervisor requirements for students
+        user_profile = request.user.userprofile
+        if user_profile.role == 'student':
+            if not supervisor_name:
+                messages.error(request, 'Supervisor name is required for student access requests.')
+                return redirect('booking:request_resource_access', resource_id=resource.id)
+            if not supervisor_email:
+                messages.error(request, 'Supervisor email is required for student access requests.')
+                return redirect('booking:request_resource_access', resource_id=resource.id)
+        
+        # Check if user meets training requirements
+        user_profile = request.user.userprofile
+        needs_training = resource.required_training_level > user_profile.training_level
+        
+        if needs_training:
+            if has_training == 'yes':
+                # User claims to have training but system shows they don't
+                messages.warning(request, 
+                    f'Our records show you have training level {user_profile.training_level}, but {resource.name} requires level {resource.required_training_level}. '
+                    'Training information will be sent to you to update your qualifications.', extra_tags='persistent-alert')
+                
+                # Create training request for verification
+                existing_training = TrainingRequest.objects.filter(
+                    user=request.user,
+                    resource=resource,
+                    status__in=['pending', 'scheduled']
+                ).first()
+                
+                if existing_training:
+                    training_request = existing_training
+                    created = False
+                else:
+                    training_request = TrainingRequest.objects.create(
+                        user=request.user,
+                        resource=resource,
+                        status='pending',
+                        requested_level=resource.required_training_level,
+                        current_level=user_profile.training_level,
+                        justification=f"Training verification needed for access to {resource.name}. User claims training completion. Original request: {justification}"
+                    )
+                    created = True
+                
+            elif has_training == 'no':
+                # User acknowledges they need training
+                messages.info(request, 'Training information will be sent to you as this resource requires additional training.', extra_tags='persistent-alert')
+                
+                # Create training request
+                existing_training = TrainingRequest.objects.filter(
+                    user=request.user,
+                    resource=resource,
+                    status__in=['pending', 'scheduled']
+                ).first()
+                
+                if existing_training:
+                    training_request = existing_training
+                    created = False
+                else:
+                    training_request = TrainingRequest.objects.create(
+                        user=request.user,
+                        resource=resource,
+                        status='pending',
+                        requested_level=resource.required_training_level,
+                        current_level=user_profile.training_level,
+                        justification=f"Training needed for access to {resource.name}. Original request: {justification}"
+                    )
+                    created = True
             
-            messages.success(request, f'Access request for "{resource.name}" submitted successfully.')
+            if 'training_request' in locals():
+                if created:
+                    messages.success(request, f'Training request for {resource.name} has been submitted. You will be contacted with training details.', extra_tags='persistent-alert')
+                    
+                    # Send notifications
+                    try:
+                        from booking.notifications import training_request_notifications
+                        training_request_notifications.training_request_submitted(training_request)
+                    except Exception as e:
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.error(f"Failed to send training request submission notification: {e}")
+                else:
+                    messages.info(request, f'You already have a pending training request for {resource.name}.', extra_tags='persistent-alert')
+            
             return redirect('booking:resource_detail', resource_id=resource.id)
-    else:
-        form = AccessRequestForm()
+        
+        # User has sufficient training, proceed with access request
+        access_request = AccessRequest.objects.create(
+            resource=resource,
+            user=request.user,
+            access_type=access_type,
+            justification=justification,
+            requested_duration_days=int(requested_duration_days) if requested_duration_days else None,
+            supervisor_name=supervisor_name if user_profile.role == 'student' else '',
+            supervisor_email=supervisor_email if user_profile.role == 'student' else ''
+        )
+        
+        messages.success(request, f'Access request for {resource.name} has been submitted successfully.', extra_tags='persistent-alert')
+        
+        # Send notifications
+        try:
+            from booking.notifications import access_request_notifications
+            access_request_notifications.access_request_submitted(access_request)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send access request submission notification: {e}")
+        
+        return redirect('booking:resource_detail', resource_id=resource.id)
     
-    context = {
-        'form': form,
+    # Determine if user is a student and needs supervisor info
+    is_student = hasattr(request.user, 'userprofile') and request.user.userprofile.role == 'student'
+    
+    return render(request, 'booking/request_access.html', {
         'resource': resource,
-    }
-    
-    return render(request, 'booking/request_access.html', context)
+        'is_student': is_student,
+    })
 
 
 @login_required
@@ -284,3 +436,90 @@ def resource_checkin_status_view(request, resource_id):
     }
     
     return render(request, 'booking/resource_checkin_status.html', context)
+
+
+@login_required
+def manage_resource_view(request, resource_id):
+    """Manage a specific resource."""
+    resource = get_object_or_404(Resource, id=resource_id)
+    
+    if not request.user.userprofile.role in ['technician', 'sysadmin']:
+        messages.error(request, "You don't have permission to manage resources.")
+        return redirect('booking:resource_detail', resource_id=resource_id)
+    
+    context = {
+        'resource': resource,
+    }
+    
+    return render(request, 'booking/manage_resource.html', context)
+
+
+@login_required
+def assign_resource_responsible_view(request, resource_id):
+    """Assign responsibility for a resource."""
+    resource = get_object_or_404(Resource, id=resource_id)
+    
+    if not request.user.userprofile.role in ['technician', 'sysadmin']:
+        messages.error(request, "You don't have permission to assign resource responsibility.")
+        return redirect('booking:resource_detail', resource_id=resource_id)
+    
+    if request.method == 'POST':
+        form = ResourceResponsibleForm(request.POST, resource=resource)
+        if form.is_valid():
+            responsible = form.save(commit=False)
+            responsible.resource = resource
+            responsible.assigned_by = request.user
+            responsible.save()
+            
+            messages.success(request, f"Resource responsibility assigned to {responsible.user.get_full_name()}.")
+            return redirect('booking:manage_resource', resource_id=resource_id)
+    else:
+        form = ResourceResponsibleForm(resource=resource)
+    
+    context = {
+        'resource': resource,
+        'form': form,
+    }
+    
+    return render(request, 'booking/assign_resource_responsible.html', context)
+
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def ajax_create_checklist_item(request):
+    """AJAX view for creating checklist items in a popup."""
+    if not (request.user.is_staff or hasattr(request.user, 'userprofile') and 
+            request.user.userprofile.role in ['technician', 'sysadmin']):
+        return JsonResponse({'error': 'Permission denied'}, status=403)
+    
+    if request.method == 'GET':
+        form = ChecklistItemForm()
+        html = render_to_string('booking/modals/checklist_item_form.html', {
+            'form': form,
+        }, request=request)
+        return JsonResponse({'html': html})
+    
+    elif request.method == 'POST':
+        form = ChecklistItemForm(request.POST)
+        if form.is_valid():
+            checklist_item = form.save(commit=False)
+            checklist_item.created_by = request.user
+            checklist_item.save()
+            
+            return JsonResponse({
+                'success': True,
+                'item': {
+                    'id': checklist_item.id,
+                    'title': checklist_item.title,
+                    'description': checklist_item.description,
+                    'category': checklist_item.get_category_display(),
+                    'item_type': checklist_item.get_item_type_display(),
+                    'is_required': checklist_item.is_required,
+                }
+            })
+        else:
+            html = render_to_string('booking/modals/checklist_item_form.html', {
+                'form': form,
+            }, request=request)
+            return JsonResponse({'html': html, 'errors': form.errors})

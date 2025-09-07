@@ -31,6 +31,58 @@ from ...forms import (
 
 
 @login_required
+def template_list_view(request):
+    """List user's booking templates."""
+    # Database-level filtering for accessible templates
+    
+    try:
+        user_profile = request.user.userprofile
+        # Build query for accessible templates using database filtering
+        templates = BookingTemplate.objects.filter(
+            Q(user=request.user) |  # User's own templates
+            Q(is_public=True) |     # Public templates
+            Q(user__userprofile__group=user_profile.group, user__userprofile__group__isnull=False)  # Same group
+        ).distinct().order_by('-use_count', 'name')
+    except:
+        # Fallback to just user's own templates and public ones
+        templates = BookingTemplate.objects.filter(
+            Q(user=request.user) | Q(is_public=True)
+        ).distinct().order_by('-use_count', 'name')
+    
+    user_templates = templates.filter(user=request.user)
+    public_templates = templates.filter(is_public=True).exclude(user=request.user)
+    group_templates = templates.exclude(user=request.user, is_public=True)
+    
+    return render(request, 'booking/templates.html', {
+        'user_templates': user_templates,
+        'public_templates': public_templates,
+        'group_templates': group_templates,
+    })
+
+
+@login_required
+def template_create_view(request):
+    """Create a new booking template."""
+    if request.method == 'POST':
+        form = BookingTemplateForm(request.POST, user=request.user)
+        if form.is_valid():
+            template = form.save(commit=False)
+            template.user = request.user
+            template.save()
+            messages.success(request, f'Template "{template.name}" created successfully.')
+            return redirect('booking:templates')
+        else:
+            messages.error(request, 'Please correct the errors below.')
+    else:
+        form = BookingTemplateForm(user=request.user)
+    
+    return render(request, 'booking/template_form.html', {
+        'form': form,
+        'title': 'Create Template',
+    })
+
+
+@login_required
 def template_edit_view(request, pk):
     """Edit a booking template."""
     template = get_object_or_404(BookingTemplate, pk=pk)
@@ -244,79 +296,3 @@ def bulk_booking_operations_view(request):
     return redirect('booking:dashboard')
 
 
-@login_required
-def booking_management_view(request):
-    """Management interface for bookings with bulk operations."""
-    try:
-        user_profile = request.user.userprofile
-        if user_profile.role not in ['technician', 'sysadmin']:
-            messages.error(request, 'You do not have permission to access booking management.')
-            return redirect('booking:dashboard')
-    except UserProfile.DoesNotExist:
-        messages.error(request, 'You do not have permission to access booking management.')
-        return redirect('booking:dashboard')
-    
-    # Get filter parameters
-    status_filter = request.GET.get('status', '')
-    resource_filter = request.GET.get('resource', '')
-    user_filter = request.GET.get('user', '')
-    date_from = request.GET.get('date_from', '')
-    date_to = request.GET.get('date_to', '')
-    
-    # Build query
-    bookings = Booking.objects.select_related('user', 'resource').all()
-    
-    if status_filter:
-        bookings = bookings.filter(status=status_filter)
-    
-    if resource_filter:
-        bookings = bookings.filter(resource_id=resource_filter)
-    
-    if user_filter:
-        bookings = bookings.filter(
-            Q(user__username__icontains=user_filter) |
-            Q(user__first_name__icontains=user_filter) |
-            Q(user__last_name__icontains=user_filter)
-        )
-    
-    if date_from:
-        try:
-            from django.utils import timezone
-            from_date = timezone.datetime.fromisoformat(date_from)
-            bookings = bookings.filter(start_time__gte=from_date)
-        except ValueError:
-            pass
-    
-    if date_to:
-        try:
-            from django.utils import timezone
-            to_date = timezone.datetime.fromisoformat(date_to)
-            bookings = bookings.filter(end_time__lte=to_date)
-        except ValueError:
-            pass
-    
-    # Order by most recent first
-    bookings = bookings.order_by('-created_at')
-    
-    # Pagination
-    from django.core.paginator import Paginator
-    paginator = Paginator(bookings, 50)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    
-    # Get resources and status choices for filters
-    resources = Resource.objects.filter(is_active=True).order_by('name')
-    status_choices = Booking.STATUS_CHOICES
-    
-    return render(request, 'booking/management/bookings.html', {
-        'page_obj': page_obj,
-        'resources': resources,
-        'status_choices': status_choices,
-        'current_filters': {
-            'status': status_filter,
-            'resource': resource_filter,
-            'user': user_filter,
-            'date_from': date_from,
-            'date_to': date_to,
-        },
-    })

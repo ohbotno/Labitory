@@ -8,7 +8,7 @@ from rest_framework import viewsets, permissions
 
 from ...models import Resource, ResourceResponsible
 from ...serializers import ResourceSerializer, ResourceResponsibleSerializer
-from ..main import IsManagerOrReadOnly
+from ..modules.api import IsManagerOrReadOnly
 
 
 class ResourceViewSet(viewsets.ModelViewSet):

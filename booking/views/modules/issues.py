@@ -73,22 +73,22 @@ def issues_dashboard(request):
     
     # Apply filters
     if filter_form.is_valid():
-        if filter_form.cleaned_data['resource']:
+        if filter_form.cleaned_data.get('resource'):
             issues = issues.filter(resource=filter_form.cleaned_data['resource'])
-        if filter_form.cleaned_data['status']:
+        if filter_form.cleaned_data.get('status'):
             issues = issues.filter(status=filter_form.cleaned_data['status'])
-        if filter_form.cleaned_data['severity']:
+        if filter_form.cleaned_data.get('severity'):
             issues = issues.filter(severity=filter_form.cleaned_data['severity'])
-        if filter_form.cleaned_data['category']:
+        if filter_form.cleaned_data.get('category'):
             issues = issues.filter(category=filter_form.cleaned_data['category'])
-        if filter_form.cleaned_data['assigned_to']:
+        if filter_form.cleaned_data.get('assigned_to'):
             issues = issues.filter(assigned_to=filter_form.cleaned_data['assigned_to'])
-        if filter_form.cleaned_data['is_overdue']:
+        if filter_form.cleaned_data.get('is_overdue'):
             # Filter for overdue issues (this would need a more complex query)
             pass
-        if filter_form.cleaned_data['date_from']:
+        if filter_form.cleaned_data.get('date_from'):
             issues = issues.filter(created_at__gte=filter_form.cleaned_data['date_from'])
-        if filter_form.cleaned_data['date_to']:
+        if filter_form.cleaned_data.get('date_to'):
             issues = issues.filter(created_at__lte=filter_form.cleaned_data['date_to'])
     
     # Statistics

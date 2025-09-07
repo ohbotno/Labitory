@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 
 from ...models import Booking, WaitingListEntry, BookingHistory, UserProfile
 from ...serializers import BookingSerializer, WaitingListEntrySerializer
-from ..main import IsOwnerOrManagerPermission
+from ..modules.api import IsOwnerOrManagerPermission
 
 
 class BookingViewSet(viewsets.ModelViewSet):

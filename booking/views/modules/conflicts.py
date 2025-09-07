@@ -97,63 +97,82 @@ def resolve_conflict_view(request, conflict_type, id1, id2):
         return redirect('booking:conflicts')
     
     if request.method == 'POST':
-        resolution_type = request.POST.get('resolution_type')
+        action = request.POST.get('action')
         
-        if resolution_type == 'cancel_first':
-            # Cancel first booking
-            booking1.cancel_booking()
-            messages.success(request, f'Cancelled booking {booking1.id} to resolve conflict.')
-        elif resolution_type == 'cancel_second':
-            # Cancel second booking
-            booking2.cancel_booking()
-            messages.success(request, f'Cancelled booking {booking2.id} to resolve conflict.')
-        elif resolution_type == 'modify_first':
-            # Modify first booking times
+        if action == 'cancel_booking1':
+            if booking1.can_be_cancelled:
+                booking1.status = 'cancelled'
+                booking1.save()
+                messages.success(request, f'Cancelled booking: {booking1.title}')
+            else:
+                messages.error(request, f'Cannot cancel booking: {booking1.title}')
+                
+        elif action == 'cancel_booking2':
+            if booking2.can_be_cancelled:
+                booking2.status = 'cancelled'
+                booking2.save()
+                messages.success(request, f'Cancelled booking: {booking2.title}')
+            else:
+                messages.error(request, f'Cannot cancel booking: {booking2.title}')
+                
+        elif action == 'reschedule_booking1':
             new_start = request.POST.get('new_start_time')
             new_end = request.POST.get('new_end_time')
             if new_start and new_end:
                 try:
                     from django.utils import timezone
-                    booking1.start_time = timezone.datetime.fromisoformat(new_start)
-                    booking1.end_time = timezone.datetime.fromisoformat(new_end)
+                    booking1.start_time = timezone.datetime.fromisoformat(new_start.replace('T', ' '))
+                    booking1.end_time = timezone.datetime.fromisoformat(new_end.replace('T', ' '))
                     booking1.save()
-                    messages.success(request, f'Modified booking {booking1.id} times to resolve conflict.')
-                except ValueError:
-                    messages.error(request, 'Invalid date/time format.')
-                    return render(request, 'booking/conflicts/resolve.html', {
-                        'conflict': conflict,
-                        'booking1': booking1,
-                        'booking2': booking2,
-                    })
-        elif resolution_type == 'modify_second':
-            # Modify second booking times
+                    messages.success(request, f'Rescheduled booking: {booking1.title}')
+                except Exception as e:
+                    messages.error(request, f'Error rescheduling booking: {str(e)}')
+            else:
+                messages.error(request, 'Invalid time values provided.')
+                
+        elif action == 'reschedule_booking2':
             new_start = request.POST.get('new_start_time')
             new_end = request.POST.get('new_end_time')
             if new_start and new_end:
                 try:
                     from django.utils import timezone
-                    booking2.start_time = timezone.datetime.fromisoformat(new_start)
-                    booking2.end_time = timezone.datetime.fromisoformat(new_end)
+                    booking2.start_time = timezone.datetime.fromisoformat(new_start.replace('T', ' '))
+                    booking2.end_time = timezone.datetime.fromisoformat(new_end.replace('T', ' '))
                     booking2.save()
-                    messages.success(request, f'Modified booking {booking2.id} times to resolve conflict.')
-                except ValueError:
-                    messages.error(request, 'Invalid date/time format.')
-                    return render(request, 'booking/conflicts/resolve.html', {
-                        'conflict': conflict,
-                        'booking1': booking1,
-                        'booking2': booking2,
-                    })
+                    messages.success(request, f'Rescheduled booking: {booking2.title}')
+                except Exception as e:
+                    messages.error(request, f'Error rescheduling booking: {str(e)}')
+            else:
+                messages.error(request, 'Invalid time values provided.')
         
         return redirect('booking:conflicts')
     
-    return render(request, 'booking/conflicts/resolve.html', {
+    # Generate suggestions for resolution
+    try:
+        user1_profile = booking1.user.userprofile
+        user2_profile = booking2.user.userprofile
+        
+        suggestions1 = ConflictResolver.suggest_alternative_times(booking1, [conflict])
+        suggestions2 = ConflictResolver.suggest_alternative_times(booking2, [conflict])
+        
+        alt_resources1 = ConflictResolver.suggest_alternative_resources(booking1, user1_profile)
+        alt_resources2 = ConflictResolver.suggest_alternative_resources(booking2, user2_profile)
+    except:
+        suggestions1 = suggestions2 = []
+        alt_resources1 = alt_resources2 = []
+    
+    return render(request, 'booking/resolve_conflict.html', {
         'conflict': conflict,
         'booking1': booking1,
         'booking2': booking2,
+        'suggestions1': suggestions1,
+        'suggestions2': suggestions2,
+        'alt_resources1': alt_resources1,
+        'alt_resources2': alt_resources2,
     })
 
 
-@login_required
+@login_required 
 def bulk_resolve_conflicts_view(request):
     """Bulk resolve multiple conflicts."""
     try:
@@ -188,47 +207,33 @@ def bulk_resolve_conflicts_view(request):
                 except Booking.DoesNotExist:
                     continue
             
-            # Apply resolution strategy
-            resolved_count = 0
-            if strategy == 'cancel_overlapping':
-                # Cancel the newer booking in each conflict
+            # Filter to selected conflicts if specified
+            if conflict_ids:
+                selected_conflicts = []
                 for conflict in all_conflicts:
-                    if str(conflict.booking1.id) in conflict_ids or str(conflict.booking2.id) in conflict_ids:
-                        newer_booking = conflict.booking2 if conflict.booking2.created_at > conflict.booking1.created_at else conflict.booking1
-                        newer_booking.cancel_booking()
-                        resolved_count += 1
+                    conflict_id = f"{conflict.booking1.pk}_{conflict.booking2.pk}"
+                    if conflict_id in conflict_ids:
+                        selected_conflicts.append(conflict)
+                all_conflicts = selected_conflicts
             
-            elif strategy == 'suggest_alternatives':
-                # Send suggestions to users (this would typically queue notifications)
-                for conflict in all_conflicts:
-                    if str(conflict.booking1.id) in conflict_ids or str(conflict.booking2.id) in conflict_ids:
-                        # Logic to suggest alternative times would go here
-                        resolved_count += 1
-            
-            elif strategy == 'priority_based':
-                # Resolve based on user priority/role
-                for conflict in all_conflicts:
-                    if str(conflict.booking1.id) in conflict_ids or str(conflict.booking2.id) in conflict_ids:
-                        # Determine which booking has higher priority
-                        booking1_priority = getattr(conflict.booking1.user.userprofile, 'booking_priority', 0)
-                        booking2_priority = getattr(conflict.booking2.user.userprofile, 'booking_priority', 0)
-                        
-                        if booking1_priority < booking2_priority:
-                            conflict.booking1.cancel_booking()
-                        elif booking2_priority < booking1_priority:
-                            conflict.booking2.cancel_booking()
-                        else:
-                            # Same priority, cancel the newer one
-                            newer_booking = conflict.booking2 if conflict.booking2.created_at > conflict.booking1.created_at else conflict.booking1
-                            newer_booking.cancel_booking()
-                        
-                        resolved_count += 1
-            
-            messages.success(request, f'Successfully resolved {resolved_count} conflicts using {strategy} strategy.')
-            
+            # Bulk resolve
+            if all_conflicts:
+                resolution_results = ConflictManager.bulk_resolve_conflicts(
+                    all_conflicts, strategy
+                )
+                
+                messages.success(
+                    request, 
+                    f"Processed {len(all_conflicts)} conflicts. "
+                    f"{resolution_results['summary']['auto_resolvable']} can be auto-resolved, "
+                    f"{resolution_results['summary']['manual_review']} need manual review."
+                )
+            else:
+                messages.warning(request, 'No conflicts selected for resolution.')
+                
         except Resource.DoesNotExist:
             messages.error(request, 'Resource not found.')
         except Exception as e:
-            messages.error(request, f'Error resolving conflicts: {str(e)}')
+            messages.error(request, f'Error processing conflicts: {str(e)}')
     
     return redirect('booking:conflicts')

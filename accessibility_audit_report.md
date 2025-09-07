@@ -247,4 +247,4 @@ This report analyzes the design token color system implemented in the Labitory D
 After implementing the critical fixes, estimated compliance will reach **95%**.
 
 ---
-*Generated on 2025-09-03 by Claude Code Accessibility Audit*
+*Generated on 2025-09-03 by Accessibility Audit Tool*

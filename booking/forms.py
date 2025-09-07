@@ -2017,6 +2017,7 @@ class EmailConfigurationTestForm(forms.Form):
             self.fields['test_email'].initial = self.configuration.default_from_email
 
 
+
 class ChecklistItemForm(forms.ModelForm):
     """Form for creating and editing checklist items."""
     

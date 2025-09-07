@@ -502,8 +502,23 @@ class GoogleCalendarService:
         try:
             integration = GoogleCalendarIntegration.objects.get(user=user)
             
-            # TODO: Optionally revoke Google access token
-            # This would require additional Google API call
+            # Revoke Google access token
+            try:
+                credentials = Credentials(
+                    token=integration.access_token,
+                    refresh_token=integration.refresh_token,
+                    token_uri='https://oauth2.googleapis.com/token',
+                    client_id=integration.client_id,
+                    client_secret=integration.client_secret,
+                )
+                
+                # Revoke the credentials
+                credentials.revoke(Request())
+                logger.info(f"Successfully revoked Google access token for user {user.id}")
+                
+            except Exception as revoke_error:
+                logger.warning(f"Failed to revoke Google access token for user {user.id}: {revoke_error}")
+                # Continue with deletion even if revocation fails
             
             # Delete the integration
             integration.delete()

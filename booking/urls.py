@@ -10,7 +10,7 @@ Licensed under the MIT License - see LICENSE file for details.
 from django.urls import path, include
 from django.shortcuts import redirect
 from . import views
-from .views.modules import calendar, hierarchy
+from .views.modules import calendar, hierarchy, training, approvals, site_admin, lab_admin
 
 app_name = 'booking'
 
@@ -85,11 +85,11 @@ urlpatterns = [
     path('groups/<str:group_name>/add-user/', views.add_user_to_group, name='add_user_to_group'),
     
     # Approval Workflow URLs
-    path('approval/', views.approval_dashboard_view, name='approval_dashboard'),
-    path('approval/access-requests/', views.access_requests_view, name='access_requests'),
-    path('approval/access-requests/<int:request_id>/', views.access_request_detail_view, name='access_request_detail'),
-    path('approval/access-requests/<int:request_id>/approve/', views.approve_access_request_view, name='approve_access_request'),
-    path('approval/access-requests/<int:request_id>/reject/', views.reject_access_request_view, name='reject_access_request'),
+    path('approval/', approvals.approval_dashboard_view, name='approval_dashboard'),
+    path('approval/access-requests/', approvals.access_requests_view, name='access_requests'),
+    path('approval/access-requests/<int:request_id>/', approvals.access_request_detail_view, name='access_request_detail'),
+    path('approval/access-requests/<int:request_id>/approve/', approvals.approve_access_request_view, name='approve_access_request'),
+    path('approval/access-requests/<int:request_id>/reject/', approvals.reject_access_request_view, name='reject_access_request'),
     
     # Risk Assessment URLs
     path('risk-assessments/', views.risk_assessments_view, name='risk_assessments'),
@@ -99,63 +99,63 @@ urlpatterns = [
     path('risk-assessments/create/', views.create_risk_assessment_view, name='create_risk_assessment'),
     
     # Training URLs
-    path('training/', views.training_dashboard_view, name='training_dashboard'),
-    path('training/courses/', views.training_redirect_view, name='training_courses'),
-    path('training/courses/<int:course_id>/', views.training_redirect_view, name='training_course_detail'),
-    path('training/courses/<int:course_id>/enroll/', views.training_redirect_view, name='enroll_training'),
-    path('training/my-training/', views.my_training_view, name='my_training'),
-    path('training/manage/', views.manage_training_view, name='manage_training'),
+    path('training/', training.training_dashboard_view, name='training_dashboard'),
+    path('training/courses/', training.training_redirect_view, name='training_courses'),
+    path('training/courses/<int:course_id>/', training.training_course_detail_view, name='training_course_detail'),
+    path('training/courses/<int:course_id>/enroll/', training.enroll_training_view, name='enroll_training'),
+    path('training/my-training/', training.my_training_view, name='my_training'),
+    path('training/manage/', training.manage_training_view, name='manage_training'),
     
     # Resource Management URLs
-    path('resources/<int:resource_id>/manage/', views.manage_resource_view, name='manage_resource'),
-    path('resources/<int:resource_id>/assign-responsible/', views.assign_resource_responsible_view, name='assign_resource_responsible'),
-    path('resources/<int:resource_id>/training-requirements/', views.resource_training_requirements_view, name='resource_training_requirements'),
+    path('resources/<int:resource_id>/manage/', training.manage_resource_view, name='manage_resource'),
+    path('resources/<int:resource_id>/assign-responsible/', training.assign_resource_responsible_view, name='assign_resource_responsible'),
+    path('resources/<int:resource_id>/training-requirements/', training.resource_training_requirements_view, name='resource_training_requirements'),
     
     # Approval Statistics URLs
-    path('lab-admin/statistics/', views.approval_statistics_view, name='approval_statistics'),
+    path('lab-admin/statistics/', approvals.approval_statistics_view, name='approval_statistics'),
     
     # Approval Rules URLs
-    path('lab-admin/approval-rules/', views.approval_rules_view, name='approval_rules'),
-    path('lab-admin/approval-rules/<int:rule_id>/toggle/', views.approval_rule_toggle_view, name='approval_rule_toggle'),
+    path('lab-admin/approval-rules/', approvals.approval_rules_view, name='approval_rules'),
+    path('lab-admin/approval-rules/<int:rule_id>/toggle/', approvals.approval_rule_toggle_view, name='approval_rule_toggle'),
     
     # Lab Admin URLs
-    path('lab-admin/', views.lab_admin_dashboard_view, name='lab_admin_dashboard'),
-    path('lab-admin/access-requests/', views.lab_admin_access_requests_view, name='lab_admin_access_requests'),
-    path('lab-admin/training/', views.lab_admin_training_view, name='lab_admin_training'),
-    path('lab-admin/risk-assessments/', views.lab_admin_risk_assessments_view, name='lab_admin_risk_assessments'),
-    path('lab-admin/users/', views.lab_admin_users_view, name='lab_admin_users'),
-    path('lab-admin/users/<int:user_id>/', views.lab_admin_user_detail_view, name='lab_admin_user_detail'),
-    path('lab-admin/users/<int:user_id>/edit/', views.lab_admin_user_edit_view, name='lab_admin_user_edit'),
-    path('lab-admin/users/<int:user_id>/delete/', views.lab_admin_user_delete_view, name='lab_admin_user_delete'),
-    path('lab-admin/users/<int:user_id>/toggle/', views.lab_admin_user_toggle_view, name='lab_admin_user_toggle'),
-    path('lab-admin/users/add/', views.lab_admin_user_add_view, name='lab_admin_user_add'),
-    path('lab-admin/users/bulk-import/', views.lab_admin_users_bulk_import_view, name='lab_admin_users_bulk_import'),
-    path('lab-admin/users/bulk-action/', views.lab_admin_users_bulk_action_view, name='lab_admin_users_bulk_action'),
-    path('lab-admin/users/export/', views.lab_admin_users_export_view, name='lab_admin_users_export'),
-    path('lab-admin/resources/', views.lab_admin_resources_view, name='lab_admin_resources'),
-    path('lab-admin/resources/add/', views.lab_admin_add_resource_view, name='lab_admin_add_resource'),
-    path('lab-admin/resources/bulk-import/', views.lab_admin_resources_bulk_import_view, name='lab_admin_resources_bulk_import'),
-    path('lab-admin/resources/<int:resource_id>/edit/', views.lab_admin_edit_resource_view, name='lab_admin_edit_resource'),
-    path('lab-admin/resources/<int:resource_id>/checklist/', views.lab_admin_resource_checklist_view, name='lab_admin_resource_checklist'),
-    path('lab-admin/resources/<int:resource_id>/delete/', views.lab_admin_delete_resource_view, name='lab_admin_delete_resource'),
-    path('lab-admin/resources/<int:resource_id>/close/', views.lab_admin_close_resource_view, name='lab_admin_close_resource'),
-    path('lab-admin/resources/<int:resource_id>/open/', views.lab_admin_open_resource_view, name='lab_admin_open_resource'),
+    path('lab-admin/', lab_admin.lab_admin_dashboard_view, name='lab_admin_dashboard'),
+    path('lab-admin/access-requests/', approvals.lab_admin_access_requests_view, name='lab_admin_access_requests'),
+    path('lab-admin/training/', training.lab_admin_training_view, name='lab_admin_training'),
+    path('lab-admin/risk-assessments/', lab_admin.lab_admin_risk_assessments_view, name='lab_admin_risk_assessments'),
+    path('lab-admin/users/', lab_admin.lab_admin_users_view, name='lab_admin_users'),
+    path('lab-admin/users/<int:user_id>/', lab_admin.lab_admin_user_detail_view, name='lab_admin_user_detail'),
+    path('lab-admin/users/<int:user_id>/edit/', lab_admin.lab_admin_user_edit_view, name='lab_admin_user_edit'),
+    path('lab-admin/users/<int:user_id>/delete/', lab_admin.lab_admin_user_delete_view, name='lab_admin_user_delete'),
+    path('lab-admin/users/<int:user_id>/toggle/', lab_admin.lab_admin_user_toggle_view, name='lab_admin_user_toggle'),
+    path('lab-admin/users/add/', lab_admin.lab_admin_user_add_view, name='lab_admin_user_add'),
+    path('lab-admin/users/bulk-import/', lab_admin.lab_admin_users_bulk_import_view, name='lab_admin_users_bulk_import'),
+    path('lab-admin/users/bulk-action/', lab_admin.lab_admin_users_bulk_action_view, name='lab_admin_users_bulk_action'),
+    path('lab-admin/users/export/', lab_admin.lab_admin_users_export_view, name='lab_admin_users_export'),
+    path('lab-admin/resources/', lab_admin.lab_admin_resources_view, name='lab_admin_resources'),
+    path('lab-admin/resources/add/', lab_admin.lab_admin_add_resource_view, name='lab_admin_add_resource'),
+    path('lab-admin/resources/bulk-import/', lab_admin.lab_admin_resources_bulk_import_view, name='lab_admin_resources_bulk_import'),
+    path('lab-admin/resources/<int:resource_id>/edit/', lab_admin.lab_admin_edit_resource_view, name='lab_admin_edit_resource'),
+    path('lab-admin/resources/<int:resource_id>/checklist/', lab_admin.lab_admin_resource_checklist_view, name='lab_admin_resource_checklist'),
+    path('lab-admin/resources/<int:resource_id>/delete/', lab_admin.lab_admin_delete_resource_view, name='lab_admin_delete_resource'),
+    path('lab-admin/resources/<int:resource_id>/close/', lab_admin.lab_admin_close_resource_view, name='lab_admin_close_resource'),
+    path('lab-admin/resources/<int:resource_id>/open/', lab_admin.lab_admin_open_resource_view, name='lab_admin_open_resource'),
     
     # Training requirement API endpoints
-    path('lab-admin/resources/<int:resource_id>/training-requirements/add/', views.add_training_requirement_api, name='lab_admin_add_training_requirement'),
-    path('lab-admin/resources/<int:resource_id>/training-requirements/<int:requirement_id>/remove/', views.remove_training_requirement_api, name='lab_admin_remove_training_requirement'),
-    path('lab-admin/resources/<int:resource_id>/training-requirements/reorder/', views.update_training_requirement_order_api, name='lab_admin_reorder_training_requirements'),
+    path('lab-admin/resources/<int:resource_id>/training-requirements/add/', training.add_training_requirement_api, name='lab_admin_add_training_requirement'),
+    path('lab-admin/resources/<int:resource_id>/training-requirements/<int:requirement_id>/remove/', training.remove_training_requirement_api, name='lab_admin_remove_training_requirement'),
+    path('lab-admin/resources/<int:resource_id>/training-requirements/reorder/', training.update_training_requirement_order_api, name='lab_admin_reorder_training_requirements'),
     
     # Training course API endpoints
-    path('lab-admin/training-courses/add/', views.add_training_course_api, name='lab_admin_add_training_course'),
-    path('lab-admin/training-courses/<int:course_id>/edit/', views.edit_training_course_api, name='lab_admin_edit_training_course'),
-    path('lab-admin/training-courses/<int:course_id>/delete/', views.delete_training_course_api, name='lab_admin_delete_training_course'),
-    path('lab-admin/maintenance/', views.lab_admin_maintenance_view, name='lab_admin_maintenance'),
-    path('lab-admin/maintenance/add/', views.lab_admin_add_maintenance_view, name='lab_admin_add_maintenance'),
-    path('lab-admin/maintenance/<int:maintenance_id>/', views.lab_admin_edit_maintenance_view, name='lab_admin_view_maintenance'),
-    path('lab-admin/maintenance/<int:maintenance_id>/edit/', views.lab_admin_edit_maintenance_view, name='lab_admin_edit_maintenance'),
-    path('lab-admin/maintenance/<int:maintenance_id>/delete/', views.lab_admin_delete_maintenance_view, name='lab_admin_delete_maintenance'),
-    path('lab-admin/inductions/', views.lab_admin_inductions_view, name='lab_admin_inductions'),
+    path('lab-admin/training-courses/add/', training.add_training_course_api, name='lab_admin_add_training_course'),
+    path('lab-admin/training-courses/<int:course_id>/edit/', training.edit_training_course_api, name='lab_admin_edit_training_course'),
+    path('lab-admin/training-courses/<int:course_id>/delete/', training.delete_training_course_api, name='lab_admin_delete_training_course'),
+    path('lab-admin/maintenance/', lab_admin.lab_admin_maintenance_view, name='lab_admin_maintenance'),
+    path('lab-admin/maintenance/add/', lab_admin.lab_admin_add_maintenance_view, name='lab_admin_add_maintenance'),
+    path('lab-admin/maintenance/<int:maintenance_id>/', lab_admin.lab_admin_edit_maintenance_view, name='lab_admin_view_maintenance'),
+    path('lab-admin/maintenance/<int:maintenance_id>/edit/', lab_admin.lab_admin_edit_maintenance_view, name='lab_admin_edit_maintenance'),
+    path('lab-admin/maintenance/<int:maintenance_id>/delete/', lab_admin.lab_admin_delete_maintenance_view, name='lab_admin_delete_maintenance'),
+    path('lab-admin/inductions/', lab_admin.lab_admin_inductions_view, name='lab_admin_inductions'),
     
     # Calendar Sync URLs
     path('calendar/export/', calendar.export_my_calendar_view, name='export_my_calendar'),
@@ -172,8 +172,8 @@ urlpatterns = [
     path('calendar/google/disconnect/', calendar.google_calendar_disconnect_view, name='google_calendar_disconnect'),
     
     # Calendar Invitation URLs
-    path('booking/<int:booking_id>/invitation/', views.download_booking_invitation, name='download_booking_invitation'),
-    path('maintenance/<int:maintenance_id>/invitation/', views.download_maintenance_invitation, name='download_maintenance_invitation'),
+    path('booking/<int:booking_id>/invitation/', lab_admin.download_booking_invitation, name='download_booking_invitation'),
+    path('maintenance/<int:maintenance_id>/invitation/', lab_admin.download_maintenance_invitation, name='download_maintenance_invitation'),
     
     
     # AJAX helper URLs
@@ -181,32 +181,35 @@ urlpatterns = [
     path('ajax/load-departments/', views.ajax_load_departments, name='ajax_load_departments'),
     
     # Site Administration URLs (System Admin only)
-    path('site-admin/', views.site_admin_dashboard_view, name='site_admin_dashboard'),
-    path('site-admin/users/', views.site_admin_users_view, name='site_admin_users'),
-    path('site-admin/users/<int:user_id>/delete/', views.site_admin_user_delete_view, name='site_admin_user_delete'),
-    path('site-admin/config/', views.site_admin_system_config_view, name='site_admin_config'),
-    path('site-admin/lab-settings/', views.site_admin_lab_settings_view, name='site_admin_lab_settings'),
-    path('site-admin/audit/', views.site_admin_audit_logs_view, name='site_admin_audit'),
-    path('site-admin/audit/logs-ajax/', views.site_admin_logs_ajax, name='site_admin_logs_ajax'),
-    path('site-admin/health-check/', views.site_admin_health_check_view, name='site_admin_health_check'),
-    path('site-admin/test-email/', views.site_admin_test_email_view, name='site_admin_test_email'),
-    path('site-admin/email-config/', views.site_admin_email_config_view, name='site_admin_email_config'),
-    path('site-admin/email-config/create/', views.site_admin_email_config_create_view, name='site_admin_email_config_create'),
-    path('site-admin/email-config/edit/<int:config_id>/', views.site_admin_email_config_edit_view, name='site_admin_email_config_edit'),
-    path('site-admin/backup/', views.site_admin_backup_management_view, name='site_admin_backup_management'),
-    path('site-admin/backup/create/', views.site_admin_backup_create_ajax, name='site_admin_backup_create_ajax'),
-    path('site-admin/backup/status/', views.site_admin_backup_status_ajax, name='site_admin_backup_status_ajax'),
-    path('site-admin/backup/download/<str:backup_name>/', views.site_admin_backup_download_view, name='site_admin_backup_download'),
-    path('site-admin/backup/restore/<str:backup_name>/', views.site_admin_backup_restore_view, name='site_admin_backup_restore'),
-    path('site-admin/backup/restore-info/<str:backup_name>/', views.site_admin_backup_restore_info_ajax, name='site_admin_backup_restore_info_ajax'),
-    path('site-admin/backup/restore-execute/', views.site_admin_backup_restore_ajax, name='site_admin_backup_restore_ajax'),
-    path('site-admin/backup/automation/', views.site_admin_backup_automation_view, name='site_admin_backup_automation'),
-    path('site-admin/backup/automation/ajax/', views.site_admin_backup_automation_ajax, name='site_admin_backup_automation_ajax'),
-    path('site-admin/backup/schedule/<int:schedule_id>/', views.site_admin_backup_schedule_detail_ajax, name='site_admin_backup_schedule_detail_ajax'),
-    path('site-admin/updates/', views.site_admin_updates_view, name='site_admin_updates'),
-    path('site-admin/updates/ajax/', views.site_admin_updates_ajax_view, name='site_admin_updates_ajax'),
+    path('site-admin/', site_admin.site_admin_dashboard_view, name='site_admin_dashboard'),
+    path('site-admin/users/', site_admin.site_admin_users_view, name='site_admin_users'),
+    path('site-admin/users/<int:user_id>/delete/', site_admin.site_admin_user_delete_view, name='site_admin_user_delete'),
+    path('site-admin/config/', site_admin.site_admin_system_config_view, name='site_admin_config'),
+    path('site-admin/lab-settings/', site_admin.site_admin_lab_settings_view, name='site_admin_lab_settings'),
+    path('site-admin/audit/', site_admin.site_admin_audit_logs_view, name='site_admin_audit'),
+    path('site-admin/audit/logs-ajax/', site_admin.site_admin_logs_ajax, name='site_admin_logs_ajax'),
+    path('site-admin/health-check/', site_admin.site_admin_health_check_view, name='site_admin_health_check'),
+    path('site-admin/test-email/', site_admin.site_admin_test_email_view, name='site_admin_test_email'),
+    path('site-admin/email-config/', site_admin.site_admin_email_config_view, name='site_admin_email_config'),
+    path('site-admin/email-config/create/', site_admin.site_admin_email_config_create_view, name='site_admin_email_config_create'),
+    path('site-admin/email-config/edit/<int:config_id>/', site_admin.site_admin_email_config_edit_view, name='site_admin_email_config_edit'),
+    path('site-admin/sms-config/', site_admin.site_admin_sms_config_view, name='site_admin_sms_config'),
+    path('site-admin/sms-config/create/', site_admin.site_admin_sms_config_create_view, name='site_admin_sms_config_create'),
+    path('site-admin/sms-config/edit/<int:config_id>/', site_admin.site_admin_sms_config_edit_view, name='site_admin_sms_config_edit'),
+    path('site-admin/backup/', site_admin.site_admin_backup_management_view, name='site_admin_backup_management'),
+    path('site-admin/backup/create/', site_admin.site_admin_backup_create_ajax, name='site_admin_backup_create_ajax'),
+    path('site-admin/backup/status/', site_admin.site_admin_backup_status_ajax, name='site_admin_backup_status_ajax'),
+    path('site-admin/backup/download/<str:backup_name>/', site_admin.site_admin_backup_download_view, name='site_admin_backup_download'),
+    path('site-admin/backup/restore/<str:backup_name>/', site_admin.site_admin_backup_restore_view, name='site_admin_backup_restore'),
+    path('site-admin/backup/restore-info/<str:backup_name>/', site_admin.site_admin_backup_restore_info_ajax, name='site_admin_backup_restore_info_ajax'),
+    path('site-admin/backup/restore-execute/', site_admin.site_admin_backup_restore_ajax, name='site_admin_backup_restore_ajax'),
+    path('site-admin/backup/automation/', site_admin.site_admin_backup_automation_view, name='site_admin_backup_automation'),
+    path('site-admin/backup/automation/ajax/', site_admin.site_admin_backup_automation_ajax, name='site_admin_backup_automation_ajax'),
+    path('site-admin/backup/schedule/<int:schedule_id>/', site_admin.site_admin_backup_schedule_detail_ajax, name='site_admin_backup_schedule_detail_ajax'),
+    path('site-admin/updates/', site_admin.site_admin_updates_view, name='site_admin_updates'),
+    path('site-admin/updates/ajax/', site_admin.site_admin_updates_ajax_view, name='site_admin_updates_ajax'),
     
-    path('site-admin/branding/', views.site_admin_branding_config_view, name='site_admin_branding_config'),
+    path('site-admin/branding/', site_admin.site_admin_branding_config_view, name='site_admin_branding_config'),
     
     # AJAX URLs
     path('ajax/checklist-item/create/', views.ajax_create_checklist_item, name='ajax_create_checklist_item'),

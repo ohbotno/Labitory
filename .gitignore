@@ -93,7 +93,7 @@ LOGS.md
 PLANNING.md
 TASK.md
 
-# Claude AI files (exclude from git)
+# AI development files (exclude from git)
 .claude/
 .claudeignore
 *.claude

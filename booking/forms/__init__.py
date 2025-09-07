@@ -45,6 +45,8 @@ __all__ = [
     
     # Admin forms
     'AboutPageEditForm',
+    'SMSConfigurationForm',
+    'SMSConfigurationTestForm',
     
     # Billing forms
     'BillingRateForm',

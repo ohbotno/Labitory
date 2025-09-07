@@ -248,10 +248,51 @@ class UpdateService:
             
             logger.info(f"Rolling back to version {update_history.from_version}")
             
-            # TODO: Implement rollback logic
-            # This would involve restoring from the backup created before update
-            
-            return {'success': True}
+            # Implement rollback logic using backup service
+            try:
+                from .backup_service import BackupService
+                
+                backup_service = BackupService()
+                
+                # Extract backup filename from path
+                backup_filename = os.path.basename(update_history.backup_path)
+                
+                # Restore from the backup
+                restore_result = backup_service.restore_backup(
+                    backup_filename=backup_filename,
+                    confirm_restore=True
+                )
+                
+                if restore_result['success']:
+                    # Log successful rollback
+                    logger.info(f"Successfully rolled back to version {update_history.from_version}")
+                    
+                    # Create rollback history entry
+                    UpdateHistory.objects.create(
+                        from_version=self.get_current_version(),
+                        to_version=update_history.from_version,
+                        status='completed',
+                        details=f"Rollback from {self.get_current_version()} to {update_history.from_version}",
+                        backup_created=False,  # No backup needed for rollback
+                        backup_path=None
+                    )
+                    
+                    return {
+                        'success': True, 
+                        'message': f"Successfully rolled back to version {update_history.from_version}",
+                        'rollback_details': restore_result
+                    }
+                else:
+                    return {
+                        'success': False, 
+                        'error': f"Backup restore failed: {restore_result.get('error', 'Unknown error')}"
+                    }
+                    
+            except ImportError:
+                return {'success': False, 'error': 'Backup service not available'}
+            except Exception as rollback_error:
+                logger.error(f"Error during rollback restoration: {rollback_error}")
+                return {'success': False, 'error': f"Rollback failed: {str(rollback_error)}"}
             
         except UpdateHistory.DoesNotExist:
             return {'success': False, 'error': 'Update history not found'}

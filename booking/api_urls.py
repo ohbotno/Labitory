@@ -12,7 +12,8 @@ from rest_framework.routers import DefaultRouter
 from . import views
 from .views.viewsets import (
     UserProfileViewSet, BookingViewSet, ResourceViewSet, ResourceResponsibleViewSet,
-    NotificationViewSet, NotificationPreferenceViewSet, WaitingListEntryViewSet
+    NotificationViewSet, NotificationPreferenceViewSet, WaitingListEntryViewSet,
+    ApprovalRuleViewSet, MaintenanceViewSet
 )
 
 router = DefaultRouter()
@@ -21,9 +22,9 @@ router.register(r'profiles', UserProfileViewSet)
 router.register(r'resources', ResourceViewSet)
 router.register(r'bookings', BookingViewSet)
 router.register(r'resource-responsible', ResourceResponsibleViewSet)
-# Keep remaining ViewSets from main views temporarily
-router.register(r'approval-rules', views.ApprovalRuleViewSet)
-router.register(r'maintenance', views.MaintenanceViewSet)
+# Use viewsets from the viewsets module
+router.register(r'approval-rules', ApprovalRuleViewSet, basename='approval-rule')
+router.register(r'maintenance', MaintenanceViewSet, basename='maintenance')
 router.register(r'notifications', NotificationViewSet, basename='notification')
 router.register(r'notification-preferences', NotificationPreferenceViewSet, basename='notification-preference')
 router.register(r'waiting-list', WaitingListEntryViewSet, basename='waiting-list-entry')

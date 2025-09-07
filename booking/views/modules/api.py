@@ -62,6 +62,21 @@ class IsManagerPermission(permissions.BasePermission):
         return False
 
 
+class IsManagerOrReadOnly(permissions.BasePermission):
+    """Permission that allows managers to edit, others to read only."""
+    
+    def has_permission(self, request, view):
+        if request.method in permissions.SAFE_METHODS:
+            return request.user.is_authenticated
+        
+        # Write permissions for managers only
+        try:
+            user_profile = request.user.userprofile
+            return user_profile.role in ['technician', 'sysadmin']
+        except AttributeError:
+            return False
+
+
 class UserProfileViewSet(viewsets.ReadOnlyModelViewSet):
     """ViewSet for user profiles."""
     queryset = UserProfile.objects.all()

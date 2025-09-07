@@ -27,7 +27,7 @@ import json
 
 from ...models import (
     Resource, AccessRequest, RiskAssessment, UserRiskAssessment, 
-    ApprovalRule, UserTraining, TrainingRequest, ApprovalStatistics
+    ApprovalRule, UserTraining, TrainingRequest, ApprovalStatistics, Booking
 )
 from ...forms import (
     AccessRequestReviewForm, RiskAssessmentForm, UserRiskAssessmentForm
@@ -691,3 +691,418 @@ def approval_rule_toggle_view(request, rule_id):
         
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+def access_requests_view(request):
+    """List view for access requests."""
+    from django.core.paginator import Paginator
+    
+    # Start with all access requests
+    access_requests = AccessRequest.objects.select_related('user', 'resource', 'reviewed_by')
+    
+    # Apply filters
+    status_filter = request.GET.get('status')
+    if status_filter:
+        access_requests = access_requests.filter(status=status_filter)
+    
+    resource_type_filter = request.GET.get('resource_type')
+    if resource_type_filter:
+        access_requests = access_requests.filter(resource__resource_type=resource_type_filter)
+    
+    access_type_filter = request.GET.get('access_type')
+    if access_type_filter:
+        access_requests = access_requests.filter(access_type=access_type_filter)
+    
+    # Order by priority and creation date
+    access_requests = access_requests.order_by('-created_at')
+    
+    # Pagination
+    paginator = Paginator(access_requests, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Filter options for the template
+    resource_types = Resource.RESOURCE_TYPE_CHOICES
+    
+    context = {
+        'access_requests': page_obj,
+        'resource_types': resource_types,
+        'page_obj': page_obj,
+        'is_paginated': page_obj.has_other_pages(),
+    }
+    
+    return render(request, 'booking/access_requests.html', context)
+
+
+@login_required
+def access_request_detail_view(request, request_id):
+    """Detail view for a single access request."""
+    access_request = get_object_or_404(AccessRequest, id=request_id)
+    
+    # Check if current user can approve
+    can_approve = access_request.can_be_approved_by(request.user)
+    
+    context = {
+        'access_request': access_request,
+        'can_approve': can_approve,
+    }
+    
+    return render(request, 'booking/access_request_detail.html', context)
+
+
+@login_required
+@user_passes_test(is_lab_admin)
+def lab_admin_access_requests_view(request):
+    """Manage access requests."""
+    from booking.models import AccessRequest, TrainingRequest
+    
+    # Handle status updates
+    if request.method == 'POST':
+        request_id = request.POST.get('request_id')
+        action = request.POST.get('action')
+        
+        if request_id and action:
+            access_request = get_object_or_404(AccessRequest, id=request_id)
+            
+            if action == 'approve':
+                try:
+                    # Double-check prerequisites before approval
+                    if not access_request.prerequisites_met():
+                        missing = []
+                        if not access_request.safety_induction_confirmed:
+                            missing.append("Safety Induction")
+                        if not access_request.lab_training_confirmed:
+                            missing.append("Lab Training")
+                        if not access_request.risk_assessment_confirmed:
+                            missing.append("Risk Assessment")
+                        
+                        missing_str = ", ".join(missing)
+                        messages.error(request, f'Cannot approve: Missing prerequisites - {missing_str}', extra_tags='persistent-alert')
+                    else:
+                        access_request.approve(request.user, "Approved via Lab Admin dashboard")
+                        messages.success(request, f'Access request approved for {access_request.user.get_full_name()}', extra_tags='persistent-alert')
+                except ValueError as e:
+                    messages.error(request, f'Error approving request: {str(e)}', extra_tags='persistent-alert')
+                except Exception as e:
+                    messages.error(request, f'Unexpected error: {str(e)}', extra_tags='persistent-alert')
+                
+            elif action == 'reject':
+                try:
+                    access_request.reject(request.user, "Rejected via Lab Admin dashboard")
+                    messages.success(request, f'Access request rejected for {access_request.user.get_full_name()}', extra_tags='persistent-alert')
+                except ValueError as e:
+                    messages.error(request, f'Error rejecting request: {str(e)}')
+                except Exception as e:
+                    messages.error(request, f'Unexpected error: {str(e)}')
+                    
+            elif action == 'confirm_safety':
+                notes = request.POST.get('safety_notes', '').strip()
+                try:
+                    access_request.confirm_safety_induction(request.user, notes)
+                    messages.success(request, f'Safety induction confirmed for {access_request.user.get_full_name()}', extra_tags='persistent-alert')
+                except Exception as e:
+                    messages.error(request, f'Error confirming safety induction: {str(e)}')
+                    
+            elif action == 'confirm_training':
+                notes = request.POST.get('training_notes', '').strip()
+                try:
+                    access_request.confirm_lab_training(request.user, notes)
+                    messages.success(request, f'Lab training confirmed for {access_request.user.get_full_name()}', extra_tags='persistent-alert')
+                except Exception as e:
+                    messages.error(request, f'Error confirming lab training: {str(e)}')
+                    
+            elif action == 'confirm_risk_assessment':
+                notes = request.POST.get('risk_assessment_notes', '').strip()
+                try:
+                    access_request.confirm_risk_assessment(request.user, notes)
+                    messages.success(request, f'Risk assessment confirmed for {access_request.user.get_full_name()}', extra_tags='persistent-alert')
+                except Exception as e:
+                    messages.error(request, f'Error confirming risk assessment: {str(e)}')
+                    
+            elif action == 'schedule_training':
+                justification = request.POST.get('training_justification', '').strip()
+                training_date = request.POST.get('training_date', '').strip()
+                training_time = request.POST.get('training_time', '').strip()
+                training_duration = request.POST.get('training_duration', '').strip()
+                trainer_notes = request.POST.get('trainer_notes', '').strip()
+                
+                if not justification:
+                    justification = f"Training requested for access to {access_request.resource.name}"
+                
+                # Parse training date and time
+                training_datetime = None
+                if training_date and training_time:
+                    try:
+                        from datetime import datetime
+                        training_datetime = datetime.strptime(f"{training_date} {training_time}", "%Y-%m-%d %H:%M")
+                        training_datetime = timezone.make_aware(training_datetime)
+                    except ValueError:
+                        messages.error(request, 'Invalid date or time format.')
+                        return redirect('booking:lab_admin_access_requests')
+                elif training_date:
+                    try:
+                        from datetime import datetime
+                        training_datetime = datetime.strptime(training_date, "%Y-%m-%d")
+                        training_datetime = timezone.make_aware(training_datetime)
+                    except ValueError:
+                        messages.error(request, 'Invalid date format.')
+                        return redirect('booking:lab_admin_access_requests')
+                
+                # Add duration and trainer notes to justification if provided
+                full_justification = justification
+                if training_duration:
+                    duration_text = f"{training_duration} hour{'s' if float(training_duration) != 1 else ''}"
+                    full_justification += f"\n\nExpected Duration: {duration_text}"
+                if trainer_notes:
+                    full_justification += f"\n\nTrainer Notes: {trainer_notes}"
+                
+                try:
+                    # Check if training request already exists for this user and resource with active status
+                    existing_request = TrainingRequest.objects.filter(
+                        user=access_request.user,
+                        resource=access_request.resource,
+                        status__in=['pending', 'scheduled']
+                    ).first()
+                    
+                    if existing_request:
+                        # Update existing request with new details
+                        existing_request.justification = full_justification
+                        if training_datetime:
+                            existing_request.training_date = training_datetime
+                            existing_request.status = 'scheduled'
+                        existing_request.save()
+                        training_request = existing_request
+                        created = False
+                    else:
+                        # Create new training request with appropriate status
+                        initial_status = 'scheduled' if training_datetime else 'pending'
+                        training_request = TrainingRequest.objects.create(
+                            user=access_request.user,
+                            resource=access_request.resource,
+                            status=initial_status,
+                            requested_level=access_request.resource.required_training_level or 1,
+                            current_level=access_request.user.userprofile.training_level,
+                            justification=full_justification,
+                            training_date=training_datetime
+                        )
+                        created = True
+                    
+                    # Handle booking creation and notifications when training is scheduled
+                    if training_datetime:
+                        try:
+                            # Calculate end time (default 2 hours if no duration specified)
+                            duration_hours = 2  # Default duration
+                            if training_duration:
+                                try:
+                                    duration_hours = float(training_duration)
+                                except ValueError:
+                                    duration_hours = 2
+                            
+                            training_end_time = training_datetime + timedelta(hours=duration_hours)
+                            
+                            # Check for booking conflicts
+                            conflicts = Booking.objects.filter(
+                                resource=access_request.resource,
+                                status__in=['approved', 'pending'],
+                                start_time__lt=training_end_time,
+                                end_time__gt=training_datetime
+                            )
+                            
+                            if conflicts.exists():
+                                # Find next available slot
+                                next_slot = None
+                                for hour_offset in range(1, 168):  # Check next week
+                                    test_start = training_datetime + timedelta(hours=hour_offset)
+                                    test_end = test_start + timedelta(hours=duration_hours)
+                                    
+                                    test_conflicts = Booking.objects.filter(
+                                        resource=access_request.resource,
+                                        status__in=['approved', 'pending'],
+                                        start_time__lt=test_end,
+                                        end_time__gt=test_start
+                                    )
+                                    
+                                    if not test_conflicts.exists():
+                                        next_slot = test_start
+                                        break
+                                
+                                conflict_msg = f'The requested time slot conflicts with existing bookings.'
+                                if next_slot:
+                                    conflict_msg += f' Next available slot: {next_slot.strftime("%B %d, %Y at %I:%M %p")}'
+                                
+                                messages.warning(request, conflict_msg, extra_tags='persistent-alert')
+                                # Reset to pending status and clear training_date
+                                training_request.status = 'pending'
+                                training_request.training_date = None
+                                training_request.save()
+                            else:
+                                # No conflicts, create the booking
+                                booking = Booking.objects.create(
+                                    resource=access_request.resource,
+                                    user=access_request.user,
+                                    title=f'Training Session: {access_request.resource.name}',
+                                    description=f'Training session for {access_request.user.get_full_name()}.\n\n{training_request.justification}',
+                                    start_time=training_datetime,
+                                    end_time=training_end_time,
+                                    status='approved',  # Training bookings are auto-approved
+                                    notes=f'Training Request ID: {training_request.id}'
+                                )
+                                
+                                # Send notifications
+                                try:
+                                    from booking.notifications import training_request_notifications
+                                    training_request_notifications.training_request_scheduled(training_request, training_datetime)
+                                except Exception as e:
+                                    import logging
+                                    logger = logging.getLogger(__name__)
+                                    logger.error(f"Failed to send training scheduled notification: {e}")
+                                
+                                if created:
+                                    messages.success(request, f'Training session scheduled for {access_request.user.get_full_name()} on {training_datetime.strftime("%B %d, %Y at %I:%M %p")}. Resource has been booked.', extra_tags='persistent-alert')
+                                else:
+                                    messages.success(request, f'Training session updated and scheduled for {access_request.user.get_full_name()} on {training_datetime.strftime("%B %d, %Y at %I:%M %p")}. Resource has been booked.', extra_tags='persistent-alert')
+                                    
+                        except Exception as e:
+                            messages.error(request, f'Error scheduling training session: {str(e)}')
+                            # Reset to pending status
+                            training_request.status = 'pending'
+                            training_request.training_date = None
+                            training_request.save()
+                    else:
+                        # No specific time scheduled
+                        if created:
+                            messages.success(request, f'Training request created for {access_request.user.get_full_name()}', extra_tags='persistent-alert')
+                        else:
+                            messages.info(request, f'Training request already exists for {access_request.user.get_full_name()}', extra_tags='persistent-alert')
+                        
+                except Exception as e:
+                    messages.error(request, f'Error creating training request: {str(e)}')
+        
+        return redirect('booking:lab_admin_access_requests')
+    
+    # Get access requests
+    access_requests = AccessRequest.objects.select_related(
+        'user', 'resource', 'reviewed_by', 'safety_induction_confirmed_by', 'lab_training_confirmed_by', 'risk_assessment_confirmed_by'
+    ).order_by('-created_at')
+    
+    # Apply filters
+    status_filter = request.GET.get('status', 'pending')
+    if status_filter and status_filter != 'all':
+        access_requests = access_requests.filter(status=status_filter)
+    
+    # Pagination
+    paginator = Paginator(access_requests, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
+    # Add prerequisite status to each request
+    for request_obj in page_obj:
+        request_obj.prerequisite_status = request_obj.get_prerequisite_status()
+    
+    # Add today's date for date picker minimum value
+    from datetime import date
+    
+    context = {
+        'access_requests': page_obj,
+        'status_filter': status_filter,
+        'today': date.today(),
+    }
+    
+    return render(request, 'booking/lab_admin_access_requests.html', context)
+
+
+@login_required
+def start_risk_assessment_view(request, assessment_id):
+    """Start a risk assessment."""
+    assessment = get_object_or_404(RiskAssessment, id=assessment_id)
+    
+    # Check if user already has an assessment
+    user_assessment, created = UserRiskAssessment.objects.get_or_create(
+        user=request.user,
+        risk_assessment=assessment,
+        defaults={'status': 'not_started'}
+    )
+    
+    if request.method == 'POST':
+        form = UserRiskAssessmentForm(request.POST, request.FILES, instance=user_assessment, risk_assessment=assessment)
+        if form.is_valid():
+            user_assessment = form.save(commit=False)
+            
+            # Handle file upload
+            if form.cleaned_data.get('risk_assessment_file'):
+                user_assessment.assessment_file = form.cleaned_data['risk_assessment_file']
+            
+            user_assessment.status = 'submitted'
+            user_assessment.submitted_at = timezone.now()
+            user_assessment.save()
+            
+            messages.success(request, "Risk assessment submitted for review.")
+            return redirect('booking:resource_detail', resource_id=assessment.resource.id)
+        else:
+            # Add error message for failed validation
+            messages.error(request, "Please correct the errors below before submitting.")
+    else:
+        # Mark as started
+        if user_assessment.status == 'not_started':
+            user_assessment.status = 'in_progress'
+            user_assessment.started_at = timezone.now()
+            user_assessment.save()
+        
+        form = UserRiskAssessmentForm(instance=user_assessment, risk_assessment=assessment)
+    
+    context = {
+        'assessment': assessment,
+        'user_assessment': user_assessment,
+        'form': form,
+    }
+    
+    return render(request, 'booking/start_risk_assessment.html', context)
+
+
+@login_required
+def submit_risk_assessment_view(request, assessment_id):
+    """Submit a completed risk assessment."""
+    assessment = get_object_or_404(RiskAssessment, id=assessment_id)
+    user_assessment = get_object_or_404(
+        UserRiskAssessment,
+        user=request.user,
+        risk_assessment=assessment
+    )
+    
+    if user_assessment.status != 'in_progress':
+        messages.error(request, "This assessment cannot be submitted.")
+        return redirect('booking:risk_assessment_detail', assessment_id=assessment_id)
+    
+    user_assessment.status = 'submitted'
+    user_assessment.submitted_at = timezone.now()
+    user_assessment.save()
+    
+    messages.success(request, "Risk assessment submitted for review.")
+    return redirect('booking:risk_assessment_detail', assessment_id=assessment_id)
+
+
+@login_required
+def create_risk_assessment_view(request):
+    """Create a new risk assessment."""
+    if not request.user.userprofile.role in ['technician', 'academic', 'sysadmin']:
+        messages.error(request, "You don't have permission to create risk assessments.")
+        return redirect('booking:risk_assessments')
+    
+    if request.method == 'POST':
+        form = RiskAssessmentForm(request.POST)
+        if form.is_valid():
+            assessment = form.save(commit=False)
+            assessment.created_by = request.user
+            assessment.save()
+            
+            messages.success(request, f"Risk assessment '{assessment.title}' created successfully.")
+            return redirect('booking:risk_assessment_detail', assessment_id=assessment.id)
+    else:
+        form = RiskAssessmentForm()
+    
+    context = {
+        'form': form,
+    }
+    
+    return render(request, 'booking/create_risk_assessment.html', context)

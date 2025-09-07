@@ -58,7 +58,7 @@ if test -z "$DOMAIN"; then
 fi
 
 if test -z "$INSTALL_DIR"; then
-    INSTALL_DIR="/opt/aperature-booking"
+    INSTALL_DIR="/opt/labitory"
 fi
 
 # For non-interactive installation, try to detect the server IP
@@ -191,8 +191,8 @@ systemctl enable nginx
 
 # Create database and user
 print_status "Setting up PostgreSQL database..."
-DB_NAME="aperture_booking"
-DB_USER="aperture_user"
+DB_NAME="labitory"
+DB_USER="labitory_user"
 
 # Generate database password
 if test -z "$DB_PASSWORD"; then
@@ -241,7 +241,7 @@ if [ -d "$INSTALL_DIR" ]; then
     rm -rf "$INSTALL_DIR"
 fi
 
-git clone https://github.com/ohbotno/aperature-booking.git "$INSTALL_DIR"
+git clone https://github.com/ohbotno/Labitory.git "$INSTALL_DIR"
 cd "$INSTALL_DIR"
 
 # Create virtual environment
@@ -322,7 +322,7 @@ echo ""
 # Test if Django can read the .env file
 print_status "Testing Django configuration with .env file..."
 python -c "
-from aperture_booking import settings
+from labitory import settings
 print('ALLOWED_HOSTS from Django:', settings.ALLOWED_HOSTS)
 print('DB_ENGINE from Django:', settings.DB_ENGINE)
 print('DEBUG from Django:', settings.DEBUG)
@@ -422,11 +422,11 @@ else:
 print(f"Admin user setup complete - username: admin, email: {admin_user.email}")
 EOF
 
-python manage.py create_email_templates || true
+python manage.py admin.create_email_templates || true
 
 # Create systemd service
 print_status "Creating systemd service..."
-cat > /etc/systemd/system/aperature-booking.service <<EOF
+cat > /etc/systemd/system/labitory.service <<EOF
 [Unit]
 Description=Labitory
 After=network.target postgresql.service
@@ -436,7 +436,7 @@ Type=notify
 User=www-data
 Group=www-data
 WorkingDirectory=$INSTALL_DIR
-ExecStart=$INSTALL_DIR/venv/bin/gunicorn aperture_booking.wsgi:application --bind 127.0.0.1:8000
+ExecStart=$INSTALL_DIR/venv/bin/gunicorn labitory.wsgi:application --bind 127.0.0.1:8000
 Restart=on-failure
 
 [Install]
@@ -457,7 +457,7 @@ else
 fi
 
 # Create the site configuration
-cat > /etc/nginx/sites-available/aperature-booking <<EOF
+cat > /etc/nginx/sites-available/labitory <<EOF
 server {
     listen 80;
     server_name $DOMAIN;
@@ -484,7 +484,7 @@ server {
 EOF
 
 # Enable Nginx site
-ln -sf /etc/nginx/sites-available/aperature-booking /etc/nginx/sites-enabled/
+ln -sf /etc/nginx/sites-available/labitory /etc/nginx/sites-enabled/
 rm -f /etc/nginx/sites-enabled/default
 
 # Test nginx configuration
@@ -510,21 +510,21 @@ chown -R www-data:www-data "$INSTALL_DIR/static/" "$INSTALL_DIR/staticfiles/"
 # Reload services
 print_status "Starting Labitory service..."
 systemctl daemon-reload
-systemctl enable aperature-booking
-systemctl start aperature-booking
+systemctl enable labitory
+systemctl start labitory
 
 # Restart the service to load the new .env file
 print_status "Restarting Labitory service to load .env configuration..."
-systemctl restart aperature-booking
+systemctl restart labitory
 systemctl restart nginx
 
 # Final status check
 print_status "Checking service status..."
-if systemctl is-active --quiet aperature-booking; then
+if systemctl is-active --quiet labitory; then
     print_status "Labitory is running"
 else
     print_error "Labitory failed to start"
-    journalctl -u aperature-booking -n 50
+    journalctl -u labitory -n 50
 fi
 
 echo ""
