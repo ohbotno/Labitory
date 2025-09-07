@@ -2160,8 +2160,7 @@ def lab_admin_inductions_view(request):
                     user=user,
                     title='Lab Induction Completed',
                     message=f'Your lab induction has been confirmed by {request.user.get_full_name() or request.user.username}. You can now request access to lab resources.',
-                    notification_type='induction',
-                    is_read=False
+                    notification_type='induction'
                 )
 
             elif action == 'mark_not_inducted':

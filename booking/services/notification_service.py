@@ -26,19 +26,28 @@ class NotificationService:
     
     def __init__(self):
         self.email_enabled = getattr(settings, 'EMAIL_ENABLED', True)
-        self.sms_enabled = getattr(settings, 'SMS_ENABLED', False)
+        self.sms_enabled = self._check_sms_enabled()
         self.push_enabled = getattr(settings, 'PUSH_ENABLED', True)
+    
+    def _check_sms_enabled(self) -> bool:
+        """Check if SMS is enabled via database configuration."""
+        try:
+            from ..models import SMSConfiguration
+            return SMSConfiguration.is_sms_enabled()
+        except Exception:
+            # Fallback to settings if database configuration fails
+            return getattr(settings, 'SMS_ENABLED', False)
     
     def send_booking_confirmation(self, booking: Booking) -> bool:
         """Send booking confirmation notification."""
         try:
             # Create in-app notification
             notification = Notification.objects.create(
-                recipient=booking.user,
+                user=booking.user,
                 notification_type='booking_confirmation',
                 title='Booking Confirmed',
                 message=f'Your booking "{booking.title}" for {booking.resource.name} has been confirmed.',
-                related_booking=booking
+                booking=booking
             )
             
             # Send email if enabled and user has email notifications enabled
@@ -77,11 +86,11 @@ class NotificationService:
         try:
             # Create in-app notification
             notification = Notification.objects.create(
-                recipient=booking.user,
+                user=booking.user,
                 notification_type='booking_reminder',
                 title='Booking Reminder',
                 message=f'Reminder: Your booking "{booking.title}" starts in {hours_before} hours.',
-                related_booking=booking
+                booking=booking
             )
             
             # Send email if enabled and user has email notifications enabled
@@ -130,11 +139,11 @@ class NotificationService:
             
             # Create in-app notification
             notification = Notification.objects.create(
-                recipient=booking.user,
+                user=booking.user,
                 notification_type='booking_cancelled',
                 title=title,
                 message=message,
-                related_booking=booking
+                booking=booking
             )
             
             # Send email if enabled
@@ -174,11 +183,11 @@ class NotificationService:
         try:
             # Create in-app notification
             notification = Notification.objects.create(
-                recipient=user,
+                user=user,
                 notification_type='resource_available',
                 title='Resource Available',
                 message=f'The resource "{resource.name}" is now available for booking.',
-                related_resource=resource
+                resource=resource
             )
             
             # Send email if enabled
@@ -220,7 +229,7 @@ class NotificationService:
             try:
                 # Create in-app notification
                 notification = Notification.objects.create(
-                    recipient=user,
+                    user=user,
                     notification_type='system_maintenance',
                     title='Scheduled System Maintenance',
                     message=f'System maintenance scheduled for {scheduled_time.strftime("%Y-%m-%d %H:%M")}. {message}'
@@ -267,7 +276,7 @@ class NotificationService:
             try:
                 # Create in-app notification
                 notification = Notification.objects.create(
-                    recipient=user,
+                    user=user,
                     notification_type=notification_type,
                     title=title,
                     message=message
@@ -295,11 +304,9 @@ class NotificationService:
         try:
             notification = Notification.objects.get(
                 id=notification_id,
-                recipient=user
+                user=user
             )
-            notification.is_read = True
-            notification.read_at = timezone.now()
-            notification.save()
+            notification.mark_as_read()
             return True
         except Notification.DoesNotExist:
             return False
@@ -307,9 +314,9 @@ class NotificationService:
     def mark_all_notifications_read(self, user: User) -> int:
         """Mark all notifications as read for a user."""
         count = Notification.objects.filter(
-            recipient=user,
-            is_read=False
-        ).update(is_read=True, read_at=timezone.now())
+            user=user,
+            read_at__isnull=True
+        ).update(read_at=timezone.now(), status='read')
         return count
     
     def get_user_notifications(
@@ -319,10 +326,10 @@ class NotificationService:
         limit: Optional[int] = None
     ) -> List[Notification]:
         """Get notifications for a user."""
-        queryset = Notification.objects.filter(recipient=user)
+        queryset = Notification.objects.filter(user=user)
         
         if unread_only:
-            queryset = queryset.filter(is_read=False)
+            queryset = queryset.filter(read_at__isnull=True)
         
         queryset = queryset.order_by('-created_at')
         
@@ -359,7 +366,8 @@ class NotificationService:
     
     def _should_send_sms(self, user: User, notification_type: str) -> bool:
         """Check if SMS should be sent for this notification type."""
-        if not self.sms_enabled:
+        # Check current SMS status dynamically
+        if not self._check_sms_enabled():
             return False
         
         try:
