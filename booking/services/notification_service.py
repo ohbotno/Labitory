@@ -50,21 +50,8 @@ class NotificationService:
                 booking=booking
             )
             
-            # Send email if enabled and user has email notifications enabled
-            if self._should_send_email(booking.user, 'booking_confirmation'):
-                self._send_booking_email(
-                    booking.user,
-                    'Booking Confirmed',
-                    'emails/booking_confirmation.html',
-                    {'booking': booking}
-                )
-            
-            # Send SMS if enabled
-            if self._should_send_sms(booking.user, 'booking_confirmation'):
-                self._send_booking_sms(
-                    booking.user,
-                    f'Booking confirmed: {booking.title} at {booking.start_time.strftime("%Y-%m-%d %H:%M")}'
-                )
+            # Send email and SMS asynchronously using Celery
+            self._schedule_async_notifications(notification.id)
             
             # Send push notification if enabled
             if self._should_send_push(booking.user, 'booking_confirmation'):
@@ -93,21 +80,8 @@ class NotificationService:
                 booking=booking
             )
             
-            # Send email if enabled and user has email notifications enabled
-            if self._should_send_email(booking.user, 'booking_reminder'):
-                self._send_booking_email(
-                    booking.user,
-                    f'Booking Reminder - {hours_before}h',
-                    'emails/booking_reminder.html',
-                    {'booking': booking, 'hours_before': hours_before}
-                )
-            
-            # Send SMS if enabled
-            if self._should_send_sms(booking.user, 'booking_reminder'):
-                self._send_booking_sms(
-                    booking.user,
-                    f'Reminder: {booking.title} starts at {booking.start_time.strftime("%Y-%m-%d %H:%M")}'
-                )
+            # Send email and SMS asynchronously using Celery
+            self._schedule_async_notifications(notification.id)
             
             # Send push notification if enabled
             if self._should_send_push(booking.user, 'booking_reminder'):
@@ -429,6 +403,26 @@ class NotificationService:
         except Exception as e:
             logger.error(f"Error sending push notification to {user.username}: {e}")
             return False
+    
+    def _schedule_async_notifications(self, notification_id: int) -> None:
+        """Schedule async email and SMS notifications using Celery tasks."""
+        try:
+            # Import here to avoid circular imports
+            from ..tasks import send_email_notification, send_sms_notification
+            
+            # Schedule email task
+            send_email_notification.delay(notification_id)
+            
+            # Schedule SMS task
+            send_sms_notification.delay(notification_id)
+            
+            logger.debug(f"Scheduled async notifications for notification {notification_id}")
+            
+        except ImportError:
+            # Fallback if Celery tasks are not available
+            logger.warning("Celery tasks not available, notifications may be processed synchronously")
+        except Exception as e:
+            logger.error(f"Error scheduling async notifications for notification {notification_id}: {e}")
 
 
 # Singleton instance

@@ -22,6 +22,7 @@ class BookingConfig(AppConfig):
         # Import signals first
         try:
             import booking.signals
+            import booking.signals.cache_signals  # Import cache invalidation signals
         except ImportError:
             pass
         

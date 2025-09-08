@@ -19,13 +19,20 @@ from django.contrib.auth.views import PasswordResetView, LoginView
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.utils import timezone
+from django_ratelimit.decorators import ratelimit
+from django_ratelimit.exceptions import Ratelimited
+from django.conf import settings
 
-from ...forms import UserRegistrationForm, CustomPasswordResetForm, CustomSetPasswordForm
+from ...forms import UserRegistrationForm, CustomPasswordResetForm
+from ...forms.password import StrongSetPasswordForm
 from ...models import EmailVerificationToken, PasswordResetToken, UserProfile
+from ...utils.security_utils import RateLimitMixin
+from ...utils.auth_utils import BruteForceProtection, AccountLockout, get_client_ip
 
 
+@ratelimit(group='registration', key='ip', rate='3/1h', method='POST', block=True)
 def register_view(request):
-    """User registration view."""
+    """User registration view with rate limiting."""
     if request.method == 'POST':
         form = UserRegistrationForm(request.POST)
         if form.is_valid():
@@ -99,8 +106,9 @@ def verify_email_view(request, token):
     return redirect('login')
 
 
+@ratelimit(group='resend_verification', key='ip', rate='3/1h', method='POST', block=True)
 def resend_verification_view(request):
-    """Resend verification email view."""
+    """Resend verification email view with rate limiting."""
     if request.method == 'POST':
         email = request.POST.get('email')
         try:
@@ -127,11 +135,16 @@ def resend_verification_view(request):
     return render(request, 'registration/resend_verification.html')
 
 
-class CustomPasswordResetView(PasswordResetView):
-    """Custom password reset view using our token system."""
+class CustomPasswordResetView(RateLimitMixin, PasswordResetView):
+    """Custom password reset view using our token system with rate limiting."""
     form_class = CustomPasswordResetForm
     template_name = 'registration/password_reset_form.html'
     success_url = '/password-reset-done/'
+    
+    # Rate limiting configuration
+    ratelimit_group = 'password_reset'
+    ratelimit_rate = f"{getattr(settings, 'RATELIMIT_PASSWORD_RESET', 3)}/1h"
+    ratelimit_method = 'POST'
     
     def form_valid(self, form):
         form.save(request=self.request)
@@ -151,7 +164,7 @@ def password_reset_confirm_view(request, token):
         return render(request, 'registration/password_reset_confirm.html', {'validlink': False})
     
     if request.method == 'POST':
-        form = CustomSetPasswordForm(reset_token.user, request.POST)
+        form = StrongSetPasswordForm(reset_token.user, request.POST)
         if form.is_valid():
             form.save()
             reset_token.is_used = True
@@ -159,7 +172,7 @@ def password_reset_confirm_view(request, token):
             messages.success(request, 'Your password has been set successfully.')
             return redirect('password_reset_complete')
     else:
-        form = CustomSetPasswordForm(reset_token.user)
+        form = StrongSetPasswordForm(reset_token.user)
     
     return render(request, 'registration/password_reset_confirm.html', {
         'form': form,
@@ -177,8 +190,64 @@ def password_reset_complete_view(request):
     return render(request, 'registration/password_reset_complete.html')
 
 
-class CustomLoginView(LoginView):
-    """Custom login view that handles first login redirect logic."""
+class CustomLoginView(RateLimitMixin, LoginView):
+    """Custom login view that handles first login redirect logic with rate limiting."""
+    
+    # Rate limiting configuration
+    ratelimit_group = 'login_attempts'
+    ratelimit_rate = f"{getattr(settings, 'RATELIMIT_LOGIN_ATTEMPTS', 5)}/15m"
+    ratelimit_method = 'POST'
+    
+    def dispatch(self, request, *args, **kwargs):
+        """Check for account lockouts before processing login."""
+        if request.method == 'POST' and getattr(settings, 'RATELIMIT_ENABLE', True):
+            username = request.POST.get('username', '')
+            ip_address = get_client_ip(request)
+            
+            # Check IP-based lockout
+            if BruteForceProtection.is_locked_out(ip_address, 'login'):
+                messages.error(request, 'Too many failed login attempts from your IP address. Please try again later.')
+                return self.render_to_response(self.get_context_data())
+            
+            # Check username-based lockout
+            if username and BruteForceProtection.is_locked_out(username, 'login'):
+                messages.error(request, 'This account has been temporarily locked due to multiple failed login attempts.')
+                return self.render_to_response(self.get_context_data())
+            
+            # Check user account lockout
+            if username:
+                try:
+                    user = User.objects.get(username=username)
+                    lockout_info = AccountLockout.is_user_locked(user)
+                    if lockout_info:
+                        messages.error(request, 'This account has been locked for security reasons. Please contact support.')
+                        return self.render_to_response(self.get_context_data())
+                except User.DoesNotExist:
+                    pass
+        
+        return super().dispatch(request, *args, **kwargs)
+    
+    def form_valid(self, form):
+        """Handle successful login - clear failed attempts."""
+        user = form.get_user()
+        ip_address = get_client_ip(self.request)
+        
+        # Clear failed attempts on successful login
+        BruteForceProtection.clear_failed_attempts(ip_address, 'login')
+        BruteForceProtection.clear_failed_attempts(user.username, 'login')
+        BruteForceProtection.clear_failed_attempts(user.email, 'login')
+        
+        # Update last successful login in profile
+        if getattr(settings, 'AUTH_TRACK_FAILED_ATTEMPTS', True):
+            try:
+                profile = user.userprofile
+                profile.failed_login_attempts = 0
+                profile.last_failed_login = None
+                profile.save()
+            except:
+                pass
+        
+        return super().form_valid(form)
     
     def get_success_url(self):
         """Redirect to about page on first login, dashboard on subsequent logins."""

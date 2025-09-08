@@ -9,6 +9,7 @@ Licensed under the MIT License - see LICENSE file for details.
 
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, PasswordResetForm, SetPasswordForm, AuthenticationForm
+from .password import EnhancedUserCreationForm, StrongPasswordChangeForm, StrongSetPasswordForm
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate
 from django.core.mail import send_mail
@@ -27,7 +28,7 @@ from ..utils.email import get_logo_base64, get_email_branding_context
 
 
 
-class UserRegistrationForm(UserCreationForm):
+class UserRegistrationForm(EnhancedUserCreationForm):
     """Extended user registration form with profile fields."""
     # Use email as username
     email = forms.EmailField(

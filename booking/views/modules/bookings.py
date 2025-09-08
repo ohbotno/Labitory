@@ -23,6 +23,8 @@ from django.utils import timezone
 from django.db.models import Q
 from django.core.cache import cache
 from datetime import datetime, timedelta
+from django_ratelimit.decorators import ratelimit
+from django.conf import settings
 
 from ...models import Booking, BookingTemplate, UserProfile, Resource
 from ...forms import (
@@ -33,8 +35,9 @@ from ...recurring import RecurringBookingGenerator
 
 
 @login_required
+@ratelimit(group='booking_requests', key='user', rate=f"{getattr(settings, 'RATELIMIT_BOOKING_REQUESTS', 10)}/15m", method='POST', block=True)
 def create_booking_view(request):
-    """Create a new booking."""
+    """Create a new booking with rate limiting."""
     conflicts_detected = False
     conflicting_bookings = []
     

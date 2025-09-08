@@ -8,3 +8,9 @@ Licensed under the MIT License - see LICENSE file for details.
 
 __version__ = "2.0.0"
 __version_info__ = (2, 0, 0)
+
+# This will make sure the app is always imported when
+# Django starts so that shared_task will use this app.
+from .celery import app as celery_app
+
+__all__ = ('celery_app',)

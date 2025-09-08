@@ -14,8 +14,14 @@ from django.contrib.auth import views as auth_views
 from django.views.generic.base import RedirectView
 from booking.forms.auth import CustomAuthenticationForm
 from booking.views import CustomLoginView
+from .health_check import health_check, readiness_check, liveness_check
 
 urlpatterns = [
+    # Health check endpoints (no authentication required for monitoring)
+    path('health/', health_check, name='health_check'),
+    path('health/ready/', readiness_check, name='readiness_check'),
+    path('health/live/', liveness_check, name='liveness_check'),
+    
     # Favicon routes with cache busting
     path('favicon.ico', RedirectView.as_view(url='/static/images/favicon.ico?v=2', permanent=True)),
     path('favicon.png', RedirectView.as_view(url='/static/images/favicon.png?v=2', permanent=True)),

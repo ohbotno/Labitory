@@ -254,6 +254,36 @@ class UserProfile(models.Model):
         help_text="Preferred theme (light, dark, or follow system)"
     )
     
+    # Account security fields
+    account_locked = models.BooleanField(
+        default=False,
+        help_text="Whether the account is currently locked due to security issues"
+    )
+    locked_until = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the account lockout expires"
+    )
+    lock_reason = models.CharField(
+        max_length=100,
+        blank=True,
+        help_text="Reason for account lockout"
+    )
+    password_changed_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the password was last changed"
+    )
+    failed_login_attempts = models.PositiveIntegerField(
+        default=0,
+        help_text="Number of consecutive failed login attempts"
+    )
+    last_failed_login = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp of last failed login attempt"
+    )
+    
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

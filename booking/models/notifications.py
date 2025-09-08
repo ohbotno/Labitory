@@ -138,6 +138,12 @@ class Notification(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    # Email/SMS specific tracking for async notifications
+    email_sent = models.BooleanField(default=False)
+    email_sent_at = models.DateTimeField(null=True, blank=True)
+    sms_sent = models.BooleanField(default=False)
+    sms_sent_at = models.DateTimeField(null=True, blank=True)
+    
     # Retry logic
     retry_count = models.PositiveIntegerField(default=0)
     max_retries = models.PositiveIntegerField(default=3)

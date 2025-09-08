@@ -14,10 +14,11 @@ from datetime import datetime, timedelta
 from ...models import Booking, WaitingListEntry, BookingHistory, UserProfile
 from ...serializers import BookingSerializer, WaitingListEntrySerializer
 from ..modules.api import IsOwnerOrManagerPermission
+from ...utils.security_utils import APIRateLimitMixin
 
 
-class BookingViewSet(viewsets.ModelViewSet):
-    """ViewSet for bookings with full CRUD operations."""
+class BookingViewSet(APIRateLimitMixin, viewsets.ModelViewSet):
+    """ViewSet for bookings with full CRUD operations and rate limiting."""
     queryset = Booking.objects.all()
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrManagerPermission]
