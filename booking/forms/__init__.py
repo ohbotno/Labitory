@@ -9,6 +9,10 @@ from .bookings import *
 from .resources import *
 from .admin import *
 from .billing import *
+from .maintenance import *
+
+# Import utility functions
+from ..utils.email import get_logo_base64, get_email_branding_context
 
 # Import any remaining forms from the original forms.py for backward compatibility
 # This will be needed while we transition to the modular structure
@@ -21,6 +25,7 @@ __all__ = [
     'CustomPasswordResetForm',
     'CustomSetPasswordForm',
     'CustomAuthenticationForm',
+    'CalendarSyncPreferencesForm',
     
     # Booking forms
     'BookingForm',
@@ -35,6 +40,7 @@ __all__ = [
     'ResourceForm',
     'ResourceResponsibleForm',
     'ChecklistItemForm',
+    'ResourceChecklistConfigForm',
     'RiskAssessmentForm',
     'UserRiskAssessmentForm',
     'TrainingCourseForm',
@@ -47,10 +53,20 @@ __all__ = [
     'AboutPageEditForm',
     'SMSConfigurationForm',
     'SMSConfigurationTestForm',
+    'EmailConfigurationForm',
+    'EmailConfigurationTestForm',
     
     # Billing forms
     'BillingRateForm',
     
-    # Utility function
+    # Maintenance forms
+    'MaintenanceVendorForm',
+    'MaintenanceForm',
+    'MaintenanceDocumentForm',
+    'MaintenanceAlertForm',
+    'MaintenanceFilterForm',
+    
+    # Utility functions (imported from utils.email)
     'get_logo_base64',
+    'get_email_branding_context',
 ]

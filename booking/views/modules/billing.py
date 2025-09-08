@@ -30,7 +30,7 @@ from booking.models import (
     BillingPeriod, BillingRate, BillingRecord, DepartmentBilling,
     Resource, Department, UserProfile
 )
-from booking.forms import BillingRateForm
+from booking.forms.billing import BillingRateForm
 
 
 def is_lab_admin(user):

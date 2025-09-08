@@ -180,3 +180,162 @@ class SMSConfigurationTestForm(forms.Form):
                 raise forms.ValidationError("Phone number must be in international format starting with '+'")
         
         return phone_number
+
+
+class EmailConfigurationForm(forms.ModelForm):
+    """Form for creating and editing email configurations."""
+    
+    class Meta:
+        model = EmailConfiguration
+        fields = [
+            'name', 'description', 'email_backend', 'email_host', 'email_port',
+            'email_use_tls', 'email_use_ssl', 'email_host_user', 'email_host_password',
+            'default_from_email', 'server_email', 'email_timeout', 'email_file_path',
+            'is_active'
+        ]
+        
+        widgets = {
+            'name': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., Production Gmail SMTP'
+            }),
+            'description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Optional description of this configuration'
+            }),
+            'email_backend': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'email_host': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'e.g., smtp.gmail.com'
+            }),
+            'email_port': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 1,
+                'max': 65535
+            }),
+            'email_use_tls': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'email_use_ssl': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'email_host_user': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'SMTP username (usually your email)'
+            }),
+            'email_host_password': forms.PasswordInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'SMTP password'
+            }),
+            'default_from_email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'noreply@yourdomain.com'
+            }),
+            'server_email': forms.EmailInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'server-errors@yourdomain.com'
+            }),
+            'email_timeout': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': 1,
+                'max': 300
+            }),
+            'email_file_path': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '/tmp/app-messages'
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            })
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        # Add help text and required indicators
+        self.fields['name'].help_text = "A descriptive name for this email configuration"
+        self.fields['email_backend'].help_text = "Choose the email backend to use"
+        self.fields['email_host'].help_text = "SMTP server hostname (e.g., smtp.gmail.com)"
+        self.fields['email_port'].help_text = "Common ports: 587 (TLS), 465 (SSL), 25 (standard)"
+        self.fields['email_use_tls'].help_text = "Use TLS encryption (recommended for port 587)"
+        self.fields['email_use_ssl'].help_text = "Use SSL encryption (recommended for port 465)"
+        self.fields['email_host_user'].help_text = "SMTP username (usually your email address)"
+        self.fields['email_host_password'].help_text = "SMTP password or app-specific password"
+        self.fields['default_from_email'].help_text = "Default 'from' address for outgoing emails"
+        self.fields['server_email'].help_text = "Email address for Django server error messages"
+        self.fields['email_timeout'].help_text = "Connection timeout in seconds (default: 10)"
+        self.fields['email_file_path'].help_text = "Required for file-based email backend"
+        self.fields['is_active'].help_text = "Make this the active email configuration"
+        
+        # Make certain fields conditional based on backend
+        if self.instance.pk and self.instance.email_backend != 'django.core.mail.backends.smtp.EmailBackend':
+            # Hide SMTP-specific fields for non-SMTP backends
+            smtp_fields = ['email_host', 'email_port', 'email_use_tls', 'email_use_ssl', 
+                          'email_host_user', 'email_host_password', 'email_timeout']
+            for field in smtp_fields:
+                self.fields[field].required = False
+        
+        # Handle password field for existing configurations
+        if self.instance.pk and self.instance.email_host_password:
+            self.fields['email_host_password'].widget.attrs['placeholder'] = '••••••••'
+            self.fields['email_host_password'].help_text = "Leave blank to keep current password"
+            self.fields['email_host_password'].required = False
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        email_backend = cleaned_data.get('email_backend')
+        
+        # Validate SMTP-specific fields
+        if email_backend == 'django.core.mail.backends.smtp.EmailBackend':
+            email_host = cleaned_data.get('email_host')
+            if not email_host:
+                raise forms.ValidationError("Email host is required for SMTP backend.")
+            
+            email_use_tls = cleaned_data.get('email_use_tls')
+            email_use_ssl = cleaned_data.get('email_use_ssl')
+            if email_use_tls and email_use_ssl:
+                raise forms.ValidationError("Cannot use both TLS and SSL simultaneously.")
+        
+        # Validate file-based backend
+        elif email_backend == 'django.core.mail.backends.filebased.EmailBackend':
+            email_file_path = cleaned_data.get('email_file_path')
+            if not email_file_path:
+                raise forms.ValidationError("File path is required for file-based email backend.")
+        
+        return cleaned_data
+    
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        
+        # Handle password field - only update if a new password was provided
+        if not self.cleaned_data.get('email_host_password') and self.instance.pk:
+            # Keep the existing password
+            instance.email_host_password = self.instance.email_host_password
+        
+        if commit:
+            instance.save()
+        
+        return instance
+
+
+class EmailConfigurationTestForm(forms.Form):
+    """Form for testing email configurations."""
+    
+    test_email = forms.EmailField(
+        label="Test Email Address",
+        help_text="Email address to send the test email to",
+        widget=forms.EmailInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'test@example.com'
+        })
+    )
+    
+    def __init__(self, *args, **kwargs):
+        self.configuration = kwargs.pop('configuration', None)
+        super().__init__(*args, **kwargs)
+        
+        if self.configuration:
+            self.fields['test_email'].initial = self.configuration.default_from_email

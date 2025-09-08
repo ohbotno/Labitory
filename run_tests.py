@@ -28,5 +28,5 @@ if __name__ == "__main__":
     if failures:
         sys.exit(1)
     else:
-        print("\n✅ All tests passed!")
+        print("\nAll tests passed!")
         sys.exit(0)

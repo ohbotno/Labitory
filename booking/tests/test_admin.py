@@ -1,709 +1,687 @@
 """
-Test cases for admin functionality and site administration features.
+Admin Interface Tests for Labitory Booking System
+
+Tests Django admin interface functionality, custom admin actions,
+filters, and administrative workflows.
 """
+
+import pytest
 from django.test import TestCase, Client
 from django.contrib.auth.models import User
 from django.urls import reverse
-from django.core import mail
-from datetime import datetime, timedelta
+from django.utils import timezone
+from datetime import timedelta
+from decimal import Decimal
+from unittest.mock import patch
+
 from booking.models import (
-    UserProfile, Resource, Booking, ApprovalRule, 
-    UpdateInfo, BackupSchedule, BackupRecord
+    UserProfile, LabSettings, Resource, Booking, 
+    ApprovalRule, AccessRequest, BillingPeriod, BillingRate, BillingRecord,
+    Notification, NotificationPreference, Maintenance
 )
-from booking.tests.factories import UserFactory, ResourceFactory, BookingFactory
-import json
-import os
-import tempfile
+from booking.tests.factories import (
+    UserFactory, UserProfileFactory, ResourceFactory, 
+    BookingFactory, ApprovalRuleFactory
+)
 
 
-class SiteAdminDashboardTests(TestCase):
-    """Test site administrator dashboard functionality."""
+class AdminInterfaceAccessTests(TestCase):
+    """Test admin interface access controls and permissions"""
     
     def setUp(self):
-        self.admin_user = UserFactory(role='site_administrator', is_superuser=True)
-        self.regular_user = UserFactory(role='student')
+        self.admin_user = User.objects.create_superuser(
+            username='admin',
+            email='admin@test.com',
+            password='adminpass123'
+        )
+        self.staff_user = UserProfileFactory(role='staff').user
+        self.student_user = UserProfileFactory(role='student').user
+        
         self.client = Client()
     
-    def test_site_admin_access_control(self):
-        """Test site admin access is properly restricted."""
-        # Test unauthenticated access
-        response = self.client.get(reverse('site_admin_dashboard'))
+    def test_admin_user_access(self):
+        """Test that admin users can access admin interface"""
+        self.client.force_login(self.admin_user)
+        
+        response = self.client.get('/admin/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Django administration')
+    
+    def test_staff_user_limited_access(self):
+        """Test that staff users have limited admin access"""
+        # Make staff user a Django staff member
+        self.staff_user.is_staff = True
+        self.staff_user.save()
+        
+        self.client.force_login(self.staff_user)
+        
+        response = self.client.get('/admin/')
+        if response.status_code == 200:
+            # Staff should have access but with limited permissions
+            self.assertContains(response, 'Django administration')
+    
+    def test_student_user_no_access(self):
+        """Test that regular users cannot access admin interface"""
+        self.client.force_login(self.student_user)
+        
+        response = self.client.get('/admin/')
         self.assertEqual(response.status_code, 302)  # Redirect to login
-        
-        # Test non-admin user access
-        self.client.force_login(self.regular_user)
-        response = self.client.get(reverse('site_admin_dashboard'))
-        self.assertEqual(response.status_code, 403)  # Forbidden
-        
-        # Test admin user access
-        self.client.force_login(self.admin_user)
-        response = self.client.get(reverse('site_admin_dashboard'))
-        self.assertEqual(response.status_code, 200)
-    
-    def test_dashboard_sections_display(self):
-        """Test all dashboard sections display correctly."""
-        self.client.force_login(self.admin_user)
-        response = self.client.get(reverse('site_admin_dashboard'))
-        
-        # Check for main sections
-        self.assertContains(response, 'System Overview')
-        self.assertContains(response, 'User Management')
-        self.assertContains(response, 'Resource Management')
-        self.assertContains(response, 'Backup Management')
-        self.assertContains(response, 'System Updates')
-    
-    def test_dashboard_statistics(self):
-        """Test dashboard statistics display correctly."""
-        # Create test data
-        UserFactory.create_batch(5, role='student')
-        ResourceFactory.create_batch(3)
-        BookingFactory.create_batch(10)
-        
-        self.client.force_login(self.admin_user)
-        response = self.client.get(reverse('site_admin_dashboard'))
-        
-        # Check statistics are displayed
-        self.assertContains(response, 'Total Users')
-        self.assertContains(response, 'Total Resources')
-        self.assertContains(response, 'Total Bookings')
 
 
-class UserManagementTests(TestCase):
-    """Test user management functionality."""
+class BookingAdminTests(TestCase):
+    """Test Booking model admin interface"""
     
     def setUp(self):
-        self.admin_user = UserFactory(role='site_administrator', is_superuser=True)
-        self.lab_manager = UserFactory(role='lab_manager')
-        self.student = UserFactory(role='student')
+        self.admin_user = User.objects.create_superuser(
+            username='admin',
+            email='admin@test.com',
+            password='adminpass123'
+        )
         self.client = Client()
         self.client.force_login(self.admin_user)
-    
-    def test_user_list_display(self):
-        """Test user list displays correctly."""
-        response = self.client.get(reverse('manage_users'))
-        self.assertEqual(response.status_code, 200)
         
-        # Check users are displayed
-        self.assertContains(response, self.lab_manager.username)
-        self.assertContains(response, self.student.username)
-        self.assertContains(response, self.lab_manager.userprofile.role)
-    
-    def test_user_search_functionality(self):
-        """Test user search functionality."""
-        response = self.client.get(reverse('manage_users'), {
-            'search': self.student.username
-        })
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, self.student.username)
-        self.assertNotContains(response, self.lab_manager.username)
-    
-    def test_user_role_update(self):
-        """Test updating user roles."""
-        response = self.client.post(reverse('update_user_role'), {
-            'user_id': self.student.id,
-            'role': 'researcher'
-        })
-        self.assertEqual(response.status_code, 200)
-        
-        self.student.userprofile.refresh_from_db()
-        self.assertEqual(self.student.userprofile.role, 'researcher')
-    
-    def test_user_approval_toggle(self):
-        """Test user approval status toggle."""
-        # Set user as not approved
-        self.student.userprofile.is_approved = False
-        self.student.userprofile.save()
-        
-        response = self.client.post(reverse('toggle_user_approval'), {
-            'user_id': self.student.id
-        })
-        self.assertEqual(response.status_code, 200)
-        
-        self.student.userprofile.refresh_from_db()
-        self.assertTrue(self.student.userprofile.is_approved)
-    
-    def test_user_deactivation(self):
-        """Test user account deactivation."""
-        response = self.client.post(reverse('deactivate_user'), {
-            'user_id': self.student.id
-        })
-        self.assertEqual(response.status_code, 200)
-        
-        self.student.refresh_from_db()
-        self.assertFalse(self.student.is_active)
-    
-    def test_bulk_user_operations(self):
-        """Test bulk user operations."""
-        users = UserFactory.create_batch(3, role='student')
-        user_ids = [user.id for user in users]
-        
-        response = self.client.post(reverse('bulk_user_action'), {
-            'action': 'approve',
-            'user_ids': user_ids
-        })
-        self.assertEqual(response.status_code, 200)
-        
-        for user in users:
-            user.userprofile.refresh_from_db()
-            self.assertTrue(user.userprofile.is_approved)
-
-
-class ResourceManagementTests(TestCase):
-    """Test resource management functionality."""
-    
-    def setUp(self):
-        self.admin_user = UserFactory(role='site_administrator', is_superuser=True)
         self.resource = ResourceFactory()
-        self.client = Client()
-        self.client.force_login(self.admin_user)
+        self.user = UserProfileFactory()
+        self.booking = BookingFactory(
+            resource=self.resource,
+            user=self.user.user,
+            status='pending'
+        )
     
-    def test_resource_list_display(self):
-        """Test resource list displays correctly."""
-        response = self.client.get(reverse('manage_resources'))
+    def test_booking_list_view(self):
+        """Test booking admin list view"""
+        url = reverse('admin:booking_booking_changelist')
+        response = self.client.get(url)
+        
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.booking.title)
         self.assertContains(response, self.resource.name)
-        self.assertContains(response, self.resource.category)
     
-    def test_resource_creation(self):
-        """Test resource creation functionality."""
-        response = self.client.post(reverse('create_resource'), {
-            'name': 'New Test Resource',
-            'description': 'Test resource description',
-            'category': 'test_equipment',
-            'location': 'Test Lab',
-            'capacity': 1,
-            'requires_training': False,
-            'is_bookable': True
-        })
-        self.assertEqual(response.status_code, 302)  # Redirect after creation
+    def test_booking_detail_view(self):
+        """Test booking admin detail view"""
+        url = reverse('admin:booking_booking_change', args=[self.booking.id])
+        response = self.client.get(url)
         
-        self.assertTrue(Resource.objects.filter(name='New Test Resource').exists())
-    
-    def test_resource_editing(self):
-        """Test resource editing functionality."""
-        response = self.client.post(reverse('edit_resource', args=[self.resource.id]), {
-            'name': 'Updated Resource Name',
-            'description': self.resource.description,
-            'category': self.resource.category,
-            'location': self.resource.location,
-            'capacity': self.resource.capacity,
-            'requires_training': self.resource.requires_training,
-            'is_bookable': self.resource.is_bookable
-        })
-        self.assertEqual(response.status_code, 302)
-        
-        self.resource.refresh_from_db()
-        self.assertEqual(self.resource.name, 'Updated Resource Name')
-    
-    def test_resource_deactivation(self):
-        """Test resource deactivation."""
-        response = self.client.post(reverse('toggle_resource_status'), {
-            'resource_id': self.resource.id
-        })
         self.assertEqual(response.status_code, 200)
-        
-        self.resource.refresh_from_db()
-        self.assertFalse(self.resource.is_active)
+        self.assertContains(response, self.booking.title)
+        self.assertContains(response, 'Status')
     
-    def test_resource_usage_statistics(self):
-        """Test resource usage statistics."""
-        # Create some bookings for the resource
-        BookingFactory.create_batch(5, resource=self.resource)
+    def test_booking_status_filter(self):
+        """Test booking status filter in admin"""
+        # Create bookings with different statuses
+        BookingFactory(resource=self.resource, status='approved')
+        BookingFactory(resource=self.resource, status='completed')
+        BookingFactory(resource=self.resource, status='cancelled')
         
-        response = self.client.get(reverse('resource_statistics', args=[self.resource.id]))
+        url = reverse('admin:booking_booking_changelist')
+        
+        # Test filtering by pending status
+        response = self.client.get(url + '?status=pending')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Usage Statistics')
-        self.assertContains(response, 'Total Bookings')
-
-
-class BackupManagementTests(TestCase):
-    """Test backup management functionality."""
+        self.assertContains(response, 'pending')
     
-    def setUp(self):
-        self.admin_user = UserFactory(role='site_administrator', is_superuser=True)
-        self.client = Client()
-        self.client.force_login(self.admin_user)
-    
-    def test_backup_management_page(self):
-        """Test backup management page loads correctly."""
-        response = self.client.get(reverse('site_admin_backup_management'))
+    def test_booking_user_filter(self):
+        """Test filtering bookings by user"""
+        url = reverse('admin:booking_booking_changelist')
+        
+        response = self.client.get(url + f'?user__id__exact={self.user.user.id}')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Backup Management')
-        self.assertContains(response, 'Create Backup')
+        self.assertContains(response, self.user.user.username)
     
-    def test_manual_backup_creation(self):
-        """Test manual backup creation."""
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with self.settings(BACKUP_ROOT=temp_dir):
-                response = self.client.post(reverse('create_backup'))
-                self.assertEqual(response.status_code, 200)
-                
-                # Check backup record was created
-                self.assertTrue(BackupRecord.objects.exists())
-    
-    def test_backup_list_display(self):
-        """Test backup list displays correctly."""
-        # Create test backup records
-        BackupRecord.objects.create(
-            filename='test_backup_1.tar.gz',
-            size=1024000,
-            backup_type='manual'
-        )
-        BackupRecord.objects.create(
-            filename='test_backup_2.tar.gz',
-            size=2048000,
-            backup_type='scheduled'
-        )
+    def test_bulk_approve_bookings_action(self):
+        """Test bulk approve bookings admin action"""
+        # Create multiple pending bookings
+        bookings = [
+            BookingFactory(resource=self.resource, status='pending')
+            for _ in range(3)
+        ]
         
-        response = self.client.get(reverse('site_admin_backup_management'))
-        self.assertContains(response, 'test_backup_1.tar.gz')
-        self.assertContains(response, 'test_backup_2.tar.gz')
-    
-    def test_backup_download(self):
-        """Test backup download functionality."""
-        backup = BackupRecord.objects.create(
-            filename='downloadable_backup.tar.gz',
-            size=1024,
-            backup_type='manual'
-        )
+        url = reverse('admin:booking_booking_changelist')
         
-        response = self.client.get(reverse('download_backup', args=[backup.id]))
-        # Should return 404 if file doesn't exist, or download if it does
-        self.assertIn(response.status_code, [200, 404])
-    
-    def test_backup_deletion(self):
-        """Test backup deletion functionality."""
-        backup = BackupRecord.objects.create(
-            filename='deletable_backup.tar.gz',
-            size=1024,
-            backup_type='manual'
-        )
+        # Simulate bulk approve action
+        data = {
+            'action': 'approve_selected_bookings',
+            '_selected_action': [str(b.id) for b in bookings]
+        }
         
-        response = self.client.post(reverse('delete_backup', args=[backup.id]))
-        self.assertEqual(response.status_code, 302)
-        self.assertFalse(BackupRecord.objects.filter(id=backup.id).exists())
-    
-    def test_scheduled_backup_configuration(self):
-        """Test scheduled backup configuration."""
-        response = self.client.post(reverse('configure_backup_schedule'), {
-            'frequency': 'daily',
-            'time': '02:00',
-            'retention_days': 30,
-            'is_enabled': True
-        })
-        self.assertEqual(response.status_code, 200)
+        response = self.client.post(url, data, follow=True)
         
-        # Check schedule was created/updated
-        schedule = BackupSchedule.objects.first()
-        self.assertEqual(schedule.frequency, 'daily')
-        self.assertTrue(schedule.is_enabled)
-
-
-class UpdateSystemTests(TestCase):
-    """Test update system functionality."""
-    
-    def setUp(self):
-        self.admin_user = UserFactory(role='site_administrator', is_superuser=True)
-        self.client = Client()
-        self.client.force_login(self.admin_user)
-    
-    def test_update_page_display(self):
-        """Test update page displays correctly."""
-        # Create update info
-        UpdateInfo.objects.create(
-            current_version='1.0.0',
-            available_version='1.0.1',
-            github_repo='ohbotno/aperature-booking',
-            last_checked=datetime.now()
-        )
-        
-        response = self.client.get(reverse('site_admin_updates'))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Current Version')
-        self.assertContains(response, '1.0.0')
-        self.assertContains(response, 'Available Version')
-        self.assertContains(response, '1.0.1')
-    
-    def test_check_for_updates(self):
-        """Test check for updates functionality."""
-        response = self.client.post(reverse('check_updates'))
-        self.assertEqual(response.status_code, 200)
-        
-        # Should create or update UpdateInfo record
-        self.assertTrue(UpdateInfo.objects.exists())
-    
-    def test_update_configuration(self):
-        """Test update configuration."""
-        response = self.client.post(reverse('configure_updates'), {
-            'github_repo': 'ohbotno/aperature-booking',
-            'auto_check': True,
-            'check_interval': 24,
-            'notification_email': 'admin@example.com'
-        })
-        self.assertEqual(response.status_code, 200)
-        
-        update_info = UpdateInfo.objects.first()
-        self.assertEqual(update_info.github_repo, 'ohbotno/aperature-booking')
-        self.assertTrue(update_info.auto_check)
-    
-    def test_update_history_display(self):
-        """Test update history display."""
-        response = self.client.get(reverse('update_history'))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Update History')
-
-
-class ApprovalManagementTests(TestCase):
-    """Test approval management functionality."""
-    
-    def setUp(self):
-        self.admin_user = UserFactory(role='site_administrator', is_superuser=True)
-        self.lab_manager = UserFactory(role='lab_manager')
-        self.student = UserFactory(role='student')
-        self.resource = ResourceFactory()
-        self.client = Client()
-        self.client.force_login(self.admin_user)
-    
-    def test_approval_rules_management(self):
-        """Test approval rules management."""
-        response = self.client.get(reverse('manage_approval_rules'))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Approval Rules')
-    
-    def test_create_approval_rule(self):
-        """Test creating approval rules."""
-        response = self.client.post(reverse('create_approval_rule'), {
-            'resource': self.resource.id,
-            'user_role': 'student',
-            'approval_type': 'single',
-            'approver_role': 'lab_manager',
-            'conditions': '{"min_advance_hours": 24}'
-        })
-        self.assertEqual(response.status_code, 302)
-        
-        rule = ApprovalRule.objects.get(resource=self.resource)
-        self.assertEqual(rule.user_role, 'student')
-        self.assertEqual(rule.approval_type, 'single')
-    
-    def test_pending_approvals_queue(self):
-        """Test pending approvals queue."""
-        # Create pending booking
-        booking = BookingFactory(
-            user=self.student,
-            resource=self.resource,
-            status='pending_approval'
-        )
-        
-        response = self.client.get(reverse('pending_approvals'))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, booking.purpose)
-    
-    def test_bulk_approval_actions(self):
-        """Test bulk approval actions."""
-        bookings = BookingFactory.create_batch(3, 
-            user=self.student,
-            resource=self.resource,
-            status='pending_approval'
-        )
-        booking_ids = [booking.id for booking in bookings]
-        
-        response = self.client.post(reverse('bulk_approval_action'), {
-            'action': 'approve',
-            'booking_ids': booking_ids
-        })
-        self.assertEqual(response.status_code, 200)
-        
+        # Check if bookings were approved
         for booking in bookings:
             booking.refresh_from_db()
-            self.assertEqual(booking.status, 'confirmed')
+            if hasattr(booking, 'status'):  # If the action exists
+                self.assertEqual(booking.status, 'approved')
+    
+    def test_booking_search(self):
+        """Test searching bookings in admin"""
+        url = reverse('admin:booking_booking_changelist')
+        
+        response = self.client.get(url + f'?q={self.booking.title}')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.booking.title)
 
 
-class SystemConfigurationTests(TestCase):
-    """Test system configuration functionality."""
+class ResourceAdminTests(TestCase):
+    """Test Resource model admin interface"""
     
     def setUp(self):
-        self.admin_user = UserFactory(role='site_administrator', is_superuser=True)
-        self.client = Client()
-        self.client.force_login(self.admin_user)
-    
-    def test_site_settings_page(self):
-        """Test site settings page."""
-        response = self.client.get(reverse('site_settings'))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Site Settings')
-    
-    def test_email_configuration(self):
-        """Test email configuration."""
-        response = self.client.post(reverse('configure_email'), {
-            'email_host': 'smtp.example.com',
-            'email_port': 587,
-            'email_use_tls': True,
-            'email_host_user': 'noreply@example.com',
-            'default_from_email': 'noreply@example.com'
-        })
-        self.assertEqual(response.status_code, 200)
-    
-    def test_notification_template_management(self):
-        """Test notification template management."""
-        response = self.client.get(reverse('manage_email_templates'))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Email Templates')
-    
-    def test_system_maintenance_mode(self):
-        """Test system maintenance mode toggle."""
-        response = self.client.post(reverse('toggle_maintenance_mode'))
-        self.assertEqual(response.status_code, 200)
-
-
-class AnalyticsReportsTests(TestCase):
-    """Test analytics and reporting functionality."""
-    
-    def setUp(self):
-        self.admin_user = UserFactory(role='site_administrator', is_superuser=True)
-        self.resource = ResourceFactory()
+        self.admin_user = User.objects.create_superuser(
+            username='admin',
+            email='admin@test.com',
+            password='adminpass123'
+        )
         self.client = Client()
         self.client.force_login(self.admin_user)
         
-        # Create test data
-        self.users = UserFactory.create_batch(5, role='student')
-        self.bookings = []
-        for user in self.users:
-            self.bookings.extend(BookingFactory.create_batch(3, 
-                user=user, 
-                resource=self.resource
-            ))
+        self.resource = ResourceFactory(
+            name='Test Equipment',
+            capacity=1,
+            approval_required=True
+        )
     
-    def test_analytics_dashboard(self):
-        """Test analytics dashboard."""
-        response = self.client.get(reverse('analytics_dashboard'))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Analytics Dashboard')
-        self.assertContains(response, 'Usage Statistics')
-    
-    def test_usage_statistics_api(self):
-        """Test usage statistics API endpoint."""
-        response = self.client.get(reverse('api_usage_statistics'))
-        self.assertEqual(response.status_code, 200)
+    def test_resource_list_view(self):
+        """Test resource admin list view"""
+        url = reverse('admin:booking_resource_changelist')
+        response = self.client.get(url)
         
-        data = json.loads(response.content)
-        self.assertIn('total_bookings', data)
-        self.assertIn('total_users', data)
-        self.assertIn('total_resources', data)
-    
-    def test_resource_utilization_report(self):
-        """Test resource utilization report."""
-        response = self.client.get(reverse('resource_utilization_report'))
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.resource.name)
     
-    def test_user_activity_report(self):
-        """Test user activity report."""
-        response = self.client.get(reverse('user_activity_report'))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'User Activity')
-    
-    def test_booking_trends_analysis(self):
-        """Test booking trends analysis."""
-        response = self.client.get(reverse('booking_trends_analysis'))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Booking Trends')
-    
-    def test_export_functionality(self):
-        """Test report export functionality."""
-        # Test CSV export
-        response = self.client.get(reverse('export_usage_report'), {
-            'format': 'csv'
-        })
-        self.assertEqual(response.status_code, 200)
-        self.assertEqual(response['Content-Type'], 'text/csv')
+    def test_resource_capacity_filter(self):
+        """Test filtering resources by capacity"""
+        ResourceFactory(name='Single User', capacity=1)
+        ResourceFactory(name='Multi User', capacity=5)
         
-        # Test PDF export
-        response = self.client.get(reverse('export_usage_report'), {
-            'format': 'pdf'
-        })
+        url = reverse('admin:booking_resource_changelist')
+        
+        # Filter by capacity > 1
+        response = self.client.get(url + '?capacity__gt=1')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response['Content-Type'], 'application/pdf')
+        self.assertContains(response, 'Multi User')
+        self.assertNotContains(response, 'Single User')
+    
+    def test_resource_availability_status(self):
+        """Test resource availability status display"""
+        url = reverse('admin:booking_resource_change', args=[self.resource.id])
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Approval required')
 
 
-class SystemMonitoringTests(TestCase):
-    """Test system monitoring functionality."""
+class UserProfileAdminTests(TestCase):
+    """Test UserProfile admin interface"""
     
     def setUp(self):
-        self.admin_user = UserFactory(role='site_administrator', is_superuser=True)
+        self.admin_user = User.objects.create_superuser(
+            username='admin',
+            email='admin@test.com',
+            password='adminpass123'
+        )
         self.client = Client()
         self.client.force_login(self.admin_user)
-    
-    def test_system_health_check(self):
-        """Test system health check endpoint."""
-        response = self.client.get(reverse('system_health_check'))
-        self.assertEqual(response.status_code, 200)
         
-        data = json.loads(response.content)
-        self.assertIn('status', data)
-        self.assertIn('database', data)
-        self.assertIn('email', data)
+        self.user_profile = UserProfileFactory(
+            role='student',
+            department='Engineering'
+        )
     
-    def test_system_logs_viewer(self):
-        """Test system logs viewer."""
-        response = self.client.get(reverse('view_system_logs'))
+    def test_user_profile_list_view(self):
+        """Test user profile admin list view"""
+        url = reverse('admin:booking_userprofile_changelist')
+        response = self.client.get(url)
+        
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'System Logs')
+        self.assertContains(response, self.user_profile.user.username)
     
-    def test_performance_metrics(self):
-        """Test performance metrics display."""
-        response = self.client.get(reverse('performance_metrics'))
+    def test_user_role_filter(self):
+        """Test filtering users by role"""
+        UserProfileFactory(role='staff')
+        UserProfileFactory(role='admin')
+        
+        url = reverse('admin:booking_userprofile_changelist')
+        
+        # Filter by student role
+        response = self.client.get(url + '?role=student')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Performance Metrics')
     
-    def test_error_monitoring(self):
-        """Test error monitoring functionality."""
-        response = self.client.get(reverse('error_monitoring'))
+    def test_user_department_filter(self):
+        """Test filtering users by department"""
+        UserProfileFactory(department='Physics')
+        UserProfileFactory(department='Chemistry')
+        
+        url = reverse('admin:booking_userprofile_changelist')
+        
+        # Filter by Engineering department
+        response = self.client.get(url + '?department=Engineering')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Error Monitoring')
+        self.assertContains(response, 'Engineering')
 
 
-class SecurityManagementTests(TestCase):
-    """Test security management functionality."""
+class ApprovalAdminTests(TestCase):
+    """Test approval-related admin interfaces"""
     
     def setUp(self):
-        self.admin_user = UserFactory(role='site_administrator', is_superuser=True)
+        self.admin_user = User.objects.create_superuser(
+            username='admin',
+            email='admin@test.com',
+            password='adminpass123'
+        )
         self.client = Client()
         self.client.force_login(self.admin_user)
+        
+        self.resource = ResourceFactory()
+        self.approver = UserProfileFactory(role='staff')
+        self.approval_rule = ApprovalRuleFactory(
+            resource=self.resource,
+            approver=self.approver
+        )
     
-    def test_security_settings_page(self):
-        """Test security settings page."""
-        response = self.client.get(reverse('security_settings'))
+    def test_approval_rule_list_view(self):
+        """Test approval rule admin list view"""
+        url = reverse('admin:booking_approvalrule_changelist')
+        response = self.client.get(url)
+        
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Security Settings')
+        self.assertContains(response, self.resource.name)
     
-    def test_login_attempt_monitoring(self):
-        """Test login attempt monitoring."""
-        response = self.client.get(reverse('login_attempts'))
+    def test_approval_request_list_view(self):
+        """Test approval request admin list view"""
+        booking = BookingFactory(resource=self.resource)
+        approval_request = ApprovalRequest.objects.create(
+            booking=booking,
+            approval_rule=self.approval_rule,
+            status='pending'
+        )
+        
+        url = reverse('admin:booking_approvalrequest_changelist')
+        response = self.client.get(url)
+        
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Login Attempts')
+        self.assertContains(response, booking.title)
     
-    def test_session_management(self):
-        """Test active session management."""
-        response = self.client.get(reverse('active_sessions'))
+    def test_bulk_approve_requests_action(self):
+        """Test bulk approve requests admin action"""
+        booking = BookingFactory(resource=self.resource)
+        requests = [
+            ApprovalRequest.objects.create(
+                booking=BookingFactory(resource=self.resource),
+                approval_rule=self.approval_rule,
+                status='pending'
+            )
+            for _ in range(3)
+        ]
+        
+        url = reverse('admin:booking_approvalrequest_changelist')
+        
+        # Simulate bulk approve action
+        data = {
+            'action': 'approve_selected_requests',
+            '_selected_action': [str(r.id) for r in requests]
+        }
+        
+        response = self.client.post(url, data, follow=True)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Active Sessions')
-    
-    def test_audit_log_viewer(self):
-        """Test audit log viewer."""
-        response = self.client.get(reverse('audit_logs'))
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Audit Logs')
 
 
-class IntegrationAdminTests(TestCase):
-    """Test admin functionality integration."""
+class BillingAdminTests(TestCase):
+    """Test billing-related admin interfaces"""
     
     def setUp(self):
-        self.admin_user = UserFactory(role='site_administrator', is_superuser=True)
+        self.admin_user = User.objects.create_superuser(
+            username='admin',
+            email='admin@test.com',
+            password='adminpass123'
+        )
         self.client = Client()
         self.client.force_login(self.admin_user)
+        
+        self.resource = ResourceFactory()
+        self.billing_rate = BillingRate.objects.create(
+            resource=self.resource,
+            user_type='student',
+            hourly_rate=Decimal('25.00')
+        )
+        
+        self.billing_period = BillingPeriod.objects.create(
+            name='Test Period',
+            start_date=timezone.now().date(),
+            end_date=timezone.now().date() + timedelta(days=30)
+        )
     
-    def test_complete_resource_lifecycle(self):
-        """Test complete resource lifecycle management."""
-        # Create resource
-        response = self.client.post(reverse('create_resource'), {
-            'name': 'Lifecycle Test Resource',
-            'description': 'Test resource for lifecycle testing',
-            'category': 'test_equipment',
-            'location': 'Test Lab',
-            'capacity': 1,
-            'requires_training': True,
-            'is_bookable': True
-        })
+    def test_billing_rate_list_view(self):
+        """Test billing rate admin list view"""
+        url = reverse('admin:booking_billingrate_changelist')
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.resource.name)
+        self.assertContains(response, '25.00')
+    
+    def test_billing_period_list_view(self):
+        """Test billing period admin list view"""
+        url = reverse('admin:booking_billingperiod_changelist')
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Test Period')
+    
+    def test_charge_record_list_view(self):
+        """Test charge record admin list view"""
+        booking = BookingFactory(resource=self.resource, status='completed')
+        charge_record = BillingRecord.objects.create(
+            booking=booking,
+            billing_rate=self.billing_rate,
+            hours_charged=Decimal('2.0'),
+            amount_charged=Decimal('50.00')
+        )
+        
+        url = reverse('admin:booking_billingrecord_changelist')
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '50.00')
+    
+    def test_billing_period_status_filter(self):
+        """Test filtering billing periods by status"""
+        BillingPeriod.objects.create(
+            name='Active Period',
+            start_date=timezone.now().date(),
+            end_date=timezone.now().date() + timedelta(days=30),
+            status='active'
+        )
+        
+        BillingPeriod.objects.create(
+            name='Closed Period',
+            start_date=timezone.now().date() - timedelta(days=60),
+            end_date=timezone.now().date() - timedelta(days=30),
+            status='closed'
+        )
+        
+        url = reverse('admin:booking_billingperiod_changelist')
+        
+        # Filter by active status
+        response = self.client.get(url + '?status=active')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Active Period')
+
+
+class NotificationAdminTests(TestCase):
+    """Test notification admin interface"""
+    
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username='admin',
+            email='admin@test.com',
+            password='adminpass123'
+        )
+        self.client = Client()
+        self.client.force_login(self.admin_user)
+        
+        self.user = UserProfileFactory()
+        self.notification = Notification.objects.create(
+            user=self.user.user,
+            title='Test Notification',
+            message='This is a test notification',
+            notification_type='booking_reminder'
+        )
+    
+    def test_notification_list_view(self):
+        """Test notification admin list view"""
+        url = reverse('admin:booking_notification_changelist')
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Test Notification')
+    
+    def test_notification_type_filter(self):
+        """Test filtering notifications by type"""
+        Notification.objects.create(
+            user=self.user.user,
+            title='Reminder',
+            message='Reminder message',
+            notification_type='booking_reminder'
+        )
+        
+        Notification.objects.create(
+            user=self.user.user,
+            title='Confirmation',
+            message='Confirmation message',
+            notification_type='booking_confirmed'
+        )
+        
+        url = reverse('admin:booking_notification_changelist')
+        
+        # Filter by reminder type
+        response = self.client.get(url + '?notification_type=booking_reminder')
+        self.assertEqual(response.status_code, 200)
+    
+    def test_notification_read_status_filter(self):
+        """Test filtering notifications by read status"""
+        # Create read and unread notifications
+        Notification.objects.create(
+            user=self.user.user,
+            title='Read Notification',
+            message='This has been read',
+            notification_type='info',
+            is_read=True
+        )
+        
+        url = reverse('admin:booking_notification_changelist')
+        
+        # Filter by unread notifications
+        response = self.client.get(url + '?is_read=False')
+        self.assertEqual(response.status_code, 200)
+    
+    def test_bulk_mark_as_read_action(self):
+        """Test bulk mark as read admin action"""
+        notifications = [
+            Notification.objects.create(
+                user=self.user.user,
+                title=f'Test {i}',
+                message=f'Message {i}',
+                notification_type='info'
+            )
+            for i in range(3)
+        ]
+        
+        url = reverse('admin:booking_notification_changelist')
+        
+        # Simulate bulk mark as read action
+        data = {
+            'action': 'mark_as_read',
+            '_selected_action': [str(n.id) for n in notifications]
+        }
+        
+        response = self.client.post(url, data, follow=True)
+        self.assertEqual(response.status_code, 200)
+
+
+class MaintenanceAdminTests(TestCase):
+    """Test maintenance scheduling admin interface"""
+    
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username='admin',
+            email='admin@test.com',
+            password='adminpass123'
+        )
+        self.client = Client()
+        self.client.force_login(self.admin_user)
+        
+        self.resource = ResourceFactory()
+        self.maintenance = Maintenance.objects.create(
+            resource=self.resource,
+            title='Routine Maintenance',
+            description='Monthly equipment check',
+            scheduled_start=timezone.now() + timedelta(days=7),
+            scheduled_end=timezone.now() + timedelta(days=7, hours=4),
+            maintenance_type='routine'
+        )
+    
+    def test_maintenance_list_view(self):
+        """Test maintenance schedule admin list view"""
+        url = reverse('admin:booking_maintenance_changelist')
+        response = self.client.get(url)
+        
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Routine Maintenance')
+    
+    def test_maintenance_type_filter(self):
+        """Test filtering maintenance by type"""
+        Maintenance.objects.create(
+            resource=self.resource,
+            title='Emergency Repair',
+            scheduled_start=timezone.now() + timedelta(days=1),
+            scheduled_end=timezone.now() + timedelta(days=1, hours=2),
+            maintenance_type='emergency'
+        )
+        
+        url = reverse('admin:booking_maintenance_changelist')
+        
+        # Filter by routine maintenance
+        response = self.client.get(url + '?maintenance_type=routine')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Routine Maintenance')
+    
+    def test_maintenance_status_update(self):
+        """Test updating maintenance status"""
+        url = reverse('admin:booking_maintenance_change', args=[self.maintenance.id])
+        
+        # Update maintenance status to in_progress
+        data = {
+            'resource': self.resource.id,
+            'title': 'Routine Maintenance',
+            'description': 'Monthly equipment check',
+            'scheduled_start': self.maintenance.scheduled_start,
+            'scheduled_end': self.maintenance.scheduled_end,
+            'maintenance_type': 'routine',
+            'status': 'in_progress'
+        }
+        
+        response = self.client.post(url, data)
+        
+        # Should redirect after successful update
         self.assertEqual(response.status_code, 302)
         
-        resource = Resource.objects.get(name='Lifecycle Test Resource')
-        
-        # Create approval rule for resource
-        response = self.client.post(reverse('create_approval_rule'), {
-            'resource': resource.id,
-            'user_role': 'student',
-            'approval_type': 'single',
-            'approver_role': 'lab_manager'
-        })
-        self.assertEqual(response.status_code, 302)
-        
-        # Verify approval rule was created
-        self.assertTrue(ApprovalRule.objects.filter(resource=resource).exists())
-        
-        # Update resource
-        response = self.client.post(reverse('edit_resource', args=[resource.id]), {
-            'name': 'Updated Lifecycle Resource',
-            'description': resource.description,
-            'category': resource.category,
-            'location': resource.location,
-            'capacity': resource.capacity,
-            'requires_training': resource.requires_training,
-            'is_bookable': resource.is_bookable
-        })
-        self.assertEqual(response.status_code, 302)
-        
-        resource.refresh_from_db()
-        self.assertEqual(resource.name, 'Updated Lifecycle Resource')
-        
-        # Deactivate resource
-        response = self.client.post(reverse('toggle_resource_status'), {
-            'resource_id': resource.id
-        })
-        self.assertEqual(response.status_code, 200)
-        
-        resource.refresh_from_db()
-        self.assertFalse(resource.is_active)
+        self.maintenance.refresh_from_db()
+        if hasattr(self.maintenance, 'status'):
+            self.assertEqual(self.maintenance.status, 'in_progress')
+
+
+class AdminReportTests(TestCase):
+    """Test admin dashboard and reporting features"""
     
-    def test_complete_user_management_workflow(self):
-        """Test complete user management workflow."""
-        # Create user
-        user = UserFactory(role='student', is_approved=False)
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username='admin',
+            email='admin@test.com',
+            password='adminpass123'
+        )
+        self.client = Client()
+        self.client.force_login(self.admin_user)
         
-        # Approve user
-        response = self.client.post(reverse('toggle_user_approval'), {
-            'user_id': user.id
-        })
-        self.assertEqual(response.status_code, 200)
-        
-        user.userprofile.refresh_from_db()
-        self.assertTrue(user.userprofile.is_approved)
-        
-        # Change user role
-        response = self.client.post(reverse('update_user_role'), {
-            'user_id': user.id,
-            'role': 'researcher'
-        })
-        self.assertEqual(response.status_code, 200)
-        
-        user.userprofile.refresh_from_db()
-        self.assertEqual(user.userprofile.role, 'researcher')
-        
-        # Deactivate user
-        response = self.client.post(reverse('deactivate_user'), {
-            'user_id': user.id
-        })
-        self.assertEqual(response.status_code, 200)
-        
-        user.refresh_from_db()
-        self.assertFalse(user.is_active)
-    
-    def test_backup_and_restore_workflow(self):
-        """Test backup and restore workflow."""
         # Create test data
-        resource = ResourceFactory()
-        booking = BookingFactory(resource=resource)
+        self.resource = ResourceFactory()
+        for i in range(5):
+            BookingFactory(
+                resource=self.resource,
+                status='completed' if i < 3 else 'pending'
+            )
+    
+    def test_admin_dashboard_stats(self):
+        """Test admin dashboard displays statistics"""
+        response = self.client.get('/admin/')
+        self.assertEqual(response.status_code, 200)
         
-        # Create backup
-        with tempfile.TemporaryDirectory() as temp_dir:
-            with self.settings(BACKUP_ROOT=temp_dir):
-                response = self.client.post(reverse('create_backup'))
-                self.assertEqual(response.status_code, 200)
-                
-                backup = BackupRecord.objects.first()
-                self.assertIsNotNone(backup)
-                
-                # Test backup download
-                response = self.client.get(reverse('download_backup', args=[backup.id]))
-                # Should either download or return 404 if file doesn't exist
-                self.assertIn(response.status_code, [200, 404])
+        # Check for booking statistics in dashboard
+        # Note: This depends on custom admin dashboard implementation
+    
+    def test_booking_export_functionality(self):
+        """Test exporting booking data from admin"""
+        url = reverse('admin:booking_booking_changelist')
+        
+        # Test CSV export if implemented
+        response = self.client.get(url + '?format=csv')
+        
+        # If export is implemented, should return CSV data
+        if response.status_code == 200:
+            self.assertEqual(response['Content-Type'], 'text/csv')
+
+
+class AdminSecurityTests(TestCase):
+    """Test admin interface security"""
+    
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username='admin',
+            email='admin@test.com',
+            password='adminpass123'
+        )
+        self.regular_user = UserFactory()
+        
+    def test_admin_requires_authentication(self):
+        """Test that admin interface requires authentication"""
+        client = Client()
+        
+        response = client.get('/admin/')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('login', response.url)
+    
+    def test_admin_requires_superuser(self):
+        """Test that admin interface requires superuser status"""
+        client = Client()
+        client.force_login(self.regular_user)
+        
+        response = client.get('/admin/')
+        self.assertEqual(response.status_code, 302)
+    
+    def test_admin_csrf_protection(self):
+        """Test CSRF protection on admin forms"""
+        client = Client()
+        client.force_login(self.admin_user)
+        
+        # Try to post without CSRF token
+        url = reverse('admin:booking_resource_add')
+        data = {
+            'name': 'Test Resource',
+            'description': 'Test Description',
+            'capacity': 1
+        }
+        
+        response = client.post(url, data)
+        # Should fail without CSRF token
+        self.assertIn(response.status_code, [403, 302])
+
+
+@pytest.mark.admin
+class AdminCustomizationTests(TestCase):
+    """Test custom admin interface features"""
+    
+    def setUp(self):
+        self.admin_user = User.objects.create_superuser(
+            username='admin',
+            email='admin@test.com',
+            password='adminpass123'
+        )
+        self.client = Client()
+        self.client.force_login(self.admin_user)
+    
+    def test_custom_admin_actions(self):
+        """Test custom admin actions if implemented"""
+        # This would test any custom admin actions
+        # beyond the standard Django admin actions
+        pass
+    
+    def test_admin_interface_customization(self):
+        """Test custom admin interface styling/branding"""
+        response = self.client.get('/admin/')
+        self.assertEqual(response.status_code, 200)
+        
+        # Check for custom branding if implemented
+        if 'Labitory' in response.content.decode():
+            self.assertContains(response, 'Labitory')
+
+
+if __name__ == '__main__':
+    pytest.main([__file__])

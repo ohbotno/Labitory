@@ -11,7 +11,7 @@ from django import forms
 from django.utils import timezone
 
 from ..models import (
-    Resource, AccessRequest, ResourceResponsible, ChecklistItem,
+    Resource, AccessRequest, ResourceResponsible, ChecklistItem, ResourceChecklistItem,
     RiskAssessment, UserRiskAssessment, TrainingCourse, UserTraining, ResourceIssue
 )
 
@@ -196,6 +196,100 @@ class IssueFilterForm(forms.Form):
                               widget=forms.Select(attrs={'class': 'form-control'}))
     priority = forms.ChoiceField(required=False, 
                                widget=forms.Select(attrs={'class': 'form-control'}))
+
+
+class ResourceChecklistConfigForm(forms.Form):
+    """Form for configuring which checklist items are assigned to a resource."""
+    
+    def __init__(self, resource, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.resource = resource
+        
+        # Get all available checklist items
+        available_items = ChecklistItem.objects.all().order_by('category', 'title')
+        
+        # Get currently assigned items
+        assigned_items = ResourceChecklistItem.objects.filter(
+            resource=resource
+        ).select_related('checklist_item')
+        
+        assigned_dict = {item.checklist_item.id: item for item in assigned_items}
+        
+        # Create fields for each available item
+        for item in available_items:
+            field_name = f"item_{item.id}"
+            assignment = assigned_dict.get(item.id)
+            
+            # Checkbox to include/exclude item
+            self.fields[f"{field_name}_enabled"] = forms.BooleanField(
+                required=False,
+                initial=assignment is not None and assignment.is_active,
+                label=f"{item.get_category_display()}: {item.title}",
+                widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+            )
+            
+            # Order field
+            self.fields[f"{field_name}_order"] = forms.IntegerField(
+                required=False,
+                initial=assignment.order if assignment else 0,
+                widget=forms.NumberInput(attrs={'class': 'form-control form-control-sm', 'min': 0}),
+                label="Order"
+            )
+            
+            # Required override
+            self.fields[f"{field_name}_required"] = forms.BooleanField(
+                required=False,
+                initial=assignment.is_required if assignment else item.is_required,
+                label="Required",
+                widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+            )
+    
+    def save(self):
+        """Save the checklist configuration for the resource."""
+        from django.utils import timezone
+        
+        # Get all existing assignments
+        existing_assignments = {
+            assignment.checklist_item.id: assignment 
+            for assignment in ResourceChecklistItem.objects.filter(resource=self.resource)
+        }
+        
+        # Process each item
+        for field_name, value in self.cleaned_data.items():
+            if field_name.endswith('_enabled'):
+                item_id = int(field_name.split('_')[1])
+                
+                # Get related field values
+                enabled = value
+                order = self.cleaned_data.get(f"item_{item_id}_order", 0)
+                required = self.cleaned_data.get(f"item_{item_id}_required", True)
+                
+                if enabled:
+                    # Create or update assignment
+                    assignment = existing_assignments.get(item_id)
+                    if assignment:
+                        assignment.is_active = True
+                        assignment.order = order
+                        assignment.is_required_override = required
+                        assignment.override_required = (required != assignment.checklist_item.is_required)
+                        assignment.save()
+                    else:
+                        # Create new assignment
+                        ResourceChecklistItem.objects.create(
+                            resource=self.resource,
+                            checklist_item_id=item_id,
+                            order=order,
+                            is_active=True,
+                            override_required=(required != ChecklistItem.objects.get(id=item_id).is_required),
+                            is_required_override=required,
+                            created_at=timezone.now()
+                        )
+                else:
+                    # Disable or remove assignment
+                    assignment = existing_assignments.get(item_id)
+                    if assignment:
+                        assignment.is_active = False
+                        assignment.save()
 
 
 # Additional forms can be added here as models are verified

@@ -12,7 +12,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
 from django.views.generic.base import RedirectView
-from booking.forms import CustomAuthenticationForm
+from booking.forms.auth import CustomAuthenticationForm
 from booking.views import CustomLoginView
 
 urlpatterns = [

@@ -7,8 +7,6 @@ Copyright (c) 2025 Labitory Contributors
 Licensed under the MIT License - see LICENSE file for details.
 """
 
-import base64
-import os
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, PasswordResetForm, SetPasswordForm, AuthenticationForm
 from django.contrib.auth.models import User
@@ -22,40 +20,11 @@ from datetime import datetime, timedelta
 
 from ..models import (
     UserProfile, EmailVerificationToken, PasswordResetToken, 
-    Faculty, College, Department
+    Faculty, College, Department, CalendarSyncPreferences
 )
+from ..utils.email import get_logo_base64, get_email_branding_context
 
 
-def get_logo_base64():
-    """Get the logo as a base64 encoded string for email templates."""
-    try:
-        # First try to get custom logo from branding configuration
-        from ..models import LicenseConfiguration
-        try:
-            license_config = LicenseConfiguration.objects.filter(is_active=True).first()
-            if license_config and hasattr(license_config, 'branding') and license_config.branding.logo_primary:
-                logo_path = license_config.branding.logo_primary.path
-                if os.path.exists(logo_path):
-                    with open(logo_path, 'rb') as logo_file:
-                        logo_data = logo_file.read()
-                        return base64.b64encode(logo_data).decode('utf-8')
-        except Exception:
-            pass
-        
-        # Fallback to default logo
-        logo_path = os.path.join(settings.STATIC_ROOT or 'static', 'images', 'logo.png')
-        if not os.path.exists(logo_path):
-            # Fallback to development path
-            logo_path = os.path.join(settings.BASE_DIR, 'static', 'images', 'logo.png')
-        
-        if os.path.exists(logo_path):
-            with open(logo_path, 'rb') as logo_file:
-                logo_data = logo_file.read()
-                return base64.b64encode(logo_data).decode('utf-8')
-    except Exception:
-        pass
-    
-    return None
 
 
 class UserRegistrationForm(UserCreationForm):
@@ -407,3 +376,64 @@ class CustomAuthenticationForm(AuthenticationForm):
                 pass
         
         return username
+
+
+class CalendarSyncPreferencesForm(forms.ModelForm):
+    """Form for managing calendar sync preferences."""
+    
+    class Meta:
+        model = CalendarSyncPreferences
+        fields = [
+            'auto_sync_timing',
+            'sync_future_bookings_only',
+            'sync_cancelled_bookings',
+            'sync_pending_bookings',
+            'conflict_resolution',
+            'event_prefix',
+            'include_resource_in_title',
+            'include_description',
+            'set_event_location',
+            'notify_sync_errors',
+            'notify_sync_success',
+        ]
+        widgets = {
+            'auto_sync_timing': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'conflict_resolution': forms.Select(attrs={
+                'class': 'form-select'
+            }),
+            'event_prefix': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': '[Lab] '
+            }),
+            'sync_future_bookings_only': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'sync_cancelled_bookings': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'sync_pending_bookings': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'include_resource_in_title': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'include_description': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'set_event_location': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'notify_sync_errors': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+            'notify_sync_success': forms.CheckboxInput(attrs={
+                'class': 'form-check-input'
+            }),
+        }
+        help_texts = {
+            'auto_sync_timing': 'How often to automatically sync your bookings with Google Calendar',
+            'conflict_resolution': 'What to do when there are conflicts between Labitory and Google Calendar',
+            'event_prefix': 'Text to add before Google Calendar event titles (optional)',
+        }

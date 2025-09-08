@@ -50,6 +50,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'booking.context_processors.notification_context',
+                'booking.context_processors.lab_settings_context',
             ],
         },
     },
@@ -96,15 +98,9 @@ REST_FRAMEWORK = {
 # Email backend for testing
 EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 
-# Disable migrations for faster tests
-class DisableMigrations:
-    def __contains__(self, item):
-        return True
-    
-    def __getitem__(self, item):
-        return None
-
-MIGRATION_MODULES = DisableMigrations()
+# Use migrations for test database to ensure proper schema
+# We need the database schema to exist for tests to work
+# MIGRATION_MODULES = {}
 
 # Test-specific settings
 PASSWORD_HASHERS = [
@@ -145,5 +141,33 @@ BACKUP_ROOT = BASE_DIR / 'test_backups'
 BACKUP_RETENTION_DAYS = 30
 
 # Update system settings
+
+# Create default lab settings for tests
+def create_default_lab_settings():
+    """Create default LabSettings for tests."""
+    try:
+        from booking.models import LabSettings
+        LabSettings.objects.get_or_create(
+            defaults={'lab_name': 'Labitory Test Lab', 'is_active': True}
+        )
+    except Exception:
+        pass
+
+# Test database setup callback
+def test_db_created(sender, **kwargs):
+    """Callback when test database is created."""
+    create_default_lab_settings()
+
+# Register the callback
+from django.db.models.signals import post_migrate
+from django.dispatch import receiver
+
+@receiver(post_migrate)
+def setup_test_data(sender, **kwargs):
+    """Set up default test data."""
+    if 'booking' in str(sender):
+        create_default_lab_settings()
+
+# Update system settings
 UPDATE_CHECK_INTERVAL_HOURS = 24
-GITHUB_REPO = 'ohbotno/aperature-booking'
+GITHUB_REPO = 'test-repo'

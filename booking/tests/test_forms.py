@@ -5,10 +5,9 @@ from django.test import TestCase
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from datetime import datetime, timedelta
-from booking.forms import (
-    UserRegistrationForm, BookingForm, ResourceForm, 
-    ApprovalRuleForm, BackupConfigurationForm, UpdateConfigurationForm
-)
+from booking.forms.auth import UserRegistrationForm
+from booking.forms.bookings import BookingForm
+from booking.forms.resources import ResourceForm
 from booking.models import UserProfile, Resource, Booking, ApprovalRule
 from booking.tests.factories import UserFactory, ResourceFactory
 
