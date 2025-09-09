@@ -37,6 +37,11 @@ urlpatterns = [
     path('reset-password/<uuid:token>/', views.password_reset_confirm_view, name='password_reset_confirm'),
     path('password-reset-complete/', views.password_reset_complete_view, name='password_reset_complete'),
     
+    # Azure AD SSO URLs
+    path('auth/azure/login/', views.azure_login_view, name='azure_login'),
+    path('auth/azure/callback/', views.azure_callback_view, name='azure_callback'),
+    path('auth/azure/logout/', views.azure_logout_view, name='azure_logout'),
+    
     # Two-Factor Authentication URLs
     path('2fa/setup/', two_factor.two_factor_setup, name='two_factor_setup'),
     path('2fa/verify/', two_factor.two_factor_verification, name='two_factor_verification'),

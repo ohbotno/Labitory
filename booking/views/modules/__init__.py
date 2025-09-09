@@ -35,6 +35,9 @@ __all__ = [
     'password_reset_done_view',
     'password_reset_complete_view',
     'CustomLoginView',
+    'azure_login_view',
+    'azure_callback_view',
+    'azure_logout_view',
     
     # API ViewSets
     'UserProfileViewSet',

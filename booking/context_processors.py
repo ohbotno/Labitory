@@ -196,3 +196,17 @@ def theme_context(request):
             'user_theme': 'light',
             'user_theme_preference': 'light'
         }
+
+
+def azure_ad_context(request):
+    """Provide Azure AD configuration to templates."""
+    from django.conf import settings
+    
+    return {
+        'AZURE_AD_CLIENT_ID': getattr(settings, 'AZURE_AD_CLIENT_ID', ''),
+        'AZURE_AD_ENABLED': bool(
+            getattr(settings, 'AZURE_AD_CLIENT_ID', '') and 
+            getattr(settings, 'AZURE_AD_CLIENT_SECRET', '') and 
+            getattr(settings, 'AZURE_AD_TENANT_ID', '')
+        ),
+    }

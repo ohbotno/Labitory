@@ -71,6 +71,7 @@ TEMPLATES = [
                 'booking.context_processors.lab_settings_context',
                 'booking.context_processors.version_context',
                 'booking.context_processors.theme_context',
+                'booking.context_processors.azure_ad_context',
             ],
         },
     },
@@ -127,8 +128,17 @@ REST_FRAMEWORK = {
 
 # Authentication backend - extensible for SSO
 AUTHENTICATION_BACKENDS = [
+    'booking.auth_backends.AzureADBackend',
     'django.contrib.auth.backends.ModelBackend',
 ]
+
+# Microsoft Azure AD Configuration
+AZURE_AD_TENANT_ID = ''  # Will be set in environment-specific settings
+AZURE_AD_CLIENT_ID = ''
+AZURE_AD_CLIENT_SECRET = ''
+AZURE_AD_REDIRECT_URI = '/auth/azure/callback/'
+AZURE_AD_SCOPES = ['openid', 'profile', 'email']
+AZURE_AD_AUTHORITY = 'https://login.microsoftonline.com/'
 
 # Login/Logout URLs
 LOGIN_URL = '/accounts/login/'

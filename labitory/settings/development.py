@@ -131,6 +131,11 @@ VAPID_SUBJECT = config('VAPID_SUBJECT', default='mailto:admin@example.com')
 GOOGLE_OAUTH2_CLIENT_ID = config('GOOGLE_OAUTH2_CLIENT_ID', default='')
 GOOGLE_OAUTH2_CLIENT_SECRET = config('GOOGLE_OAUTH2_CLIENT_SECRET', default='')
 
+# Microsoft Azure AD credentials - Optional in development
+AZURE_AD_TENANT_ID = config('AZURE_AD_TENANT_ID', default='')
+AZURE_AD_CLIENT_ID = config('AZURE_AD_CLIENT_ID', default='')
+AZURE_AD_CLIENT_SECRET = config('AZURE_AD_CLIENT_SECRET', default='')
+
 # CORS settings - Permissive for development
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",

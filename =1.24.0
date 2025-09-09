@@ -1,0 +1,16 @@
+Collecting msal
+  Obtaining dependency information for msal from https://files.pythonhosted.org/packages/86/5b/fbc73e91f7727ae1e79b21ed833308e99dc11cc1cd3d4717f579775de5e9/msal-1.33.0-py3-none-any.whl.metadata
+  Downloading msal-1.33.0-py3-none-any.whl.metadata (11 kB)
+Requirement already satisfied: requests<3,>=2.0.0 in d:\onedrive - swansea university\projects\labitory\.venv\lib\site-packages (from msal) (2.32.5)
+Requirement already satisfied: PyJWT[crypto]<3,>=1.0.0 in d:\onedrive - swansea university\projects\labitory\.venv\lib\site-packages (from msal) (2.10.1)
+Requirement already satisfied: cryptography<48,>=2.5 in d:\onedrive - swansea university\projects\labitory\.venv\lib\site-packages (from msal) (45.0.7)
+Requirement already satisfied: cffi>=1.14 in d:\onedrive - swansea university\projects\labitory\.venv\lib\site-packages (from cryptography<48,>=2.5->msal) (1.17.1)
+Requirement already satisfied: charset_normalizer<4,>=2 in d:\onedrive - swansea university\projects\labitory\.venv\lib\site-packages (from requests<3,>=2.0.0->msal) (3.4.3)
+Requirement already satisfied: idna<4,>=2.5 in d:\onedrive - swansea university\projects\labitory\.venv\lib\site-packages (from requests<3,>=2.0.0->msal) (3.10)
+Requirement already satisfied: urllib3<3,>=1.21.1 in d:\onedrive - swansea university\projects\labitory\.venv\lib\site-packages (from requests<3,>=2.0.0->msal) (2.5.0)
+Requirement already satisfied: certifi>=2017.4.17 in d:\onedrive - swansea university\projects\labitory\.venv\lib\site-packages (from requests<3,>=2.0.0->msal) (2025.8.3)
+Requirement already satisfied: pycparser in d:\onedrive - swansea university\projects\labitory\.venv\lib\site-packages (from cffi>=1.14->cryptography<48,>=2.5->msal) (2.22)
+Downloading msal-1.33.0-py3-none-any.whl (116 kB)
+   -------------------------------------- 116.9/116.9 kB 630.1 kB/s eta 0:00:00
+Installing collected packages: msal
+Successfully installed msal-1.33.0

@@ -8,6 +8,30 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
     {% load static %}
     
+    <style>
+    .divider-text {
+        position: relative;
+        text-align: center;
+        margin: 1rem 0;
+    }
+
+    .divider-text::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: #dee2e6;
+    }
+
+    .divider-text span {
+        background: white;
+        padding: 0 1rem;
+        position: relative;
+    }
+    </style>
+    
     <!-- Dark Mode CSS -->
     <link href="{% static 'css/dark-mode.css' %}" rel="stylesheet">
     
@@ -97,6 +121,24 @@
                                 </button>
                             </div>
                         </form>
+                        
+                        <!-- Azure AD SSO Section -->
+                        {% if AZURE_AD_ENABLED %}
+                        <div class="text-center my-3">
+                            <div class="divider-text">
+                                <span class="text-muted">or</span>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid mb-3">
+                            <a href="{% url 'booking:azure_login' %}" class="btn btn-outline-primary">
+                                <svg width="16" height="16" fill="currentColor" class="bi bi-microsoft me-2" viewBox="0 0 16 16">
+                                    <path d="M7.462 0H0v7.19h7.462V0zM16 0H8.538v7.19H16V0zM7.462 8.211H0V16h7.462V8.211zm8.538 0H8.538V16H16V8.211z"/>
+                                </svg>
+                                Sign in with Microsoft
+                            </a>
+                        </div>
+                        {% endif %}
                         
                         <hr>
                         <div class="text-center" id="signin-help">

@@ -286,3 +286,173 @@ class CustomLoginView(RateLimitMixin, LoginView):
         except UserProfile.DoesNotExist:
             # If no profile exists, redirect to about page
             return '/about/'
+
+
+# Azure AD SSO Views
+import msal
+import uuid
+from django.http import JsonResponse
+
+
+def azure_login_view(request):
+    """Initiate Azure AD OAuth login flow."""
+    try:
+        # Check if Azure AD is configured
+        if not all([
+            getattr(settings, 'AZURE_AD_TENANT_ID', ''),
+            getattr(settings, 'AZURE_AD_CLIENT_ID', ''),
+            getattr(settings, 'AZURE_AD_CLIENT_SECRET', '')
+        ]):
+            messages.error(request, 'Azure AD authentication is not configured.')
+            return redirect('login')
+        
+        # Create MSAL app instance
+        app = _build_msal_app()
+        if not app:
+            messages.error(request, 'Failed to initialize Azure AD authentication.')
+            return redirect('login')
+        
+        # Generate state parameter for security
+        state = str(uuid.uuid4())
+        request.session['auth_state'] = state
+        
+        # Build authorization URL
+        auth_url = app.get_authorization_request_url(
+            scopes=getattr(settings, 'AZURE_AD_SCOPES', ['openid', 'profile', 'email']),
+            state=state,
+            redirect_uri=request.build_absolute_uri('/auth/azure/callback/')
+        )
+        
+        return redirect(auth_url)
+        
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Azure AD login error: {e}")
+        messages.error(request, 'Failed to initiate Azure AD login.')
+        return redirect('login')
+
+
+def azure_callback_view(request):
+    """Handle Azure AD OAuth callback."""
+    try:
+        # Verify state parameter
+        if request.GET.get('state') != request.session.get('auth_state'):
+            messages.error(request, 'Invalid authentication state.')
+            return redirect('login')
+        
+        # Clear state from session
+        if 'auth_state' in request.session:
+            del request.session['auth_state']
+        
+        # Check for error in callback
+        if request.GET.get('error'):
+            error_desc = request.GET.get('error_description', 'Unknown error')
+            messages.error(request, f'Azure AD authentication failed: {error_desc}')
+            return redirect('login')
+        
+        # Get authorization code
+        code = request.GET.get('code')
+        if not code:
+            messages.error(request, 'No authorization code received.')
+            return redirect('login')
+        
+        # Create MSAL app instance
+        app = _build_msal_app()
+        if not app:
+            messages.error(request, 'Failed to process Azure AD authentication.')
+            return redirect('login')
+        
+        # Acquire token using authorization code
+        result = app.acquire_token_by_authorization_code(
+            code,
+            scopes=getattr(settings, 'AZURE_AD_SCOPES', ['openid', 'profile', 'email']),
+            redirect_uri=request.build_absolute_uri('/auth/azure/callback/')
+        )
+        
+        if 'error' in result:
+            messages.error(request, f'Failed to acquire token: {result.get("error_description")}')
+            return redirect('login')
+        
+        # Authenticate user using custom backend
+        from django.contrib.auth import authenticate, login
+        user = authenticate(request, azure_token=result)
+        
+        if user:
+            # Check if user has 2FA enabled
+            try:
+                two_factor = user.two_factor_auth
+                if two_factor.is_enabled:
+                    # Store user in session for 2FA verification
+                    request.session['pending_2fa_user'] = user.pk
+                    messages.info(request, 'Please enter your 2FA verification code.')
+                    return redirect('booking:two_factor_verification')
+            except:
+                pass  # No 2FA configured, proceed with normal login
+            
+            # Complete login
+            login(request, user)
+            
+            # Determine redirect URL using same logic as normal login
+            try:
+                profile = user.userprofile
+                if profile.first_login is None:
+                    profile.first_login = timezone.now()
+                    profile.save()
+                    next_url = '/about/'
+                else:
+                    next_url = '/dashboard/'
+            except:
+                next_url = '/about/'
+            
+            messages.success(request, f'Welcome back, {user.first_name}!')
+            return redirect(next_url)
+        else:
+            messages.error(request, 'Azure AD authentication failed.')
+            return redirect('login')
+            
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Azure AD callback error: {e}")
+        messages.error(request, 'Authentication failed. Please try again.')
+        return redirect('login')
+
+
+def azure_logout_view(request):
+    """Handle Azure AD logout."""
+    from django.contrib.auth import logout
+    
+    # Logout from Django
+    logout(request)
+    
+    # Build Azure AD logout URL
+    tenant_id = getattr(settings, 'AZURE_AD_TENANT_ID', '')
+    if tenant_id:
+        logout_url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/logout"
+        post_logout_redirect = request.build_absolute_uri('/')
+        full_logout_url = f"{logout_url}?post_logout_redirect_uri={post_logout_redirect}"
+        return redirect(full_logout_url)
+    else:
+        return redirect('login')
+
+
+def _build_msal_app():
+    """Build MSAL confidential client application."""
+    try:
+        tenant_id = getattr(settings, 'AZURE_AD_TENANT_ID', '')
+        client_id = getattr(settings, 'AZURE_AD_CLIENT_ID', '')
+        client_secret = getattr(settings, 'AZURE_AD_CLIENT_SECRET', '')
+        
+        if not all([tenant_id, client_id, client_secret]):
+            return None
+        
+        authority = f"https://login.microsoftonline.com/{tenant_id}"
+        
+        return msal.ConfidentialClientApplication(
+            client_id=client_id,
+            client_credential=client_secret,
+            authority=authority,
+        )
+    except Exception:
+        return None
