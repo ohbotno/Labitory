@@ -58,7 +58,7 @@
                             <i class="bi bi-printer"></i> Print Codes
                         </button>
                         
-                        <a href="{% url 'download_backup_codes' %}" class="btn btn-secondary">
+                        <a href="{% url 'booking:download_backup_codes' %}" class="btn btn-secondary">
                             <i class="bi bi-download"></i> Download as Text File
                         </a>
 
@@ -77,7 +77,7 @@
                             Your old backup codes have been invalidated.
                             {% endif %}
                         </p>
-                        <a href="{% url 'two_factor_status' %}" class="btn btn-success">
+                        <a href="{% url 'booking:two_factor_status' %}" class="btn btn-success">
                             <i class="bi bi-check-circle"></i> Continue to 2FA Settings
                         </a>
                     </div>

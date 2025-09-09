@@ -55,7 +55,7 @@
                         <div class="col-md-6">
                             <h6>Available Actions</h6>
                             <div class="d-grid gap-2">
-                                <a href="{% url 'regenerate_backup_codes' %}" class="btn btn-outline-primary">
+                                <a href="{% url 'booking:regenerate_backup_codes' %}" class="btn btn-outline-primary">
                                     <i class="bi bi-key"></i> 
                                     {% if has_backup_codes %}
                                     Regenerate Backup Codes
@@ -65,12 +65,12 @@
                                 </a>
                                 
                                 {% if has_backup_codes %}
-                                <a href="{% url 'download_backup_codes' %}" class="btn btn-outline-secondary">
+                                <a href="{% url 'booking:download_backup_codes' %}" class="btn btn-outline-secondary">
                                     <i class="bi bi-download"></i> Download Backup Codes
                                 </a>
                                 {% endif %}
 
-                                <a href="{% url 'two_factor_disable' %}" class="btn btn-outline-danger">
+                                <a href="{% url 'booking:two_factor_disable' %}" class="btn btn-outline-danger">
                                     <i class="bi bi-shield-x"></i> Disable 2FA
                                 </a>
                             </div>
@@ -116,7 +116,7 @@
                             </ul>
 
                             <div class="text-center mt-4">
-                                <a href="{% url 'two_factor_setup' %}" class="btn btn-primary btn-lg">
+                                <a href="{% url 'booking:two_factor_setup' %}" class="btn btn-primary btn-lg">
                                     <i class="bi bi-shield-plus"></i> Enable Two-Factor Authentication
                                 </a>
                             </div>
@@ -127,7 +127,7 @@
             </div>
 
             <div class="text-center mt-3">
-                <a href="{% url 'profile' %}" class="btn btn-link">
+                <a href="{% url 'booking:profile' %}" class="btn btn-link">
                     <i class="bi bi-arrow-left"></i> Back to Profile
                 </a>
             </div>
