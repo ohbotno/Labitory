@@ -222,10 +222,25 @@ def two_factor_verification(request):
             # Clean up session
             del request.session['pending_2fa_user']
             
-            # Redirect to next URL or dashboard
-            next_url = request.session.get('next_url', 'dashboard')
-            if 'next_url' in request.session:
-                del request.session['next_url']
+            # Determine redirect URL using same logic as CustomLoginView.get_success_url()
+            try:
+                profile = user.userprofile
+                
+                # Check if this is the user's first login
+                if profile.first_login is None:
+                    # Mark the first login time
+                    profile.first_login = timezone.now()
+                    profile.save()
+                    
+                    # Redirect to about page for first-time users
+                    next_url = '/about/'
+                else:
+                    # Redirect to dashboard for returning users
+                    next_url = '/dashboard/'
+                    
+            except:
+                # If no profile exists, redirect to about page
+                next_url = '/about/'
             
             messages.success(request, f"Welcome back, {user.first_name}!")
             return redirect(next_url)

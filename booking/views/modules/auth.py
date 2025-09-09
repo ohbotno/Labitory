@@ -238,7 +238,8 @@ class CustomLoginView(RateLimitMixin, LoginView):
             if two_factor.is_enabled:
                 # Store user in session for 2FA verification
                 self.request.session['pending_2fa_user'] = user.pk
-                self.request.session['next_url'] = self.get_success_url()
+                # Don't call get_success_url() here since user is not logged in yet
+                # We'll determine the redirect URL after 2FA verification
                 
                 # Don't actually log in yet - redirect to 2FA verification
                 messages.info(self.request, 'Please enter your 2FA verification code.')
