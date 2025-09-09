@@ -112,7 +112,7 @@ def profile_view(request):
         'completed_bookings': completed_bookings,
     }
     
-    return render(request, 'booking/profile.html', context)
+    return render(request, 'registration/profile.html', context)
 
 
 @login_required
