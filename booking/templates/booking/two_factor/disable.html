@@ -1,0 +1,73 @@
+{% extends "booking/base.html" %}
+{% load static %}
+
+{% block title %}Disable Two-Factor Authentication{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-shield-x"></i> Disable Two-Factor Authentication
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <h5><i class="bi bi-exclamation-triangle"></i> Warning</h5>
+                        <p>
+                            Disabling two-factor authentication will make your account less secure.
+                        </p>
+                        <p class="mb-0">
+                            You will no longer need a verification code to log in, which means anyone with your password can access your account.
+                        </p>
+                    </div>
+
+                    <h6>Are you sure you want to disable 2FA?</h6>
+                    <p>You will lose:</p>
+                    <ul>
+                        <li>Extra protection against unauthorized access</li>
+                        <li>All your current backup codes</li>
+                        <li>The ability to use authenticator apps for this account</li>
+                    </ul>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            {{ form.password.label_tag }}
+                            {{ form.password }}
+                            {% if form.password.errors %}
+                            <div class="text-danger">
+                                {{ form.password.errors }}
+                            </div>
+                            {% endif %}
+                            {% if form.password.help_text %}
+                            <small class="form-text text-muted">
+                                {{ form.password.help_text }}
+                            </small>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="bi bi-shield-x"></i> Disable Two-Factor Authentication
+                            </button>
+                            <a href="{% url 'two_factor_status' %}" class="btn btn-secondary">
+                                Cancel - Keep 2FA Enabled
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -21,7 +21,8 @@ from datetime import datetime, timedelta
 
 from ..models import (
     UserProfile, EmailVerificationToken, PasswordResetToken, 
-    Faculty, College, Department, CalendarSyncPreferences
+    Faculty, College, Department, CalendarSyncPreferences,
+    TwoFactorAuthentication, TwoFactorSession
 )
 from ..utils.email import get_logo_base64, get_email_branding_context
 
@@ -438,3 +439,151 @@ class CalendarSyncPreferencesForm(forms.ModelForm):
             'conflict_resolution': 'What to do when there are conflicts between Labitory and Google Calendar',
             'event_prefix': 'Text to add before Google Calendar event titles (optional)',
         }
+
+
+class TwoFactorSetupForm(forms.Form):
+    """Form for setting up 2FA."""
+    totp_token = forms.CharField(
+        max_length=6,
+        label='Verification Code',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter 6-digit code',
+            'maxlength': '6',
+            'pattern': '[0-9]{6}',
+            'autocomplete': 'off',
+        }),
+        help_text='Enter the 6-digit code from your authenticator app'
+    )
+    
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        self.secret_key = kwargs.pop('secret_key', None)
+        super().__init__(*args, **kwargs)
+    
+    def clean_totp_token(self):
+        """Validate TOTP token."""
+        token = self.cleaned_data.get('totp_token')
+        
+        if not token.isdigit() or len(token) != 6:
+            raise forms.ValidationError('Please enter a valid 6-digit code.')
+        
+        # Verify token using pyotp
+        import pyotp
+        totp = pyotp.TOTP(self.secret_key)
+        
+        if not totp.verify(token, valid_window=1):
+            raise forms.ValidationError('Invalid verification code. Please try again.')
+        
+        return token
+
+
+class TwoFactorVerificationForm(forms.Form):
+    """Form for 2FA verification during login."""
+    verification_code = forms.CharField(
+        max_length=8,
+        label='Verification Code',
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter code',
+            'autocomplete': 'off',
+        }),
+        help_text='Enter the 6-digit code from your authenticator app or a backup code'
+    )
+    
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+    
+    def clean_verification_code(self):
+        """Validate verification code (TOTP or backup code)."""
+        code = self.cleaned_data.get('verification_code')
+        
+        if not self.user:
+            raise forms.ValidationError('Invalid session. Please login again.')
+        
+        try:
+            two_factor = self.user.two_factor_auth
+            
+            if two_factor.is_locked():
+                raise forms.ValidationError(
+                    'Too many failed attempts. Please wait 30 minutes before trying again.'
+                )
+            
+            # Check if it's a backup code (8 characters)
+            if len(code) == 8 and code.upper() in two_factor.backup_codes:
+                # Use backup code (one-time use)
+                two_factor.use_backup_code(code.upper())
+                return code
+            
+            # Otherwise, treat as TOTP code
+            if not code.isdigit() or len(code) != 6:
+                two_factor.increment_failed_attempts()
+                raise forms.ValidationError('Invalid code format.')
+            
+            import pyotp
+            totp = pyotp.TOTP(two_factor.secret_key)
+            
+            if not totp.verify(code, valid_window=1):
+                two_factor.increment_failed_attempts()
+                raise forms.ValidationError('Invalid verification code.')
+            
+            # Reset failed attempts on success
+            two_factor.reset_failed_attempts()
+            two_factor.last_used_at = timezone.now()
+            two_factor.save()
+            
+        except TwoFactorAuthentication.DoesNotExist:
+            raise forms.ValidationError('2FA not configured for this account.')
+        
+        return code
+
+
+class TwoFactorDisableForm(forms.Form):
+    """Form for disabling 2FA."""
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter your password',
+        }),
+        label='Confirm Password',
+        help_text='Enter your password to disable 2FA'
+    )
+    
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+    
+    def clean_password(self):
+        """Validate password."""
+        password = self.cleaned_data.get('password')
+        
+        if not self.user.check_password(password):
+            raise forms.ValidationError('Invalid password.')
+        
+        return password
+
+
+class BackupCodesForm(forms.Form):
+    """Form for regenerating backup codes."""
+    password = forms.CharField(
+        widget=forms.PasswordInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter your password',
+        }),
+        label='Confirm Password',
+        help_text='Enter your password to generate new backup codes'
+    )
+    
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        super().__init__(*args, **kwargs)
+    
+    def clean_password(self):
+        """Validate password."""
+        password = self.cleaned_data.get('password')
+        
+        if not self.user.check_password(password):
+            raise forms.ValidationError('Invalid password.')
+        
+        return password

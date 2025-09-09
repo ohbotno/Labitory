@@ -1,0 +1,91 @@
+{% extends "booking/base.html" %}
+{% load static %}
+
+{% block title %}Regenerate Backup Codes{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-arrow-repeat"></i> Regenerate Backup Codes
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h5><i class="bi bi-info-circle"></i> About Backup Codes</h5>
+                        <p>
+                            Backup codes allow you to access your account if you lose access to your authenticator app.
+                        </p>
+                        <p class="mb-0">
+                            Generating new codes will <strong>invalidate all your existing backup codes</strong>.
+                        </p>
+                    </div>
+
+                    {% if remaining_codes > 0 %}
+                    <div class="alert alert-warning">
+                        <p class="mb-0">
+                            <strong>Note:</strong> You still have {{ remaining_codes }} unused backup code{{ remaining_codes|pluralize }}.
+                            These will be invalidated if you generate new codes.
+                        </p>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-danger">
+                        <p class="mb-0">
+                            <strong>Warning:</strong> You have no backup codes remaining. 
+                            Generate new codes now to ensure you can access your account if you lose your authenticator app.
+                        </p>
+                    </div>
+                    {% endif %}
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            {{ form.password.label_tag }}
+                            {{ form.password }}
+                            {% if form.password.errors %}
+                            <div class="text-danger">
+                                {{ form.password.errors }}
+                            </div>
+                            {% endif %}
+                            {% if form.password.help_text %}
+                            <small class="form-text text-muted">
+                                {{ form.password.help_text }}
+                            </small>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-key"></i> Generate New Backup Codes
+                            </button>
+                            <a href="{% url 'two_factor_status' %}" class="btn btn-secondary">
+                                Cancel
+                            </a>
+                        </div>
+                    </form>
+
+                    <div class="mt-4">
+                        <h6>When to regenerate backup codes:</h6>
+                        <ul class="small">
+                            <li>You've used most or all of your existing codes</li>
+                            <li>You suspect someone else has seen your codes</li>
+                            <li>You've lost the codes you previously saved</li>
+                            <li>As a security precaution every few months</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

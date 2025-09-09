@@ -129,6 +129,39 @@
                         </div>
                     </div>
 
+                    <hr>
+                    <h5 class="mb-3">Security Settings</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">Two-Factor Authentication</h6>
+                                    <p class="card-text">
+                                        Add an extra layer of security to your account.
+                                    </p>
+                                    <a href="{% url 'two_factor_status' %}" class="btn btn-outline-primary">
+                                        <i class="bi bi-shield-lock"></i> Manage 2FA
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light">
+                                <div class="card-body">
+                                    <h6 class="card-title">Password</h6>
+                                    <p class="card-text">
+                                        Change your account password.
+                                    </p>
+                                    <a href="{% url 'password_change' %}" class="btn btn-outline-primary">
+                                        <i class="bi bi-key"></i> Change Password
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
                     <div class="d-grid">
                         <button type="submit" class="btn btn-primary btn-lg">Update Profile</button>
                     </div>

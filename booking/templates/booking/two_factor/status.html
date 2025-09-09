@@ -1,0 +1,137 @@
+{% extends "booking/base.html" %}
+{% load static %}
+
+{% block title %}Two-Factor Authentication Status{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-shield-lock"></i> Two-Factor Authentication
+                    </h4>
+                </div>
+                <div class="card-body">
+                    {% if two_factor and two_factor.is_enabled %}
+                    <!-- 2FA Enabled -->
+                    <div class="alert alert-success">
+                        <h5><i class="bi bi-check-circle-fill"></i> 2FA is Enabled</h5>
+                        <p class="mb-0">Your account is protected with two-factor authentication.</p>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-md-6">
+                            <h6>Status Information</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>Status:</th>
+                                    <td><span class="badge bg-success">Active</span></td>
+                                </tr>
+                                <tr>
+                                    <th>Enabled Since:</th>
+                                    <td>{{ two_factor.created_at|date:"M d, Y" }}</td>
+                                </tr>
+                                {% if two_factor.last_used_at %}
+                                <tr>
+                                    <th>Last Used:</th>
+                                    <td>{{ two_factor.last_used_at|date:"M d, Y H:i" }}</td>
+                                </tr>
+                                {% endif %}
+                                <tr>
+                                    <th>Backup Codes:</th>
+                                    <td>
+                                        {% if has_backup_codes %}
+                                        <span class="text-success">{{ two_factor.backup_codes|length }} available</span>
+                                        {% else %}
+                                        <span class="text-danger">None available</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </div>
+
+                        <div class="col-md-6">
+                            <h6>Available Actions</h6>
+                            <div class="d-grid gap-2">
+                                <a href="{% url 'regenerate_backup_codes' %}" class="btn btn-outline-primary">
+                                    <i class="bi bi-key"></i> 
+                                    {% if has_backup_codes %}
+                                    Regenerate Backup Codes
+                                    {% else %}
+                                    Generate Backup Codes
+                                    {% endif %}
+                                </a>
+                                
+                                {% if has_backup_codes %}
+                                <a href="{% url 'download_backup_codes' %}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-download"></i> Download Backup Codes
+                                </a>
+                                {% endif %}
+
+                                <a href="{% url 'two_factor_disable' %}" class="btn btn-outline-danger">
+                                    <i class="bi bi-shield-x"></i> Disable 2FA
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if two_factor.recovery_email or two_factor.recovery_phone %}
+                    <div class="mt-4">
+                        <h6>Recovery Options</h6>
+                        <table class="table table-sm">
+                            {% if two_factor.recovery_email %}
+                            <tr>
+                                <th>Recovery Email:</th>
+                                <td>{{ two_factor.recovery_email }}</td>
+                            </tr>
+                            {% endif %}
+                            {% if two_factor.recovery_phone %}
+                            <tr>
+                                <th>Recovery Phone:</th>
+                                <td>{{ two_factor.recovery_phone }}</td>
+                            </tr>
+                            {% endif %}
+                        </table>
+                    </div>
+                    {% endif %}
+
+                    {% else %}
+                    <!-- 2FA Disabled -->
+                    <div class="alert alert-warning">
+                        <h5><i class="bi bi-exclamation-triangle"></i> 2FA is Not Enabled</h5>
+                        <p>Your account is not protected with two-factor authentication.</p>
+                        <p class="mb-0">Enable 2FA to add an extra layer of security to your account.</p>
+                    </div>
+
+                    <div class="card bg-light mt-4">
+                        <div class="card-body">
+                            <h5>Why use Two-Factor Authentication?</h5>
+                            <ul>
+                                <li>Protects your account even if your password is compromised</li>
+                                <li>Prevents unauthorized access to sensitive lab resources</li>
+                                <li>Required for users with administrative privileges</li>
+                                <li>Industry best practice for account security</li>
+                            </ul>
+
+                            <div class="text-center mt-4">
+                                <a href="{% url 'two_factor_setup' %}" class="btn btn-primary btn-lg">
+                                    <i class="bi bi-shield-plus"></i> Enable Two-Factor Authentication
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="text-center mt-3">
+                <a href="{% url 'profile' %}" class="btn btn-link">
+                    <i class="bi bi-arrow-left"></i> Back to Profile
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

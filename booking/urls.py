@@ -10,7 +10,7 @@ Licensed under the MIT License - see LICENSE file for details.
 from django.urls import path, include
 from django.shortcuts import redirect
 from . import views
-from .views.modules import calendar, hierarchy, training, approvals, site_admin, lab_admin
+from .views.modules import calendar, hierarchy, training, approvals, site_admin, lab_admin, two_factor
 
 app_name = 'booking'
 
@@ -36,6 +36,14 @@ urlpatterns = [
     path('password-reset-done/', views.password_reset_done_view, name='password_reset_done'),
     path('reset-password/<uuid:token>/', views.password_reset_confirm_view, name='password_reset_confirm'),
     path('password-reset-complete/', views.password_reset_complete_view, name='password_reset_complete'),
+    
+    # Two-Factor Authentication URLs
+    path('2fa/setup/', two_factor.two_factor_setup, name='two_factor_setup'),
+    path('2fa/verify/', two_factor.two_factor_verification, name='two_factor_verification'),
+    path('2fa/status/', two_factor.two_factor_status, name='two_factor_status'),
+    path('2fa/disable/', two_factor.two_factor_disable, name='two_factor_disable'),
+    path('2fa/backup-codes/', two_factor.regenerate_backup_codes, name='regenerate_backup_codes'),
+    path('2fa/download-codes/', two_factor.download_backup_codes, name='download_backup_codes'),
     
     # Booking URLs
     path('booking/create/', views.create_booking_view, name='create_booking'),

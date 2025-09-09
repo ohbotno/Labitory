@@ -1,0 +1,84 @@
+{% extends "booking/base.html" %}
+{% load static %}
+
+{% block title %}Two-Factor Authentication{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="bi bi-shield-check"></i> Two-Factor Authentication
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Enter the verification code from your authenticator app to complete login.
+                    </p>
+
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                        <div class="alert alert-danger">
+                            {{ form.non_field_errors }}
+                        </div>
+                        {% endif %}
+
+                        <div class="mb-3">
+                            {{ form.verification_code.label_tag }}
+                            {{ form.verification_code }}
+                            {% if form.verification_code.errors %}
+                            <div class="text-danger">
+                                {{ form.verification_code.errors }}
+                            </div>
+                            {% endif %}
+                            {% if form.verification_code.help_text %}
+                            <small class="form-text text-muted">
+                                {{ form.verification_code.help_text }}
+                            </small>
+                            {% endif %}
+                        </div>
+
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-unlock"></i> Verify and Login
+                            </button>
+                        </div>
+                    </form>
+
+                    <hr class="my-4">
+
+                    <div class="text-center">
+                        <p class="text-muted mb-2">Having trouble?</p>
+                        <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#backupCodeHelp">
+                            <i class="bi bi-key"></i> Use backup code
+                        </button>
+                        
+                        <div class="collapse mt-3" id="backupCodeHelp">
+                            <div class="alert alert-info text-start">
+                                <h6><i class="bi bi-info-circle"></i> Using Backup Codes</h6>
+                                <p class="mb-0">
+                                    If you can't access your authenticator app, you can use one of your 8-character backup codes. 
+                                    Enter it in the field above instead of the 6-digit code.
+                                </p>
+                                <p class="mt-2 mb-0">
+                                    <strong>Note:</strong> Each backup code can only be used once.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-center mt-3">
+                        <a href="{% url 'login' %}" class="text-decoration-none">
+                            <i class="bi bi-arrow-left"></i> Back to login
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

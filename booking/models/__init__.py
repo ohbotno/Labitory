@@ -24,6 +24,8 @@ from .core import (
 from .auth import (
     PasswordResetToken,
     EmailVerificationToken,
+    TwoFactorAuthentication,
+    TwoFactorSession,
 )
 
 # Notification models
@@ -142,6 +144,8 @@ __all__ = [
     # Auth
     'PasswordResetToken',
     'EmailVerificationToken',
+    'TwoFactorAuthentication',
+    'TwoFactorSession',
     # Notifications
     'NotificationPreference',
     'PushSubscription',

@@ -25,7 +25,7 @@ from django.conf import settings
 
 from ...forms import UserRegistrationForm, CustomPasswordResetForm
 from ...forms.password import StrongSetPasswordForm
-from ...models import EmailVerificationToken, PasswordResetToken, UserProfile
+from ...models import EmailVerificationToken, PasswordResetToken, UserProfile, TwoFactorAuthentication
 from ...utils.security_utils import RateLimitMixin
 from ...utils.auth_utils import BruteForceProtection, AccountLockout, get_client_ip
 
@@ -228,9 +228,23 @@ class CustomLoginView(RateLimitMixin, LoginView):
         return super().dispatch(request, *args, **kwargs)
     
     def form_valid(self, form):
-        """Handle successful login - clear failed attempts."""
+        """Handle successful login - check for 2FA and clear failed attempts."""
         user = form.get_user()
         ip_address = get_client_ip(self.request)
+        
+        # Check if user has 2FA enabled
+        try:
+            two_factor = user.two_factor_auth
+            if two_factor.is_enabled:
+                # Store user in session for 2FA verification
+                self.request.session['pending_2fa_user'] = user.pk
+                self.request.session['next_url'] = self.get_success_url()
+                
+                # Don't actually log in yet - redirect to 2FA verification
+                messages.info(self.request, 'Please enter your 2FA verification code.')
+                return redirect('two_factor_verification')
+        except TwoFactorAuthentication.DoesNotExist:
+            pass  # No 2FA configured, proceed with normal login
         
         # Clear failed attempts on successful login
         BruteForceProtection.clear_failed_attempts(ip_address, 'login')
