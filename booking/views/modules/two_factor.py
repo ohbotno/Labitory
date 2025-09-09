@@ -37,7 +37,7 @@ def two_factor_setup(request):
         two_factor = user.two_factor_auth
         if two_factor.is_enabled:
             messages.info(request, "Two-factor authentication is already enabled.")
-            return redirect('two_factor_status')
+            return redirect('booking:two_factor_status')
     except TwoFactorAuthentication.DoesNotExist:
         two_factor = None
     
@@ -127,10 +127,10 @@ def two_factor_disable(request):
         two_factor = request.user.two_factor_auth
         if not two_factor.is_enabled:
             messages.info(request, "Two-factor authentication is not enabled.")
-            return redirect('two_factor_status')
+            return redirect('booking:two_factor_status')
     except TwoFactorAuthentication.DoesNotExist:
         messages.info(request, "Two-factor authentication is not configured.")
-        return redirect('two_factor_status')
+        return redirect('booking:two_factor_status')
     
     if request.method == 'POST':
         form = TwoFactorDisableForm(request.POST, user=request.user)
@@ -145,7 +145,7 @@ def two_factor_disable(request):
             TwoFactorSession.objects.filter(user=request.user).delete()
             
             messages.success(request, "Two-factor authentication has been disabled.")
-            return redirect('two_factor_status')
+            return redirect('booking:two_factor_status')
     else:
         form = TwoFactorDisableForm(user=request.user)
     
@@ -162,10 +162,10 @@ def regenerate_backup_codes(request):
         two_factor = request.user.two_factor_auth
         if not two_factor.is_enabled:
             messages.error(request, "Two-factor authentication is not enabled.")
-            return redirect('two_factor_status')
+            return redirect('booking:two_factor_status')
     except TwoFactorAuthentication.DoesNotExist:
         messages.error(request, "Two-factor authentication is not configured.")
-        return redirect('two_factor_status')
+        return redirect('booking:two_factor_status')
     
     if request.method == 'POST':
         form = BackupCodesForm(request.POST, user=request.user)
@@ -245,10 +245,10 @@ def download_backup_codes(request):
         two_factor = request.user.two_factor_auth
         if not two_factor.is_enabled or not two_factor.backup_codes:
             messages.error(request, "No backup codes available.")
-            return redirect('two_factor_status')
+            return redirect('booking:two_factor_status')
     except TwoFactorAuthentication.DoesNotExist:
         messages.error(request, "Two-factor authentication is not configured.")
-        return redirect('two_factor_status')
+        return redirect('booking:two_factor_status')
     
     # Create text content
     content = f"Labitory 2FA Backup Codes\n"

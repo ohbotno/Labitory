@@ -242,7 +242,7 @@ class CustomLoginView(RateLimitMixin, LoginView):
                 
                 # Don't actually log in yet - redirect to 2FA verification
                 messages.info(self.request, 'Please enter your 2FA verification code.')
-                return redirect('two_factor_verification')
+                return redirect('booking:two_factor_verification')
         except TwoFactorAuthentication.DoesNotExist:
             pass  # No 2FA configured, proceed with normal login
         
