@@ -263,6 +263,11 @@
     border-color: #495057 !important;
 }
 
+/* Card titles inherit card text color in dark mode */
+[data-theme="dark"] .card .card-title {
+    color: inherit !important;
+}
+
 /* Tables */
 [data-theme="dark"] .table {
     color: #e9ecef !important;

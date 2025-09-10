@@ -42,12 +42,12 @@
     text-transform: uppercase;
     font-size: 0.8rem;
     letter-spacing: 0.5px;
+    color: var(--color-text-muted) !important;
 }
 
 /* Card title and description styling */
 .admin-action-card .card-title {
     font-weight: 600;
-    color: #2d3748 !important;
 }
 
 .admin-action-card .card-text {
@@ -67,13 +67,19 @@
     color: var(--bs-light) !important;
 }
 
-[data-theme="dark"] .admin-action-card .card-title {
+
+[data-theme="dark"] .admin-action-card a {
     color: var(--bs-light) !important;
 }
 
 [data-theme="dark"] .admin-card-hover:hover {
     background-color: #2d3748 !important;
     border: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+/* Dark mode category headers */
+[data-theme="dark"] .admin-actions .text-muted {
+    color: var(--color-text-muted) !important;
 }
 
 /* Role Distribution Cards Styling */
@@ -255,7 +261,7 @@
                                                     <i class="fas fa-users"></i>
                                                 </div>
                                                 <div class="flex-grow-1">
-                                                    <h6 class="card-title mb-1 text-dark">Manage Users</h6>
+                                                    <h6 class="card-title mb-1">Manage Users</h6>
                                                     <p class="card-text text-muted small mb-0">Add, edit, and manage user accounts</p>
                                                 </div>
                                             </div>
@@ -272,7 +278,7 @@
                                                     <i class="fas fa-key"></i>
                                                 </div>
                                                 <div class="flex-grow-1">
-                                                    <h6 class="card-title mb-1 text-dark">Access Requests</h6>
+                                                    <h6 class="card-title mb-1">Access Requests</h6>
                                                     <p class="card-text text-muted small mb-0">Review and approve user access</p>
                                                 </div>
                                                 {% if stats.pending_access_requests > 0 %}
@@ -294,7 +300,7 @@
                                                     <i class="fas fa-sitemap"></i>
                                                 </div>
                                                 <div class="flex-grow-1">
-                                                    <h6 class="card-title mb-1 text-dark">Academic Hierarchy</h6>
+                                                    <h6 class="card-title mb-1">Academic Hierarchy</h6>
                                                     <p class="card-text text-muted small mb-0">Manage faculties and departments</p>
                                                 </div>
                                             </div>
@@ -321,7 +327,7 @@
                                                     <i class="fas fa-tools"></i>
                                                 </div>
                                                 <div class="flex-grow-1">
-                                                    <h6 class="card-title mb-1 text-dark">Manage Resources</h6>
+                                                    <h6 class="card-title mb-1">Manage Resources</h6>
                                                     <p class="card-text text-muted small mb-0">Configure lab equipment and rooms</p>
                                                 </div>
                                             </div>
@@ -338,7 +344,7 @@
                                                     <i class="fas fa-cog"></i>
                                                 </div>
                                                 <div class="flex-grow-1">
-                                                    <h6 class="card-title mb-1 text-dark">System Config</h6>
+                                                    <h6 class="card-title mb-1">System Config</h6>
                                                     <p class="card-text text-muted small mb-0">Configure system settings</p>
                                                 </div>
                                             </div>
@@ -355,7 +361,7 @@
                                                     <i class="fas fa-envelope"></i>
                                                 </div>
                                                 <div class="flex-grow-1">
-                                                    <h6 class="card-title mb-1 text-dark">Email Settings</h6>
+                                                    <h6 class="card-title mb-1">Email Settings</h6>
                                                     <p class="card-text text-muted small mb-0">Configure email notifications</p>
                                                 </div>
                                             </div>
@@ -372,7 +378,7 @@
                                                     <i class="fas fa-sms"></i>
                                                 </div>
                                                 <div class="flex-grow-1">
-                                                    <h6 class="card-title mb-1 text-dark">SMS Settings</h6>
+                                                    <h6 class="card-title mb-1">SMS Settings</h6>
                                                     <p class="card-text text-muted small mb-0">Configure SMS notifications</p>
                                                 </div>
                                             </div>
@@ -399,7 +405,7 @@
                                                     <i class="fas fa-database"></i>
                                                 </div>
                                                 <div class="flex-grow-1">
-                                                    <h6 class="card-title mb-1 text-dark">Backup Management</h6>
+                                                    <h6 class="card-title mb-1">Backup Management</h6>
                                                     <p class="card-text text-muted small mb-0">Create and manage data backups</p>
                                                 </div>
                                             </div>
@@ -416,7 +422,7 @@
                                                     <i class="fas fa-download"></i>
                                                 </div>
                                                 <div class="flex-grow-1">
-                                                    <h6 class="card-title mb-1 text-dark">System Updates</h6>
+                                                    <h6 class="card-title mb-1">System Updates</h6>
                                                     <p class="card-text text-muted small mb-0">Check for application updates</p>
                                                 </div>
                                             </div>
@@ -433,7 +439,7 @@
                                                 <span id="healthCheckSpinner" class="spinner-border spinner-border-sm position-absolute d-none" style="top: 50%; left: 50%; transform: translate(-50%, -50%);" role="status" aria-hidden="true"></span>
                                             </div>
                                             <div class="flex-grow-1">
-                                                <h6 class="card-title mb-1 text-dark">Health Check</h6>
+                                                <h6 class="card-title mb-1">Health Check</h6>
                                                 <p class="card-text text-muted small mb-0">Run system diagnostics</p>
                                             </div>
                                         </div>
@@ -449,7 +455,7 @@
                                                     <i class="fas fa-list-alt"></i>
                                                 </div>
                                                 <div class="flex-grow-1">
-                                                    <h6 class="card-title mb-1 text-dark">Audit Logs</h6>
+                                                    <h6 class="card-title mb-1">Audit Logs</h6>
                                                     <p class="card-text text-muted small mb-0">Review system activity logs</p>
                                                 </div>
                                             </div>
@@ -534,8 +540,8 @@
                                                 <i class="fas fa-user"></i>
                                             {% endif %}
                                         </div>
-                                        <h4 class="mb-1 text-dark">{{ role.count }}</h4>
-                                        <h6 class="card-title mb-1 text-dark">{{ role.role|title }}</h6>
+                                        <h4 class="mb-1">{{ role.count }}</h4>
+                                        <h6 class="card-title mb-1">{{ role.role|title }}</h6>
                                         <small class="text-muted">
                                             {% widthratio role.count stats.total_users 100 %}% of total
                                         </small>
