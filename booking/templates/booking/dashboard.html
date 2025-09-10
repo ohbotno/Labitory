@@ -181,7 +181,7 @@ document.addEventListener('DOMContentLoaded', function() {
         weekEnd.setDate(weekEnd.getDate() + 6);
         
         // Active bookings (approved, future)
-        fetch('/api/bookings/?status=approved')
+        fetch('/api/v1/bookings/?status=approved')
             .then(response => response.json())
             .then(data => {
                 const activeCount = data.results.filter(booking => 
@@ -191,34 +191,37 @@ document.addEventListener('DOMContentLoaded', function() {
             })
             .catch(error => {
                 console.error('Error loading active bookings:', error);
-                document.getElementById('active-bookings-count').textContent = 'Error';
+                document.getElementById('active-bookings-count').textContent = 'N/A';
+                document.getElementById('active-bookings-count').setAttribute('title', 'Unable to load data');
             });
         
         // Pending bookings
-        fetch('/api/bookings/?status=pending')
+        fetch('/api/v1/bookings/?status=pending')
             .then(response => response.json())
             .then(data => {
                 document.getElementById('pending-bookings-count').textContent = data.count || data.results.length;
             })
             .catch(error => {
                 console.error('Error loading pending bookings:', error);
-                document.getElementById('pending-bookings-count').textContent = 'Error';
+                document.getElementById('pending-bookings-count').textContent = 'N/A';
+                document.getElementById('pending-bookings-count').setAttribute('title', 'Unable to load data');
             });
         
         // This week's bookings
-        fetch(`/api/bookings/?start_date=${weekStart.toISOString().split('T')[0]}&end_date=${weekEnd.toISOString().split('T')[0]}`)
+        fetch(`/api/v1/bookings/?start_date=${weekStart.toISOString().split('T')[0]}&end_date=${weekEnd.toISOString().split('T')[0]}`)
             .then(response => response.json())
             .then(data => {
                 document.getElementById('week-bookings-count').textContent = data.count || data.results.length;
             })
             .catch(error => {
                 console.error('Error loading week bookings:', error);
-                document.getElementById('week-bookings-count').textContent = 'Error';
+                document.getElementById('week-bookings-count').textContent = 'N/A';
+                document.getElementById('week-bookings-count').setAttribute('title', 'Unable to load data');
             });
     }
     
     function loadRecentBookings() {
-        fetch('/api/bookings/?ordering=-created_at')
+        fetch('/api/v1/bookings/?ordering=-created_at')
             .then(response => response.json())
             .then(data => {
                 const tbody = document.querySelector('#recent-bookings-table tbody');
@@ -260,7 +263,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     function loadUpcomingBookings() {
         const now = new Date().toISOString();
-        fetch(`/api/bookings/?start_time__gte=${now}&ordering=start_time`)
+        fetch(`/api/v1/bookings/?start_time__gte=${now}&ordering=start_time`)
             .then(response => response.json())
             .then(data => {
                 const container = document.getElementById('upcoming-bookings');
@@ -298,7 +301,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const nextWeek = new Date();
         nextWeek.setDate(nextWeek.getDate() + 7);
         
-        fetch(`/api/maintenance/?start_date=${now.toISOString().split('T')[0]}&end_date=${nextWeek.toISOString().split('T')[0]}`)
+        fetch(`/api/v1/maintenance/?start_date=${now.toISOString().split('T')[0]}&end_date=${nextWeek.toISOString().split('T')[0]}`)
             .then(response => response.json())
             .then(data => {
                 if (data.results && data.results.length > 0) {
@@ -322,14 +325,15 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     function loadResourcesCount() {
-        fetch('/api/resources/available/')
+        fetch('/api/v1/resources/available/')
             .then(response => response.json())
             .then(data => {
                 document.getElementById('available-resources-count').textContent = data.length;
             })
             .catch(error => {
                 console.error('Error loading resources count:', error);
-                document.getElementById('available-resources-count').textContent = 'Error';
+                document.getElementById('available-resources-count').textContent = 'N/A';
+                document.getElementById('available-resources-count').setAttribute('title', 'Unable to load data');
             });
     }
     
@@ -355,7 +359,7 @@ function cancelBooking(bookingId) {
     if (confirm('Are you sure you want to cancel this booking?')) {
         const cancelBtn = document.querySelector(`[onclick="cancelBooking(${bookingId})"]`);
         
-        FormProgressManager.ajaxWithProgress(`/api/bookings/${bookingId}/cancel/`, {
+        FormProgressManager.ajaxWithProgress(`/api/v1/bookings/${bookingId}/cancel/`, {
             method: 'POST',
             headers: {
                 'X-CSRFToken': getCSRFToken()

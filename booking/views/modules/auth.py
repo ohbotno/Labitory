@@ -23,8 +23,8 @@ from django_ratelimit.decorators import ratelimit
 from django_ratelimit.exceptions import Ratelimited
 from django.conf import settings
 
-from ...forms import UserRegistrationForm, CustomPasswordResetForm
-from ...forms.password import StrongSetPasswordForm
+from booking.forms import UserRegistrationForm, CustomPasswordResetForm
+from booking.forms.password import StrongSetPasswordForm
 from ...models import EmailVerificationToken, PasswordResetToken, UserProfile, TwoFactorAuthentication
 from ...utils.security_utils import RateLimitMixin
 from ...utils.auth_utils import BruteForceProtection, AccountLockout, get_client_ip

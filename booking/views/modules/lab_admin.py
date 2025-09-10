@@ -1605,7 +1605,7 @@ def lab_admin_resources_bulk_import_view(request):
 def lab_admin_add_resource_view(request):
     """Add a new resource."""
     from booking.models import Resource
-    from ..forms import ResourceForm
+    from booking.forms.resources import ResourceForm
 
     if request.method == 'POST':
         form = ResourceForm(request.POST, request.FILES)
@@ -1635,7 +1635,7 @@ def lab_admin_add_resource_view(request):
 def lab_admin_edit_resource_view(request, resource_id):
     """Edit an existing resource."""
     from booking.models import Resource, ResourceTrainingRequirement, TrainingCourse
-    from ..forms import ResourceForm
+    from booking.forms.resources import ResourceForm
 
     resource = get_object_or_404(Resource, id=resource_id)
 
@@ -1763,7 +1763,7 @@ def lab_admin_resource_checklist_view(request, resource_id):
     from django.shortcuts import render, redirect, get_object_or_404
     from django.contrib import messages
     from booking.models import Resource, ChecklistItem, ResourceChecklistItem
-    from ..forms import ResourceChecklistConfigForm
+    from booking.forms.resources import ResourceChecklistConfigForm
     from django.utils import timezone
 
     resource = get_object_or_404(Resource, id=resource_id)

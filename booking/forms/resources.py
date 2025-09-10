@@ -40,12 +40,29 @@ class AccessRequestForm(forms.ModelForm):
 class ResourceForm(forms.ModelForm):
     """Form for creating and editing resources."""
     
+    TRAINING_LEVEL_CHOICES = [
+        (1, 'Level 1 - Basic'),
+        (2, 'Level 2 - Intermediate'),
+        (3, 'Level 3 - Advanced'),
+        (4, 'Level 4 - Expert'),
+        (5, 'Level 5 - Specialist'),
+    ]
+    
+    required_training_level = forms.ChoiceField(
+        choices=TRAINING_LEVEL_CHOICES,
+        initial=1,
+        widget=forms.Select(attrs={'class': 'form-control'}),
+        help_text="Minimum training level required to use this resource"
+    )
+    
     class Meta:
         model = Resource
         fields = [
             'name', 'resource_type', 'description', 'location',
             'capacity', 'max_booking_hours', 'required_training_level',
-            'requires_induction', 'is_active'
+            'requires_induction', 'requires_checkout_checklist', 
+            'checkout_checklist_title', 'checkout_checklist_description',
+            'is_active'
         ]
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
@@ -54,10 +71,17 @@ class ResourceForm(forms.ModelForm):
             'location': forms.TextInput(attrs={'class': 'form-control'}),
             'capacity': forms.NumberInput(attrs={'class': 'form-control'}),
             'max_booking_hours': forms.NumberInput(attrs={'class': 'form-control'}),
-            'required_training_level': forms.Select(attrs={'class': 'form-control'}),
             'requires_induction': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'requires_checkout_checklist': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'checkout_checklist_title': forms.TextInput(attrs={'class': 'form-control'}),
+            'checkout_checklist_description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+
+    def clean_required_training_level(self):
+        """Convert the training level choice to integer."""
+        level = self.cleaned_data['required_training_level']
+        return int(level)
 
 
 class ResourceResponsibleForm(forms.ModelForm):

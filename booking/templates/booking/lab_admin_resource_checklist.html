@@ -68,7 +68,7 @@
             </div>
 
             {% if not resource.requires_checkout_checklist %}
-            <div class="alert alert-warning">
+            <div class="alert alert-warning persistent-alert">
                 <h6><i class="fas fa-exclamation-triangle me-2"></i>Checkout Checklist Disabled</h6>
                 <p class="mb-2">This resource does not currently require a checkout checklist. Items can be configured here, but users won't see them during checkout.</p>
                 <a href="{% url 'booking:lab_admin_edit_resource' resource.id %}" class="btn btn-sm btn-primary">

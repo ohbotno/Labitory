@@ -20,7 +20,7 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 
 from ...models import Resource, Booking, ResourceIssue
-from ...forms import ResourceIssueReportForm, ResourceIssueUpdateForm, IssueFilterForm
+from booking.forms import ResourceIssueReportForm, ResourceIssueUpdateForm, IssueFilterForm
 
 
 @login_required

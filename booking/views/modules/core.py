@@ -26,7 +26,7 @@ from ...models import (
     AboutPage, UserProfile, Booking, Resource, Notification, 
     WaitingListEntry, Faculty, College, Department
 )
-from ...forms import UserProfileForm, AboutPageEditForm
+from booking.forms import UserProfileForm, AboutPageEditForm
 
 
 @login_required
