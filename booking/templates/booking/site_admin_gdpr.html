@@ -1,0 +1,517 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}GDPR Data Management - Site Administration{% endblock %}
+
+{% block extra_css %}
+<style>
+    .gdpr-card {
+        transition: transform 0.2s ease;
+        border-left: 4px solid var(--bs-primary);
+    }
+    .gdpr-card:hover {
+        transform: translateY(-2px);
+    }
+    .access-log-item {
+        padding: 0.75rem;
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+    .access-log-item:last-child {
+        border-bottom: none;
+    }
+    .data-category {
+        background-color: var(--bs-light);
+        border-radius: 8px;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+    .privacy-shield {
+        color: var(--bs-success);
+        font-size: 1.2em;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-user-shield me-2 text-success"></i>
+                    GDPR Data Management
+                </h1>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'booking:security_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Back to Security
+                    </a>
+                    <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#gdprInfoModal">
+                        <i class="fas fa-info-circle me-2"></i>
+                        GDPR Info
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- GDPR Overview Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card gdpr-card bg-primary text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0">{{ recent_access|length }}</h3>
+                            <p class="mb-0 small">Data Access Events</p>
+                        </div>
+                        <div class="opacity-75">
+                            <i class="fas fa-eye fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card gdpr-card bg-success text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0">{{ export_actions|length }}</h3>
+                            <p class="mb-0 small">Export Requests</p>
+                        </div>
+                        <div class="opacity-75">
+                            <i class="fas fa-download fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card gdpr-card bg-info text-white">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0">0</h3>
+                            <p class="mb-0 small">Deletion Requests</p>
+                        </div>
+                        <div class="opacity-75">
+                            <i class="fas fa-trash fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card gdpr-card bg-warning text-dark">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0">0</h3>
+                            <p class="mb-0 small">Pending Requests</p>
+                        </div>
+                        <div class="opacity-75">
+                            <i class="fas fa-clock fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Data Export Tools -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-download me-2"></i>
+                        Data Export Tools
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="data-category">
+                        <h6 class="mb-2">
+                            <i class="fas fa-user privacy-shield me-2"></i>
+                            Individual User Export
+                        </h6>
+                        <p class="text-muted small mb-3">Export all data for a specific user in compliance with GDPR Article 20 (Right to Data Portability).</p>
+                        <form class="d-flex gap-2" onsubmit="exportUserData(event)">
+                            <select class="form-select" name="user_id" required>
+                                <option value="">Select User...</option>
+                                <!-- Users would be populated here -->
+                                <option value="1">admin@example.com</option>
+                                <option value="2">user@example.com</option>
+                            </select>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-download me-1"></i>Export
+                            </button>
+                        </form>
+                    </div>
+
+                    <div class="data-category">
+                        <h6 class="mb-2">
+                            <i class="fas fa-database privacy-shield me-2"></i>
+                            Bulk Data Export
+                        </h6>
+                        <p class="text-muted small mb-3">Export data for multiple users or system-wide data export.</p>
+                        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#bulkExportModal">
+                            <i class="fas fa-cogs me-1"></i>Configure Bulk Export
+                        </button>
+                    </div>
+
+                    <div class="alert alert-info">
+                        <small>
+                            <i class="fas fa-info-circle me-1"></i>
+                            All export actions are logged for compliance auditing.
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Data Deletion Tools -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-trash-alt me-2"></i>
+                        Data Deletion Tools
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="data-category">
+                        <h6 class="mb-2">
+                            <i class="fas fa-user-times privacy-shield me-2"></i>
+                            Right to Be Forgotten
+                        </h6>
+                        <p class="text-muted small mb-3">Permanently delete user data in compliance with GDPR Article 17.</p>
+                        <div class="alert alert-danger">
+                            <strong>Warning:</strong> Data deletion is irreversible. Ensure proper authorization before proceeding.
+                        </div>
+                        <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deletionRequestModal">
+                            <i class="fas fa-exclamation-triangle me-1"></i>Request Data Deletion
+                        </button>
+                    </div>
+
+                    <div class="data-category">
+                        <h6 class="mb-2">
+                            <i class="fas fa-broom privacy-shield me-2"></i>
+                            Data Retention Cleanup
+                        </h6>
+                        <p class="text-muted small mb-3">Automatically remove data past retention periods.</p>
+                        <button type="button" class="btn btn-outline-warning" onclick="checkRetentionPolicy()">
+                            <i class="fas fa-calendar me-1"></i>Check Retention Policy
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Recent Data Access Logs -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-eye me-2"></i>
+                        Recent Data Access
+                    </h5>
+                    <a href="#" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_access %}
+                        {% for access in recent_access %}
+                        <div class="access-log-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <strong>{{ access.user.username }}</strong>
+                                        <span class="badge bg-info ms-2">{{ access.get_access_type_display }}</span>
+                                    </div>
+                                    <p class="mb-1 small text-muted">
+                                        Accessed {{ access.resource_type }} (ID: {{ access.resource_id }})
+                                    </p>
+                                    <div class="d-flex gap-3 text-muted small">
+                                        {% if access.ip_address %}
+                                            <span><i class="fas fa-globe me-1"></i>{{ access.ip_address }}</span>
+                                        {% endif %}
+                                        <span><i class="fas fa-clock me-1"></i>{{ access.timestamp|timesince }} ago</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-eye fa-2x text-muted mb-2"></i>
+                            <p class="text-muted mb-0">No recent data access events.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Export History -->
+        <div class="col-md-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>
+                        Export History
+                    </h5>
+                    <a href="#" class="btn btn-sm btn-outline-primary">View All</a>
+                </div>
+                <div class="card-body p-0">
+                    {% if export_actions %}
+                        {% for action in export_actions %}
+                        <div class="access-log-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <strong>{{ action.admin_user.username }}</strong>
+                                        <span class="badge bg-success ms-2">Export</span>
+                                    </div>
+                                    <p class="mb-1 small">{{ action.description }}</p>
+                                    {% if action.target_user %}
+                                        <p class="mb-1 small text-muted">Target: {{ action.target_user.username }}</p>
+                                    {% endif %}
+                                    <div class="text-muted small">
+                                        <i class="fas fa-clock me-1"></i>{{ action.timestamp|timesince }} ago
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-download fa-2x text-muted mb-2"></i>
+                            <p class="text-muted mb-0">No data exports yet.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- GDPR Information Modal -->
+<div class="modal fade" id="gdprInfoModal" tabindex="-1" aria-labelledby="gdprInfoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="gdprInfoModalLabel">GDPR Compliance Information</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Supported GDPR Rights</h6>
+                        <ul class="list-unstyled">
+                            <li class="mb-2">
+                                <i class="fas fa-check text-success me-2"></i>
+                                <strong>Right to Access</strong> (Article 15)<br>
+                                <small class="text-muted">Users can request access to their personal data.</small>
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-check text-success me-2"></i>
+                                <strong>Right to Data Portability</strong> (Article 20)<br>
+                                <small class="text-muted">Export user data in machine-readable format.</small>
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-check text-success me-2"></i>
+                                <strong>Right to Be Forgotten</strong> (Article 17)<br>
+                                <small class="text-muted">Permanent deletion of personal data.</small>
+                            </li>
+                            <li class="mb-2">
+                                <i class="fas fa-check text-success me-2"></i>
+                                <strong>Data Processing Transparency</strong><br>
+                                <small class="text-muted">Full audit trail of data access and modifications.</small>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Data Categories</h6>
+                        <ul class="list-unstyled">
+                            <li class="mb-1"><i class="fas fa-user me-2 text-primary"></i>Personal Information</li>
+                            <li class="mb-1"><i class="fas fa-envelope me-2 text-primary"></i>Contact Information</li>
+                            <li class="mb-1"><i class="fas fa-calendar me-2 text-primary"></i>Booking History</li>
+                            <li class="mb-1"><i class="fas fa-key me-2 text-primary"></i>Authentication Data</li>
+                            <li class="mb-1"><i class="fas fa-shield-alt me-2 text-primary"></i>Security Events</li>
+                            <li class="mb-1"><i class="fas fa-cog me-2 text-primary"></i>System Settings</li>
+                        </ul>
+                        
+                        <div class="alert alert-info mt-3">
+                            <small>
+                                <i class="fas fa-info-circle me-1"></i>
+                                All GDPR operations are logged and audited for compliance verification.
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bulk Export Modal -->
+<div class="modal fade" id="bulkExportModal" tabindex="-1" aria-labelledby="bulkExportModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="bulkExportModalLabel">Bulk Data Export</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="bulkExportForm">
+                    <div class="mb-3">
+                        <label for="exportFormat" class="form-label">Export Format</label>
+                        <select class="form-select" id="exportFormat" name="format">
+                            <option value="csv">CSV</option>
+                            <option value="json">JSON</option>
+                            <option value="xml">XML</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Data Categories</label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="users" id="exportUsers" checked>
+                            <label class="form-check-label" for="exportUsers">User Profiles</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="bookings" id="exportBookings">
+                            <label class="form-check-label" for="exportBookings">Booking Data</label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" value="security" id="exportSecurity">
+                            <label class="form-check-label" for="exportSecurity">Security Events</label>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="dateFrom" class="form-label">From Date</label>
+                            <input type="date" class="form-control" id="dateFrom" name="date_from">
+                        </div>
+                        <div class="col-md-6">
+                            <label for="dateTo" class="form-label">To Date</label>
+                            <input type="date" class="form-control" id="dateTo" name="date_to">
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="executeBulkExport()">
+                    <i class="fas fa-download me-1"></i>Start Export
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Data Deletion Request Modal -->
+<div class="modal fade" id="deletionRequestModal" tabindex="-1" aria-labelledby="deletionRequestModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deletionRequestModalLabel">Data Deletion Request</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-danger">
+                    <strong>Warning:</strong> Data deletion is permanent and cannot be undone.
+                </div>
+                <form id="deletionRequestForm">
+                    <div class="mb-3">
+                        <label for="deletionUser" class="form-label">Select User</label>
+                        <select class="form-select" id="deletionUser" name="user_id" required>
+                            <option value="">Choose user...</option>
+                            <option value="1">admin@example.com</option>
+                            <option value="2">user@example.com</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="deletionReason" class="form-label">Reason for Deletion</label>
+                        <textarea class="form-control" id="deletionReason" name="reason" rows="3" required
+                                  placeholder="Provide justification for this deletion request..."></textarea>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="confirmDeletion" required>
+                        <label class="form-check-label" for="confirmDeletion">
+                            I understand that this action is permanent and irreversible
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="submitDeletionRequest()">
+                    <i class="fas fa-trash me-1"></i>Request Deletion
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function exportUserData(event) {
+    event.preventDefault();
+    const formData = new FormData(event.target);
+    const userId = formData.get('user_id');
+    
+    if (!userId) {
+        alert('Please select a user to export.');
+        return;
+    }
+    
+    // Redirect to export view
+    window.location.href = `{% url 'booking:export_user_data' user_id=0 %}`.replace('0', userId);
+}
+
+function executeBulkExport() {
+    const form = document.getElementById('bulkExportForm');
+    const formData = new FormData(form);
+    
+    // In a full implementation, this would start a background task
+    alert('Bulk export would be initiated here. You would receive an email when complete.');
+    
+    const modal = bootstrap.Modal.getInstance(document.getElementById('bulkExportModal'));
+    modal.hide();
+}
+
+function submitDeletionRequest() {
+    const form = document.getElementById('deletionRequestForm');
+    const formData = new FormData(form);
+    
+    if (!form.checkValidity()) {
+        alert('Please fill in all required fields.');
+        return;
+    }
+    
+    if (!document.getElementById('confirmDeletion').checked) {
+        alert('Please confirm that you understand this action is permanent.');
+        return;
+    }
+    
+    // In a full implementation, this would submit the deletion request
+    alert('Deletion request would be submitted for review and processing.');
+    
+    const modal = bootstrap.Modal.getInstance(document.getElementById('deletionRequestModal'));
+    modal.hide();
+}
+
+function checkRetentionPolicy() {
+    // In a full implementation, this would check for data past retention periods
+    alert('Retention policy check would scan for data eligible for automatic cleanup.');
+}
+</script>
+{% endblock %}

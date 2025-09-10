@@ -1,0 +1,357 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Security Events - Site Administration{% endblock %}
+
+{% block extra_css %}
+<style>
+    .event-type-badge {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+    }
+    .filter-card {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .event-row {
+        transition: background-color 0.2s ease;
+    }
+    .event-row:hover {
+        background-color: var(--bs-light);
+    }
+    .event-metadata {
+        font-size: 0.85rem;
+        background-color: var(--bs-gray-100);
+        border-radius: 4px;
+        padding: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-exclamation-triangle me-2 text-warning"></i>
+                    Security Events
+                </h1>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'booking:security_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Back to Security
+                    </a>
+                    <button type="button" class="btn btn-primary" onclick="exportEvents()">
+                        <i class="fas fa-download me-2"></i>
+                        Export Events
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filter Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card filter-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-filter me-2"></i>
+                        Filter Security Events
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-3">
+                            {{ filter_form.event_type.label_tag }}
+                            {{ filter_form.event_type }}
+                        </div>
+                        <div class="col-md-3">
+                            {{ filter_form.username.label_tag }}
+                            {{ filter_form.username }}
+                        </div>
+                        <div class="col-md-2">
+                            {{ filter_form.ip_address.label_tag }}
+                            {{ filter_form.ip_address }}
+                        </div>
+                        <div class="col-md-2">
+                            {{ filter_form.date_from.label_tag }}
+                            {{ filter_form.date_from }}
+                        </div>
+                        <div class="col-md-2">
+                            {{ filter_form.date_to.label_tag }}
+                            {{ filter_form.date_to }}
+                        </div>
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary me-2">
+                                <i class="fas fa-search me-1"></i>Apply Filters
+                            </button>
+                            <a href="{% url 'booking:security_events' %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i>Clear Filters
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Events List -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        Security Events ({{ page_obj.paginator.count }} total)
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary" onclick="autoRefresh()">
+                            <i class="fas fa-sync-alt me-1"></i>Auto Refresh
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if page_obj %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th scope="col" width="140">Event Type</th>
+                                        <th scope="col">User</th>
+                                        <th scope="col">Description</th>
+                                        <th scope="col" width="120">IP Address</th>
+                                        <th scope="col" width="140">Timestamp</th>
+                                        <th scope="col" width="80">Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for event in page_obj %}
+                                    <tr class="event-row" data-event-id="{{ event.id }}">
+                                        <td>
+                                            <span class="badge event-type-badge
+                                                {% if event.event_type == 'failed_login' %}bg-danger
+                                                {% elif event.event_type == 'suspicious_activity' %}bg-warning text-dark
+                                                {% elif event.event_type == 'login_attempt' %}bg-success
+                                                {% elif event.event_type == 'permission_denied' %}bg-warning text-dark
+                                                {% elif event.event_type == 'token_created' %}bg-info
+                                                {% elif event.event_type == 'token_revoked' %}bg-secondary
+                                                {% else %}bg-primary{% endif %}">
+                                                {{ event.get_event_type_display }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if event.user %}
+                                                <div class="d-flex align-items-center">
+                                                    <i class="fas fa-user-circle fa-lg text-muted me-2"></i>
+                                                    <div>
+                                                        <strong>{{ event.user.username }}</strong>
+                                                        {% if event.user.email %}
+                                                            <br><small class="text-muted">{{ event.user.email }}</small>
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted">
+                                                    <i class="fas fa-user-slash me-1"></i>Anonymous
+                                                </span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="event-description">
+                                                {{ event.description|truncatechars:100 }}
+                                                {% if event.description|length > 100 %}
+                                                    <a href="#" class="text-primary small" onclick="showFullDescription('{{ event.id }}')">
+                                                        Show more
+                                                    </a>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            {% if event.ip_address %}
+                                                <code class="small">{{ event.ip_address }}</code>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="text-muted small">
+                                                {{ event.timestamp|date:"M d, H:i" }}
+                                                <br>{{ event.timestamp|timesince }} ago
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-outline-info" 
+                                                    onclick="showEventDetails('{{ event.id }}')">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if page_obj.has_other_pages %}
+                            <div class="card-footer">
+                                <nav aria-label="Security events pagination">
+                                    <ul class="pagination mb-0 justify-content-center">
+                                        {% if page_obj.has_previous %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page=1{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">First</a>
+                                            </li>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">Previous</a>
+                                            </li>
+                                        {% endif %}
+                                        
+                                        <li class="page-item active">
+                                            <span class="page-link">
+                                                {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                            </span>
+                                        </li>
+                                        
+                                        {% if page_obj.has_next %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">Next</a>
+                                            </li>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">Last</a>
+                                            </li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                            </div>
+                        {% endif %}
+
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-shield-alt fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No security events found</h5>
+                            <p class="text-muted">No events match your current filter criteria.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Event Details Modal -->
+<div class="modal fade" id="eventDetailsModal" tabindex="-1" aria-labelledby="eventDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="eventDetailsModalLabel">Security Event Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="eventDetailsContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Full Description Modal -->
+<div class="modal fade" id="fullDescriptionModal" tabindex="-1" aria-labelledby="fullDescriptionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="fullDescriptionModalLabel">Event Description</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="fullDescriptionContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let autoRefreshInterval = null;
+
+function showEventDetails(eventId) {
+    // In a full implementation, this would make an AJAX call to get event details
+    document.getElementById('eventDetailsContent').innerHTML = `
+        <div class="row">
+            <div class="col-12">
+                <h6>Event Information</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Event ID:</strong></td><td>${eventId}</td></tr>
+                    <tr><td><strong>Timestamp:</strong></td><td>Details would be loaded via AJAX</td></tr>
+                </table>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <h6>Metadata</h6>
+                <div class="event-metadata">
+                    <p class="mb-0">Additional event metadata would be displayed here.</p>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('eventDetailsModal'));
+    modal.show();
+}
+
+function showFullDescription(eventId) {
+    // In a full implementation, this would get the full description from the server
+    document.getElementById('fullDescriptionContent').innerHTML = `
+        <p>Full event description for event ${eventId} would be loaded here.</p>
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('fullDescriptionModal'));
+    modal.show();
+}
+
+function exportEvents() {
+    // In a full implementation, this would trigger a CSV/PDF export
+    const params = new URLSearchParams(window.location.search);
+    params.append('export', 'csv');
+    
+    alert('Export functionality would be implemented here with current filters.');
+}
+
+function autoRefresh() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+        autoRefreshInterval = null;
+        document.querySelector('[onclick="autoRefresh()"]').innerHTML = 
+            '<i class="fas fa-sync-alt me-1"></i>Auto Refresh';
+    } else {
+        autoRefreshInterval = setInterval(() => {
+            location.reload();
+        }, 30000); // Refresh every 30 seconds
+        
+        document.querySelector('[onclick="autoRefresh()"]').innerHTML = 
+            '<i class="fas fa-stop me-1"></i>Stop Auto Refresh';
+        document.querySelector('[onclick="autoRefresh()"]').classList.remove('btn-outline-primary');
+        document.querySelector('[onclick="autoRefresh()"]').classList.add('btn-success');
+    }
+}
+
+// Auto-refresh cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+});
+</script>
+{% endblock %}

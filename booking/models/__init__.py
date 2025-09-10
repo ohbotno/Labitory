@@ -26,6 +26,8 @@ from .auth import (
     EmailVerificationToken,
     TwoFactorAuthentication,
     TwoFactorSession,
+    APIToken,
+    SecurityEvent,
 )
 
 # Notification models
@@ -132,6 +134,14 @@ from .checklists import (
     ChecklistResponse,
 )
 
+# Audit models
+from .audit import (
+    AuditLog,
+    DataAccessLog,
+    LoginAttempt,
+    AdminAction,
+)
+
 # Export all models for backward compatibility
 __all__ = [
     # Core
@@ -146,6 +156,8 @@ __all__ = [
     'EmailVerificationToken',
     'TwoFactorAuthentication',
     'TwoFactorSession',
+    'APIToken',
+    'SecurityEvent',
     # Notifications
     'NotificationPreference',
     'PushSubscription',

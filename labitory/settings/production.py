@@ -132,8 +132,49 @@ CORS_ALLOWED_ORIGINS = config('CORS_ALLOWED_ORIGINS', cast=Csv())
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOW_CREDENTIALS = True
 
+# Additional CORS security settings
+CORS_ALLOWED_ORIGIN_REGEXES = config('CORS_ALLOWED_ORIGIN_REGEXES', default='', cast=Csv())
+CORS_ALLOW_HEADERS = [
+    'accept',
+    'accept-encoding',
+    'authorization',
+    'content-type',
+    'dnt',
+    'origin',
+    'user-agent',
+    'x-csrftoken',
+    'x-requested-with',
+    'x-api-version',  # For API versioning
+]
+
+# Only allow specific methods
+CORS_ALLOW_METHODS = [
+    'DELETE',
+    'GET',
+    'OPTIONS',
+    'PATCH',
+    'POST',
+    'PUT',
+]
+
+# Preflight cache settings
+CORS_PREFLIGHT_MAX_AGE = 86400  # 24 hours
+
+# Expose specific headers to the frontend
+CORS_EXPOSE_HEADERS = [
+    'x-api-version',
+    'x-ratelimit-limit',
+    'x-ratelimit-remaining',
+    'x-ratelimit-reset',
+]
+
 # Enable APScheduler in production
 SCHEDULER_AUTOSTART = config('SCHEDULER_AUTOSTART', default=True, cast=bool)
+
+# JWT Configuration
+JWT_ACCESS_TOKEN_LIFETIME = config('JWT_ACCESS_TOKEN_LIFETIME', default=15, cast=int)  # minutes
+JWT_REFRESH_TOKEN_LIFETIME = config('JWT_REFRESH_TOKEN_LIFETIME', default=7, cast=int)  # days
+API_TOKEN_ROTATION_INTERVAL = config('API_TOKEN_ROTATION_INTERVAL', default=24, cast=int)  # hours
 
 # Security settings for production
 SECURE_BROWSER_XSS_FILTER = True

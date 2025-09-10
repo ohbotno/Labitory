@@ -1,0 +1,354 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Security Dashboard - Site Administration{% endblock %}
+
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/chart.js@4.2.1/dist/chart.min.css" rel="stylesheet">
+<style>
+    .security-metric-card {
+        transition: transform 0.2s ease-in-out;
+    }
+    .security-metric-card:hover {
+        transform: translateY(-2px);
+    }
+    .alert-critical { border-left: 4px solid #dc3545; }
+    .alert-warning { border-left: 4px solid #ffc107; }
+    .alert-info { border-left: 4px solid #0dcaf0; }
+    .security-event-item {
+        padding: 0.75rem;
+        border-bottom: 1px solid var(--bs-border-color);
+    }
+    .security-event-item:last-child {
+        border-bottom: none;
+    }
+    .event-type-badge {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-shield-alt me-2 text-primary"></i>
+                    Security Dashboard
+                </h1>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'booking:site_admin_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Back to Admin
+                    </a>
+                    <a href="{% url 'booking:security_events' %}" class="btn btn-primary">
+                        <i class="fas fa-eye me-2"></i>
+                        View All Events
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Security Metrics Overview -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card bg-primary text-white security-metric-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0">{{ total_api_tokens }}</h3>
+                            <p class="mb-0 small">Active API Tokens</p>
+                        </div>
+                        <div class="opacity-75">
+                            <i class="fas fa-key fa-2x"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <a href="{% url 'booking:api_tokens_management' %}" class="text-white text-decoration-none small">
+                            <i class="fas fa-arrow-right me-1"></i>Manage Tokens
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-success text-white security-metric-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0">{{ active_sessions }}</h3>
+                            <p class="mb-0 small">Active Sessions (30d)</p>
+                        </div>
+                        <div class="opacity-75">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <a href="{% url 'booking:enhanced_audit_logs' %}" class="text-white text-decoration-none small">
+                            <i class="fas fa-arrow-right me-1"></i>View Sessions
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-info text-white security-metric-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0">{{ security_events_count }}</h3>
+                            <p class="mb-0 small">Security Events (30d)</p>
+                        </div>
+                        <div class="opacity-75">
+                            <i class="fas fa-exclamation-triangle fa-2x"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <a href="{% url 'booking:security_events' %}" class="text-white text-decoration-none small">
+                            <i class="fas fa-arrow-right me-1"></i>View Events
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-warning text-dark security-metric-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0">{{ failed_login_attempts }}</h3>
+                            <p class="mb-0 small">Failed Logins (30d)</p>
+                        </div>
+                        <div class="opacity-75">
+                            <i class="fas fa-ban fa-2x"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <a href="{% url 'booking:security_events' %}?event_type=failed_login" class="text-dark text-decoration-none small">
+                            <i class="fas fa-arrow-right me-1"></i>View Failed Logins
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Login Trends Chart -->
+        <div class="col-md-8 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>
+                        Login Activity Trends (Last 7 Days)
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="loginTrendsChart" width="400" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Security Event Types -->
+        <div class="col-md-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>
+                        Top Security Events
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if event_types %}
+                        <div class="list-group list-group-flush">
+                            {% for event in event_types %}
+                            <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+                                <span>{{ event.event_type|title }}</span>
+                                <span class="badge bg-primary rounded-pill">{{ event.count }}</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted mb-0">No security events in the last 30 days.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Security Events -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2"></i>
+                        Recent Security Events
+                    </h5>
+                    <a href="{% url 'booking:security_events' %}" class="btn btn-sm btn-outline-primary">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    {% if recent_security_events %}
+                        {% for event in recent_security_events %}
+                        <div class="security-event-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center mb-1">
+                                        <span class="badge event-type-badge me-2 
+                                            {% if event.event_type == 'failed_login' %}bg-danger
+                                            {% elif event.event_type == 'suspicious_activity' %}bg-warning
+                                            {% elif event.event_type == 'login_attempt' %}bg-success
+                                            {% else %}bg-info{% endif %}">
+                                            {{ event.get_event_type_display }}
+                                        </span>
+                                        {% if event.user %}
+                                            <strong>{{ event.user.username }}</strong>
+                                        {% else %}
+                                            <em class="text-muted">Anonymous</em>
+                                        {% endif %}
+                                    </div>
+                                    <p class="mb-1 small">{{ event.description }}</p>
+                                    <div class="d-flex gap-3 text-muted small">
+                                        {% if event.ip_address %}
+                                            <span><i class="fas fa-globe me-1"></i>{{ event.ip_address }}</span>
+                                        {% endif %}
+                                        <span><i class="fas fa-clock me-1"></i>{{ event.timestamp|timesince }} ago</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4">
+                            <i class="fas fa-shield-alt fa-3x text-muted mb-3"></i>
+                            <p class="text-muted">No recent security events to display.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tools me-2"></i>
+                        Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'booking:api_tokens_management' %}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-key me-2"></i>
+                                Manage API Tokens
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'booking:enhanced_audit_logs' %}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-list-alt me-2"></i>
+                                View Audit Logs
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="{% url 'booking:gdpr_management' %}" class="btn btn-outline-success w-100">
+                                <i class="fas fa-user-shield me-2"></i>
+                                GDPR Management
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <a href="#" class="btn btn-outline-warning w-100" data-bs-toggle="modal" data-bs-target="#securityConfigModal">
+                                <i class="fas fa-cog me-2"></i>
+                                Security Settings
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Security Configuration Modal -->
+<div class="modal fade" id="securityConfigModal" tabindex="-1" aria-labelledby="securityConfigModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="securityConfigModalLabel">Security Configuration</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-info"><i class="fas fa-info-circle me-1"></i> Security configuration is managed through environment variables and settings files.</p>
+                <div class="alert alert-warning">
+                    <strong>Note:</strong> Changes to security settings require system restart and should be tested in a staging environment first.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.2.1/dist/chart.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Login Trends Chart
+    const loginTrendsData = {{ login_trends|safe }};
+    const ctx = document.getElementById('loginTrendsChart').getContext('2d');
+    
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: loginTrendsData.map(d => {
+                const date = new Date(d.date);
+                return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            }),
+            datasets: [{
+                label: 'Successful Logins',
+                data: loginTrendsData.map(d => d.successful),
+                borderColor: 'rgb(25, 135, 84)',
+                backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                tension: 0.1
+            }, {
+                label: 'Failed Logins',
+                data: loginTrendsData.map(d => d.failed),
+                borderColor: 'rgb(220, 53, 69)',
+                backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                tension: 0.1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

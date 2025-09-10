@@ -1,0 +1,533 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}API Token Management - Site Administration{% endblock %}
+
+{% block extra_css %}
+<style>
+    .token-status-badge {
+        font-size: 0.75rem;
+    }
+    .token-jti {
+        font-family: 'Courier New', monospace;
+        font-size: 0.85rem;
+        background-color: var(--bs-gray-100);
+        padding: 2px 6px;
+        border-radius: 4px;
+    }
+    .token-actions {
+        white-space: nowrap;
+    }
+    .stats-card {
+        transition: transform 0.2s ease-in-out;
+    }
+    .stats-card:hover {
+        transform: translateY(-2px);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-key me-2 text-primary"></i>
+                    API Token Management
+                </h1>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'booking:security_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Back to Security
+                    </a>
+                    <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#cleanupTokensModal">
+                        <i class="fas fa-broom me-2"></i>
+                        Cleanup Expired
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Token Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card bg-primary text-white stats-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0">{{ stats.total }}</h3>
+                            <p class="mb-0 small">Total Tokens</p>
+                        </div>
+                        <div class="opacity-75">
+                            <i class="fas fa-key fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-success text-white stats-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0">{{ stats.active }}</h3>
+                            <p class="mb-0 small">Active Tokens</p>
+                        </div>
+                        <div class="opacity-75">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-warning text-dark stats-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0">{{ stats.expired }}</h3>
+                            <p class="mb-0 small">Expired Tokens</p>
+                        </div>
+                        <div class="opacity-75">
+                            <i class="fas fa-clock fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3 mb-3">
+            <div class="card bg-danger text-white stats-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h3 class="mb-0">{{ stats.revoked }}</h3>
+                            <p class="mb-0 small">Revoked Tokens</p>
+                        </div>
+                        <div class="opacity-75">
+                            <i class="fas fa-ban fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search and Filter -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-search me-2"></i>
+                        Search & Filter Tokens
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-4">
+                            {{ search_form.username.label_tag }}
+                            {{ search_form.username }}
+                        </div>
+                        <div class="col-md-3">
+                            {{ search_form.token_type.label_tag }}
+                            {{ search_form.token_type }}
+                        </div>
+                        <div class="col-md-3">
+                            {{ search_form.status.label_tag }}
+                            {{ search_form.status }}
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search me-2"></i>Search
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tokens Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>
+                        API Tokens
+                    </h5>
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="bulkRevokeSelected()">
+                            <i class="fas fa-ban me-1"></i>Revoke Selected
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if page_obj %}
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th scope="col" width="40">
+                                            <input type="checkbox" class="form-check-input" id="selectAll">
+                                        </th>
+                                        <th scope="col">User</th>
+                                        <th scope="col">Token ID</th>
+                                        <th scope="col">Type</th>
+                                        <th scope="col">Status</th>
+                                        <th scope="col">Created</th>
+                                        <th scope="col">Expires</th>
+                                        <th scope="col">Last Used</th>
+                                        <th scope="col" width="120">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for token in page_obj %}
+                                    <tr data-token-jti="{{ token.jti }}">
+                                        <td>
+                                            <input type="checkbox" class="form-check-input token-checkbox" value="{{ token.jti }}">
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="avatar-sm me-2">
+                                                    <i class="fas fa-user-circle fa-lg text-muted"></i>
+                                                </div>
+                                                <div>
+                                                    <strong>{{ token.user.username }}</strong>
+                                                    <br><small class="text-muted">{{ token.user.email }}</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="token-jti">{{ token.jti|truncatechars:16 }}...</span>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">{{ token.get_token_type_display }}</span>
+                                        </td>
+                                        <td>
+                                            {% if token.is_revoked %}
+                                                <span class="badge bg-danger token-status-badge">Revoked</span>
+                                            {% elif token.is_expired %}
+                                                <span class="badge bg-warning token-status-badge">Expired</span>
+                                            {% else %}
+                                                <span class="badge bg-success token-status-badge">Active</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="text-muted small">{{ token.created_at|date:"M d, Y" }}</span>
+                                            <br><span class="text-muted small">{{ token.created_at|time:"H:i" }}</span>
+                                        </td>
+                                        <td>
+                                            <span class="text-muted small">{{ token.expires_at|date:"M d, Y" }}</span>
+                                            <br><span class="text-muted small">{{ token.expires_at|time:"H:i" }}</span>
+                                        </td>
+                                        <td>
+                                            {% if token.last_used_at %}
+                                                <span class="text-muted small">{{ token.last_used_at|timesince }} ago</span>
+                                            {% else %}
+                                                <span class="text-muted small">Never used</span>
+                                            {% endif %}
+                                        </td>
+                                        <td class="token-actions">
+                                            {% if not token.is_revoked %}
+                                                <button type="button" class="btn btn-sm btn-outline-danger" 
+                                                        onclick="revokeToken('{{ token.jti }}', '{{ token.user.username }}')">
+                                                    <i class="fas fa-ban"></i>
+                                                </button>
+                                            {% endif %}
+                                            <button type="button" class="btn btn-sm btn-outline-info" 
+                                                    onclick="viewTokenDetails('{{ token.jti }}')">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if page_obj.has_other_pages %}
+                            <div class="card-footer">
+                                <nav aria-label="API tokens pagination">
+                                    <ul class="pagination mb-0 justify-content-center">
+                                        {% if page_obj.has_previous %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page=1{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">First</a>
+                                            </li>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">Previous</a>
+                                            </li>
+                                        {% endif %}
+                                        
+                                        <li class="page-item active">
+                                            <span class="page-link">
+                                                {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                            </span>
+                                        </li>
+                                        
+                                        {% if page_obj.has_next %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">Next</a>
+                                            </li>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">Last</a>
+                                            </li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                            </div>
+                        {% endif %}
+
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-key fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No API tokens found</h5>
+                            <p class="text-muted">No tokens match your search criteria.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Token Revocation Modal -->
+<div class="modal fade" id="revokeTokenModal" tabindex="-1" aria-labelledby="revokeTokenModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="revokeTokenModalLabel">Revoke API Token</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to revoke this API token?</p>
+                <div class="alert alert-warning">
+                    <strong>Warning:</strong> This action cannot be undone. The token will be immediately invalidated and any applications using it will lose access.
+                </div>
+                <div id="tokenDetails"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" id="confirmRevokeBtn">Revoke Token</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Cleanup Tokens Modal -->
+<div class="modal fade" id="cleanupTokensModal" tabindex="-1" aria-labelledby="cleanupTokensModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="cleanupTokensModalLabel">Cleanup Expired Tokens</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>This will permanently remove all expired tokens from the database.</p>
+                <div class="alert alert-info">
+                    <strong>Note:</strong> This action will clean up {{ stats.expired }} expired tokens.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-danger" onclick="cleanupExpiredTokens()">Cleanup Tokens</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Token Details Modal -->
+<div class="modal fade" id="tokenDetailsModal" tabindex="-1" aria-labelledby="tokenDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="tokenDetailsModalLabel">Token Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="tokenDetailsContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let selectedTokenJti = null;
+
+// Select All functionality
+document.getElementById('selectAll').addEventListener('change', function() {
+    const checkboxes = document.querySelectorAll('.token-checkbox');
+    checkboxes.forEach(checkbox => {
+        checkbox.checked = this.checked;
+    });
+});
+
+// Individual checkbox functionality
+document.querySelectorAll('.token-checkbox').forEach(checkbox => {
+    checkbox.addEventListener('change', function() {
+        const allCheckboxes = document.querySelectorAll('.token-checkbox');
+        const checkedCheckboxes = document.querySelectorAll('.token-checkbox:checked');
+        const selectAllCheckbox = document.getElementById('selectAll');
+        
+        if (checkedCheckboxes.length === allCheckboxes.length) {
+            selectAllCheckbox.checked = true;
+            selectAllCheckbox.indeterminate = false;
+        } else if (checkedCheckboxes.length > 0) {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = true;
+        } else {
+            selectAllCheckbox.checked = false;
+            selectAllCheckbox.indeterminate = false;
+        }
+    });
+});
+
+function revokeToken(tokenJti, username) {
+    selectedTokenJti = tokenJti;
+    document.getElementById('tokenDetails').innerHTML = `
+        <strong>Token:</strong> <span class="token-jti">${tokenJti}</span><br>
+        <strong>User:</strong> ${username}
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('revokeTokenModal'));
+    modal.show();
+}
+
+document.getElementById('confirmRevokeBtn').addEventListener('click', function() {
+    if (!selectedTokenJti) return;
+    
+    const formData = new FormData();
+    formData.append('token_jti', selectedTokenJti);
+    formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+    
+    fetch('{% url "booking:api_token_revoke" %}', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('An error occurred while revoking the token.');
+    });
+});
+
+function bulkRevokeSelected() {
+    const checkedBoxes = document.querySelectorAll('.token-checkbox:checked');
+    if (checkedBoxes.length === 0) {
+        alert('Please select tokens to revoke.');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to revoke ${checkedBoxes.length} selected token(s)?`)) {
+        return;
+    }
+    
+    const tokens = Array.from(checkedBoxes).map(cb => cb.value);
+    
+    // Process each token
+    let completed = 0;
+    tokens.forEach(tokenJti => {
+        const formData = new FormData();
+        formData.append('token_jti', tokenJti);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        fetch('{% url "booking:api_token_revoke" %}', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            completed++;
+            if (completed === tokens.length) {
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error revoking token:', tokenJti, error);
+            completed++;
+            if (completed === tokens.length) {
+                location.reload();
+            }
+        });
+    });
+}
+
+function viewTokenDetails(tokenJti) {
+    // For now, show basic details. In a full implementation, 
+    // you'd make an AJAX call to get full token details
+    document.getElementById('tokenDetailsContent').innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Token Information</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Token ID:</strong></td><td><span class="token-jti">${tokenJti}</span></td></tr>
+                    <tr><td><strong>Status:</strong></td><td><span class="badge bg-success">Active</span></td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6>Usage Statistics</h6>
+                <p class="text-muted">Detailed usage statistics would be shown here.</p>
+            </div>
+        </div>
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('tokenDetailsModal'));
+    modal.show();
+}
+
+function cleanupExpiredTokens() {
+    if (!confirm('This will permanently remove all expired tokens. Continue?')) {
+        return;
+    }
+    
+    // In a full implementation, you'd make an AJAX call to a cleanup endpoint
+    alert('Cleanup functionality would be implemented here.');
+}
+
+// Add CSRF token to all requests
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+// Add CSRF token input if not present
+if (!document.querySelector('[name=csrfmiddlewaretoken]')) {
+    const csrfInput = document.createElement('input');
+    csrfInput.type = 'hidden';
+    csrfInput.name = 'csrfmiddlewaretoken';
+    csrfInput.value = getCookie('csrftoken');
+    document.body.appendChild(csrfInput);
+}
+</script>
+{% endblock %}

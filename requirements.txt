@@ -23,6 +23,8 @@ django-otp>=1.3.0  # TOTP/HOTP support for 2FA
 qrcode>=7.4.2  # QR code generation for 2FA setup
 pyotp>=2.9.0  # Python OTP library for TOTP generation
 django-ratelimit>=4.1.0  # Rate limiting for authentication
+PyJWT>=2.8.0  # JWT token handling for API authentication
+bleach>=6.0.0  # HTML sanitization for security
 
 # API Documentation
 drf-spectacular>=0.26.0

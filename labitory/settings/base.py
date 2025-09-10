@@ -44,15 +44,54 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'corsheaders.middleware.CorsMiddleware',
+    'booking.middleware.security.SecurityHeadersMiddleware',
+    'booking.middleware.security.SecurityEventMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'booking.middleware.security.SessionSecurityMiddleware',
     'django.middleware.common.CommonMiddleware',
+    'booking.middleware.security.ContentSanitizationMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    'booking.middleware.security.RateLimitMiddleware',
 ]
 
 ROOT_URLCONF = 'labitory.urls'
+
+# Django REST Framework configuration
+REST_FRAMEWORK = {
+    'DEFAULT_VERSIONING_CLASS': 'booking.api.versioning.LabitoryAPIVersioning',
+    'DEFAULT_VERSION': 'v1',
+    'ALLOWED_VERSIONS': ['v1', 'v2'],
+    'VERSION_PARAM': 'version',
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'booking.api.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+        'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_RENDERER_CLASSES': [
+        'rest_framework.renderers.JSONRenderer',
+    ],
+    'DEFAULT_PARSER_CLASSES': [
+        'rest_framework.parsers.JSONParser',
+        'rest_framework.parsers.FormParser',
+        'rest_framework.parsers.MultiPartParser',
+    ],
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '100/hour',
+        'user': '1000/hour'
+    },
+    'PAGE_SIZE': 20,
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+}
 
 TEMPLATES = [
     {

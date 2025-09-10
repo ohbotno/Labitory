@@ -1,0 +1,486 @@
+{% extends 'booking/base.html' %}
+{% load static %}
+
+{% block title %}Enhanced Audit Logs - Site Administration{% endblock %}
+
+{% block extra_css %}
+<style>
+    .audit-table {
+        font-size: 0.9rem;
+    }
+    .audit-action {
+        font-family: 'Courier New', monospace;
+        font-size: 0.8rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        background-color: var(--bs-light);
+    }
+    .audit-changes {
+        max-width: 300px;
+        max-height: 100px;
+        overflow-y: auto;
+        font-size: 0.8rem;
+        background-color: var(--bs-gray-100);
+        padding: 0.5rem;
+        border-radius: 4px;
+    }
+    .change-item {
+        margin-bottom: 0.25rem;
+    }
+    .change-old {
+        color: var(--bs-danger);
+        text-decoration: line-through;
+    }
+    .change-new {
+        color: var(--bs-success);
+        font-weight: 500;
+    }
+    .filter-card {
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .audit-metadata {
+        font-size: 0.75rem;
+        color: var(--bs-secondary);
+    }
+    .table-container {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h1 class="h2">
+                    <i class="fas fa-list-alt me-2 text-primary"></i>
+                    Enhanced Audit Logs
+                </h1>
+                <div class="d-flex gap-2">
+                    <a href="{% url 'booking:security_dashboard' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Back to Security
+                    </a>
+                    <button type="button" class="btn btn-success" onclick="exportAuditLogs()">
+                        <i class="fas fa-download me-2"></i>
+                        Export Logs
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Advanced Filter Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card filter-card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-filter me-2"></i>
+                        Advanced Filters
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-2">
+                            <label for="action" class="form-label">Action</label>
+                            <select name="action" id="action" class="form-select">
+                                <option value="">All Actions</option>
+                                {% for action_code, action_name in action_choices %}
+                                    <option value="{{ action_code }}" {% if action_filter == action_code %}selected{% endif %}>
+                                        {{ action_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="username" class="form-label">Username</label>
+                            <input type="text" name="username" id="username" class="form-control" 
+                                   value="{{ username_filter }}" placeholder="Search username">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="filter_type" class="form-label">Model Type</label>
+                            <select name="filter_type" id="filter_type" class="form-select">
+                                <option value="all" {% if filter_type == 'all' %}selected{% endif %}>All Models</option>
+                                <option value="user" {% if filter_type == 'user' %}selected{% endif %}>Users</option>
+                                <option value="booking" {% if filter_type == 'booking' %}selected{% endif %}>Bookings</option>
+                                <option value="resource" {% if filter_type == 'resource' %}selected{% endif %}>Resources</option>
+                                <option value="apitoken" {% if filter_type == 'apitoken' %}selected{% endif %}>API Tokens</option>
+                                <option value="userprofile" {% if filter_type == 'userprofile' %}selected{% endif %}>User Profiles</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label for="date_from" class="form-label">From Date</label>
+                            <input type="date" name="date_from" id="date_from" class="form-control" value="{{ date_from }}">
+                        </div>
+                        <div class="col-md-2">
+                            <label for="date_to" class="form-label">To Date</label>
+                            <input type="date" name="date_to" id="date_to" class="form-control" value="{{ date_to }}">
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <div class="d-flex gap-1 w-100">
+                                <button type="submit" class="btn btn-primary flex-grow-1">
+                                    <i class="fas fa-search"></i>
+                                </button>
+                                <a href="{% url 'booking:enhanced_audit_logs' %}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times"></i>
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Audit Logs Table -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-table me-2"></i>
+                        Audit Log Entries ({{ page_obj.paginator.count }} total)
+                    </h5>
+                    <div class="d-flex gap-2 align-items-center">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="autoRefresh">
+                            <label class="form-check-label" for="autoRefresh">Auto Refresh</label>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-info" onclick="showColumnsModal()">
+                            <i class="fas fa-columns me-1"></i>Columns
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    {% if page_obj %}
+                        <div class="table-responsive table-container">
+                            <table class="table table-hover table-sm audit-table mb-0">
+                                <thead class="table-light sticky-top">
+                                    <tr>
+                                        <th scope="col" width="80">Action</th>
+                                        <th scope="col" width="120">User</th>
+                                        <th scope="col" width="100">Model</th>
+                                        <th scope="col" width="80">Object ID</th>
+                                        <th scope="col" width="200">Changes</th>
+                                        <th scope="col" width="120">IP Address</th>
+                                        <th scope="col" width="140">Timestamp</th>
+                                        <th scope="col" width="60">Details</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for log in page_obj %}
+                                    <tr data-log-id="{{ log.id }}">
+                                        <td>
+                                            <span class="audit-action badge
+                                                {% if log.action == 'CREATE' %}bg-success
+                                                {% elif log.action == 'UPDATE' %}bg-info
+                                                {% elif log.action == 'DELETE' %}bg-danger
+                                                {% elif log.action == 'LOGIN' %}bg-primary
+                                                {% elif log.action == 'LOGOUT' %}bg-secondary
+                                                {% elif log.action == 'API_ACCESS' %}bg-warning text-dark
+                                                {% else %}bg-light text-dark{% endif %}">
+                                                {{ log.action }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            {% if log.user %}
+                                                <div class="text-truncate" style="max-width: 100px;" title="{{ log.user.username }}">
+                                                    {{ log.user.username }}
+                                                </div>
+                                                <div class="audit-metadata">{{ log.user.email|truncatechars:20 }}</div>
+                                            {% else %}
+                                                <span class="text-muted">{{ log.username|default:"System" }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if log.content_type %}
+                                                <span class="badge bg-light text-dark">{{ log.content_type.model }}</span>
+                                            {% elif log.table_name %}
+                                                <span class="badge bg-light text-dark">{{ log.table_name }}</span>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if log.object_id %}
+                                                <code class="small">{{ log.object_id|truncatechars:15 }}</code>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if log.field_changes %}
+                                                <div class="audit-changes">
+                                                    {% for field, change in log.field_changes.items %}
+                                                        <div class="change-item">
+                                                            <strong>{{ field }}:</strong><br>
+                                                            {% if change.old %}
+                                                                <span class="change-old">{{ change.old|truncatechars:30 }}</span><br>
+                                                            {% endif %}
+                                                            <span class="change-new">{{ change.new|truncatechars:30 }}</span>
+                                                        </div>
+                                                    {% endfor %}
+                                                </div>
+                                            {% elif log.description %}
+                                                <div class="text-muted small">{{ log.description|truncatechars:50 }}</div>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if log.ip_address %}
+                                                <code class="small">{{ log.ip_address }}</code>
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="small">{{ log.timestamp|date:"M d, H:i" }}</div>
+                                            <div class="audit-metadata">{{ log.timestamp|timesince }} ago</div>
+                                        </td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-outline-info" 
+                                                    onclick="showLogDetails('{{ log.id }}')">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Pagination -->
+                        {% if page_obj.has_other_pages %}
+                            <div class="card-footer">
+                                <nav aria-label="Audit logs pagination">
+                                    <ul class="pagination mb-0 justify-content-center">
+                                        {% if page_obj.has_previous %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page=1{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">First</a>
+                                            </li>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">Previous</a>
+                                            </li>
+                                        {% endif %}
+                                        
+                                        <li class="page-item active">
+                                            <span class="page-link">
+                                                {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                                            </span>
+                                        </li>
+                                        
+                                        {% if page_obj.has_next %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">Next</a>
+                                            </li>
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if request.GET.urlencode %}&{{ request.GET.urlencode }}{% endif %}">Last</a>
+                                            </li>
+                                        {% endif %}
+                                    </ul>
+                                </nav>
+                            </div>
+                        {% endif %}
+
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-list-alt fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No audit logs found</h5>
+                            <p class="text-muted">No logs match your current filter criteria.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Log Details Modal -->
+<div class="modal fade" id="logDetailsModal" tabindex="-1" aria-labelledby="logDetailsModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="logDetailsModalLabel">Audit Log Details</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="logDetailsContent">
+                    <div class="text-center">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Column Selection Modal -->
+<div class="modal fade" id="columnsModal" tabindex="-1" aria-labelledby="columnsModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="columnsModalLabel">Customize Columns</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted">Select which columns to display in the audit log table:</p>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="col-action" checked>
+                    <label class="form-check-label" for="col-action">Action</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="col-user" checked>
+                    <label class="form-check-label" for="col-user">User</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="col-model" checked>
+                    <label class="form-check-label" for="col-model">Model</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="col-object" checked>
+                    <label class="form-check-label" for="col-object">Object ID</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="col-changes" checked>
+                    <label class="form-check-label" for="col-changes">Changes</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="col-ip">
+                    <label class="form-check-label" for="col-ip">IP Address</label>
+                </div>
+                <div class="form-check">
+                    <input class="form-check-input" type="checkbox" id="col-timestamp" checked>
+                    <label class="form-check-label" for="col-timestamp">Timestamp</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" onclick="applyColumnSettings()">Apply</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let autoRefreshInterval = null;
+
+// Auto refresh functionality
+document.getElementById('autoRefresh').addEventListener('change', function() {
+    if (this.checked) {
+        autoRefreshInterval = setInterval(() => {
+            location.reload();
+        }, 30000); // Refresh every 30 seconds
+    } else {
+        if (autoRefreshInterval) {
+            clearInterval(autoRefreshInterval);
+            autoRefreshInterval = null;
+        }
+    }
+});
+
+function showLogDetails(logId) {
+    // In a full implementation, this would make an AJAX call to get detailed log information
+    document.getElementById('logDetailsContent').innerHTML = `
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Basic Information</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>Log ID:</strong></td><td>${logId}</td></tr>
+                    <tr><td><strong>Action:</strong></td><td>UPDATE</td></tr>
+                    <tr><td><strong>User:</strong></td><td>admin</td></tr>
+                    <tr><td><strong>Timestamp:</strong></td><td>2025-01-10 15:30:45</td></tr>
+                </table>
+            </div>
+            <div class="col-md-6">
+                <h6>Request Information</h6>
+                <table class="table table-sm">
+                    <tr><td><strong>IP Address:</strong></td><td>192.168.1.100</td></tr>
+                    <tr><td><strong>User Agent:</strong></td><td>Mozilla/5.0...</td></tr>
+                    <tr><td><strong>Request Path:</strong></td><td>/booking/resource/edit/</td></tr>
+                    <tr><td><strong>Session:</strong></td><td>abc123...</td></tr>
+                </table>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <h6>Field Changes</h6>
+                <div class="audit-changes" style="max-height: 200px;">
+                    <div class="change-item">
+                        <strong>name:</strong><br>
+                        <span class="change-old">Old Lab Equipment</span><br>
+                        <span class="change-new">New Lab Equipment</span>
+                    </div>
+                    <div class="change-item">
+                        <strong>description:</strong><br>
+                        <span class="change-old">Old description</span><br>
+                        <span class="change-new">Updated description with more details</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="row mt-3">
+            <div class="col-12">
+                <h6>Metadata</h6>
+                <pre class="bg-light p-2 rounded small">
+{
+    "request_id": "req_123456",
+    "duration": "0.045s",
+    "sql_queries": 3
+}
+                </pre>
+            </div>
+        </div>
+    `;
+    
+    const modal = new bootstrap.Modal(document.getElementById('logDetailsModal'));
+    modal.show();
+}
+
+function showColumnsModal() {
+    const modal = new bootstrap.Modal(document.getElementById('columnsModal'));
+    modal.show();
+}
+
+function applyColumnSettings() {
+    // In a full implementation, this would hide/show columns based on checkbox states
+    alert('Column customization would be applied here.');
+    
+    const modal = bootstrap.Modal.getInstance(document.getElementById('columnsModal'));
+    modal.hide();
+}
+
+function exportAuditLogs() {
+    // In a full implementation, this would export logs based on current filters
+    const params = new URLSearchParams(window.location.search);
+    params.append('export', 'csv');
+    
+    alert('Audit log export would be initiated here with current filter settings.');
+}
+
+// Cleanup on page unload
+window.addEventListener('beforeunload', function() {
+    if (autoRefreshInterval) {
+        clearInterval(autoRefreshInterval);
+    }
+});
+
+// Initialize tooltips for truncated content
+document.addEventListener('DOMContentLoaded', function() {
+    const truncatedElements = document.querySelectorAll('[title]');
+    truncatedElements.forEach(element => {
+        new bootstrap.Tooltip(element);
+    });
+});
+</script>
+{% endblock %}

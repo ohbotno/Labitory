@@ -10,7 +10,7 @@ Licensed under the MIT License - see LICENSE file for details.
 from django.urls import path, include
 from django.shortcuts import redirect
 from . import views
-from .views.modules import calendar, hierarchy, training, approvals, site_admin, lab_admin, two_factor
+from .views.modules import calendar, hierarchy, training, approvals, site_admin, lab_admin, two_factor, security
 
 app_name = 'booking'
 
@@ -223,6 +223,16 @@ urlpatterns = [
     path('site-admin/updates/ajax/', site_admin.site_admin_updates_ajax_view, name='site_admin_updates_ajax'),
     
     path('site-admin/branding/', site_admin.site_admin_branding_config_view, name='site_admin_branding_config'),
+    
+    # Security Management URLs
+    path('site-admin/security/', security.security_dashboard_view, name='security_dashboard'),
+    path('site-admin/security/api-tokens/', security.api_tokens_management_view, name='api_tokens_management'),
+    path('site-admin/security/api-tokens/revoke/', security.api_token_revoke_view, name='api_token_revoke'),
+    path('site-admin/security/api-tokens/revoke-all/', security.api_token_revoke_all_user_view, name='api_token_revoke_all_user'),
+    path('site-admin/security/events/', security.security_events_view, name='security_events'),
+    path('site-admin/security/audit-enhanced/', security.enhanced_audit_logs_view, name='enhanced_audit_logs'),
+    path('site-admin/security/gdpr/', security.gdpr_management_view, name='gdpr_management'),
+    path('site-admin/security/gdpr/export/<int:user_id>/', security.export_user_data_view, name='export_user_data'),
     
     # AJAX URLs
     path('ajax/checklist-item/create/', views.ajax_create_checklist_item, name='ajax_create_checklist_item'),

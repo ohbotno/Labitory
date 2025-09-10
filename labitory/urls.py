@@ -31,7 +31,7 @@ urlpatterns = [
     path('accounts/login/', CustomLoginView.as_view(authentication_form=CustomAuthenticationForm), name='login'),
     # Include other auth URLs
     path('accounts/', include('django.contrib.auth.urls')),
-    path('api/', include('booking.api_urls')),
+    path('api/v1/', include('booking.api.urls')),
     path('', include('booking.urls')),
 ]
 

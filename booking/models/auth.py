@@ -148,26 +148,110 @@ class TwoFactorSession(models.Model):
             models.Index(fields=['expires_at']),
         ]
     
-    def is_valid(self):
-        """Check if session is still valid."""
-        return timezone.now() < self.expires_at
-    
-    @classmethod
-    def create_session(cls, user, session_key, ip_address=None, user_agent=''):
-        """Create a new 2FA session."""
-        expires_at = timezone.now() + timedelta(hours=12)  # 12-hour validity
-        return cls.objects.create(
-            user=user,
-            session_key=session_key,
-            expires_at=expires_at,
-            ip_address=ip_address,
-            user_agent=user_agent
-        )
-    
-    @classmethod
-    def cleanup_expired(cls):
-        """Remove expired sessions."""
-        cls.objects.filter(expires_at__lt=timezone.now()).delete()
+    def is_expired(self):
+        """Check if session is expired."""
+        return timezone.now() > self.expires_at
     
     def __str__(self):
-        return f"2FA Session for {self.user.username} - Expires: {self.expires_at}"
+        return f"2FA session for {self.user.username}"
+
+
+class APIToken(models.Model):
+    """API tokens for JWT authentication with rotation support."""
+    
+    TOKEN_TYPES = [
+        ('access', 'Access Token'),
+        ('refresh', 'Refresh Token'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='api_tokens')
+    jti = models.CharField(max_length=50, unique=True, db_index=True)  # JWT ID
+    token_type = models.CharField(max_length=10, choices=TOKEN_TYPES)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_revoked = models.BooleanField(default=False)
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    
+    # Metadata for security tracking
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    last_used_at = models.DateTimeField(null=True, blank=True)
+    
+    class Meta:
+        db_table = 'booking_apitoken'
+        indexes = [
+            models.Index(fields=['jti']),
+            models.Index(fields=['user', 'token_type']),
+            models.Index(fields=['expires_at']),
+            models.Index(fields=['is_revoked']),
+        ]
+        verbose_name = 'API Token'
+        verbose_name_plural = 'API Tokens'
+    
+    def is_expired(self):
+        """Check if token is expired."""
+        return timezone.now() > self.expires_at
+    
+    def revoke(self):
+        """Revoke the token."""
+        self.is_revoked = True
+        self.revoked_at = timezone.now()
+        self.save()
+    
+    def is_valid(self):
+        """Check if token is valid (not expired and not revoked)."""
+        return not self.is_expired() and not self.is_revoked
+    
+    def update_usage(self, ip_address=None, user_agent=None):
+        """Update token usage metadata."""
+        self.last_used_at = timezone.now()
+        if ip_address:
+            self.ip_address = ip_address
+        if user_agent:
+            self.user_agent = user_agent
+        self.save()
+    
+    def __str__(self):
+        return f"{self.get_token_type_display()} for {self.user.username} ({'Revoked' if self.is_revoked else 'Active'})"
+
+
+class SecurityEvent(models.Model):
+    """Track security-related events for monitoring."""
+    
+    EVENT_TYPES = [
+        ('login_attempt', 'Login Attempt'),
+        ('failed_login', 'Failed Login'),
+        ('password_change', 'Password Change'),
+        ('2fa_enabled', '2FA Enabled'),
+        ('2fa_disabled', '2FA Disabled'),
+        ('token_created', 'API Token Created'),
+        ('token_revoked', 'API Token Revoked'),
+        ('suspicious_activity', 'Suspicious Activity'),
+        ('account_locked', 'Account Locked'),
+        ('permission_denied', 'Permission Denied'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True, blank=True)
+    event_type = models.CharField(max_length=30, choices=EVENT_TYPES)
+    description = models.TextField()
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    # Additional context data
+    metadata = models.JSONField(default=dict, blank=True)
+    
+    class Meta:
+        db_table = 'booking_securityevent'
+        indexes = [
+            models.Index(fields=['user', 'event_type']),
+            models.Index(fields=['timestamp']),
+            models.Index(fields=['event_type', 'timestamp']),
+            models.Index(fields=['ip_address']),
+        ]
+        verbose_name = 'Security Event'
+        verbose_name_plural = 'Security Events'
+    
+    def __str__(self):
+        user_info = f"{self.user.username}" if self.user else "Anonymous"
+        return f"{self.get_event_type_display()} - {user_info} at {self.timestamp}"
