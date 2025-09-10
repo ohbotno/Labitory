@@ -15,6 +15,7 @@ from ...models import Booking, WaitingListEntry, BookingHistory, UserProfile
 from ...serializers import BookingSerializer, WaitingListEntrySerializer
 from ..modules.api import IsOwnerOrManagerPermission
 from ...utils.security_utils import APIRateLimitMixin
+from ...utils.query_optimization import OptimizedQuerySets, PaginationMixin
 
 
 class BookingViewSet(APIRateLimitMixin, viewsets.ModelViewSet):
@@ -26,7 +27,12 @@ class BookingViewSet(APIRateLimitMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         """Filter bookings based on user role and query parameters."""
         user = self.request.user
-        queryset = Booking.objects.select_related('resource', 'user', 'approved_by')
+        # Use optimized queryset with all necessary prefetches
+        queryset = OptimizedQuerySets.get_booking_queryset(
+            include_attendees=True,
+            include_history=False,
+            include_checkin_events=True
+        )
         
         try:
             user_profile = user.userprofile

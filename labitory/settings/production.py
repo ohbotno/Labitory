@@ -41,8 +41,11 @@ if DB_ENGINE == 'postgresql':
             'PORT': config('DB_PORT', default='5432'),
             'OPTIONS': {
                 'sslmode': config('DB_SSLMODE', default='require'),
+                'connect_timeout': 10,
+                'options': '-c statement_timeout=30000',  # 30 second statement timeout
+                'server_side_binding': True,  # For pgbouncer compatibility
             },
-            'CONN_MAX_AGE': 600,  # Connection pooling
+            'CONN_MAX_AGE': 600,  # Connection pooling - keep connections alive for 10 minutes
         }
     }
 elif DB_ENGINE == 'mysql':
@@ -58,8 +61,11 @@ elif DB_ENGINE == 'mysql':
                 'charset': 'utf8mb4',
                 'init_command': "SET sql_mode='STRICT_TRANS_TABLES'",
                 'sql_mode': 'STRICT_TRANS_TABLES',
+                'connect_timeout': 10,
+                'read_timeout': 30,
+                'write_timeout': 30,
             },
-            'CONN_MAX_AGE': 600,  # Connection pooling
+            'CONN_MAX_AGE': 600,  # Connection pooling - keep connections alive for 10 minutes
         }
     }
 else:
