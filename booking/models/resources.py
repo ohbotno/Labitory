@@ -59,7 +59,13 @@ class Resource(models.Model):
         related_name='closed_resources',
         help_text="User who closed the resource"
     )
-    image = models.ImageField(upload_to='resources/', blank=True, null=True, help_text="Resource image")
+    image = models.ImageField(
+        upload_to='resources/%Y/%m/', 
+        blank=True, 
+        null=True, 
+        validators=[],  # Will be populated with image validators
+        help_text="Resource image - Max 5MB, JPEG/PNG/WEBP formats"
+    )
     
     # Sign-off checklist configuration
     requires_checkout_checklist = models.BooleanField(
@@ -591,10 +597,11 @@ class ResourceIssue(models.Model):
     
     # Image upload for visual evidence
     image = models.ImageField(
-        upload_to='issue_reports/',
+        upload_to='issue_reports/%Y/%m/',
         blank=True,
         null=True,
-        help_text="Photo of the issue (optional)"
+        validators=[],  # Will be populated with image validators
+        help_text="Photo of the issue (optional) - Max 5MB, JPEG/PNG/WEBP formats"
     )
     
     # Location details

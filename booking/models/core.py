@@ -45,10 +45,11 @@ class AboutPage(models.Model):
         help_text="Important safety information for lab users"
     )
     image = models.ImageField(
-        upload_to='about_page/',
+        upload_to='about_page/%Y/%m/',
         blank=True,
         null=True,
-        help_text="Optional image to display alongside the content"
+        validators=[],  # Will be populated with image validators
+        help_text="Optional image to display alongside the content - Max 5MB, JPEG/PNG/WEBP formats"
     )
     is_active = models.BooleanField(
         default=True,

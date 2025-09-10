@@ -286,3 +286,65 @@ AUTH_PASSWORD_VALIDATORS = [
         'NAME': 'booking.utils.password_utils.CommonPasswordValidator',
     },
 ]
+
+# =============================================================================
+# FILE UPLOAD & VALIDATION SETTINGS
+# =============================================================================
+
+# File upload size limits (in bytes)
+MAX_FILE_SIZE = config('MAX_FILE_SIZE', default=10 * 1024 * 1024, cast=int)  # 10MB default
+MAX_IMAGE_SIZE = config('MAX_IMAGE_SIZE', default=5 * 1024 * 1024, cast=int)  # 5MB default  
+MAX_DOCUMENT_SIZE = config('MAX_DOCUMENT_SIZE', default=20 * 1024 * 1024, cast=int)  # 20MB default
+
+# File validation settings
+FILE_VALIDATION_ENABLED = config('FILE_VALIDATION_ENABLED', default=True, cast=bool)
+FILE_VIRUS_SCAN_ENABLED = config('FILE_VIRUS_SCAN_ENABLED', default=True, cast=bool)
+FILE_CONTENT_SCAN_ENABLED = config('FILE_CONTENT_SCAN_ENABLED', default=True, cast=bool)
+FILE_STRIP_EXIF = config('FILE_STRIP_EXIF', default=True, cast=bool)
+
+# Image processing settings
+IMAGE_AUTO_ORIENT = config('IMAGE_AUTO_ORIENT', default=True, cast=bool)
+IMAGE_JPEG_QUALITY = config('IMAGE_JPEG_QUALITY', default=85, cast=int)
+IMAGE_WEBP_QUALITY = config('IMAGE_WEBP_QUALITY', default=80, cast=int)
+IMAGE_MAX_DIMENSIONS = config('IMAGE_MAX_DIMENSIONS', default='2048x2048')  # WIDTHxHEIGHT
+IMAGE_GENERATE_THUMBNAILS = config('IMAGE_GENERATE_THUMBNAILS', default=True, cast=bool)
+
+# Parse image max dimensions
+try:
+    IMAGE_MAX_WIDTH, IMAGE_MAX_HEIGHT = map(int, IMAGE_MAX_DIMENSIONS.split('x'))
+except ValueError:
+    IMAGE_MAX_WIDTH, IMAGE_MAX_HEIGHT = 2048, 2048
+
+# Allowed file types by category
+ALLOWED_IMAGE_TYPES = [
+    'image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml'
+]
+
+ALLOWED_DOCUMENT_TYPES = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/vnd.ms-excel', 
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    'application/vnd.ms-powerpoint',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    'text/plain', 'text/csv', 'application/rtf'
+]
+
+ALLOWED_ARCHIVE_TYPES = [
+    'application/zip', 'application/x-zip-compressed', 'application/x-rar-compressed',
+    'application/x-tar', 'application/gzip'
+]
+
+# All allowed file types combined
+ALLOWED_FILE_TYPES = ALLOWED_IMAGE_TYPES + ALLOWED_DOCUMENT_TYPES + ALLOWED_ARCHIVE_TYPES
+
+# ClamAV virus scanning settings
+CLAMAV_ENABLED = config('CLAMAV_ENABLED', default=False, cast=bool)
+CLAMAV_SOCKET_PATH = config('CLAMAV_SOCKET_PATH', default='/var/run/clamav/clamd.ctl')
+CLAMAV_TCP_HOST = config('CLAMAV_TCP_HOST', default='localhost')
+CLAMAV_TCP_PORT = config('CLAMAV_TCP_PORT', default=3310, cast=int)
+
+# File storage organization
+FILE_UPLOAD_TEMP_DIR = config('FILE_UPLOAD_TEMP_DIR', default=None)
+FILE_UPLOAD_PERMISSIONS = 0o644

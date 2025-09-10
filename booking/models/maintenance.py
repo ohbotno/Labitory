@@ -267,7 +267,11 @@ class MaintenanceDocument(models.Model):
         ('other', 'Other'),
     ], default='other')
     
-    file = models.FileField(upload_to='maintenance_docs/%Y/%m/')
+    file = models.FileField(
+        upload_to='maintenance_docs/%Y/%m/',
+        validators=[],  # Will be populated with file validators
+        help_text="Maintenance documentation - Max 10MB, PDF/DOC/XLS formats"
+    )
     file_size = models.PositiveIntegerField(null=True, blank=True, help_text="File size in bytes")
     uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE)
     uploaded_at = models.DateTimeField(auto_now_add=True)

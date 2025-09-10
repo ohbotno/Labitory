@@ -116,10 +116,11 @@ class UserRiskAssessment(models.Model):
     
     # File upload
     assessment_file = models.FileField(
-        upload_to='risk_assessments/',
+        upload_to='risk_assessments/%Y/%m/',
         blank=True,
         null=True,
-        help_text="Supporting documents (Excel, PDF, Word, etc.)"
+        validators=[],  # Will be populated with file validators
+        help_text="Supporting documents (Excel, PDF, Word, etc.) - Max 20MB"
     )
     
     # Review information

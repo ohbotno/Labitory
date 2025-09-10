@@ -26,6 +26,15 @@ class BookingConfig(AppConfig):
         except ImportError:
             pass
         
+        # Configure file field validators
+        try:
+            from .utils.model_validators import configure_model_validators
+            configure_model_validators()
+        except ImportError as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.warning(f"Could not configure file validators: {e}")
+        
         # Check if scheduler should be started
         from django.conf import settings
         scheduler_autostart = getattr(settings, 'SCHEDULER_AUTOSTART', True)

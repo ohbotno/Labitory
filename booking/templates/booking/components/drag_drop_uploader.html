@@ -280,6 +280,10 @@ class DragDropUploader {
             maxSize: options.maxSize || 5 * 1024 * 1024, // 5MB default
             showPreview: options.showPreview !== false,
             validateOnSelect: options.validateOnSelect !== false,
+            enableVirusScan: options.enableVirusScan !== false,
+            enableContentScan: options.enableContentScan !== false,
+            enableServerValidation: options.enableServerValidation !== false,
+            validationEndpoint: options.validationEndpoint || '/api/validate-file/',
             ...options
         };
         
@@ -400,6 +404,26 @@ class DragDropUploader {
         dt.items.add(file);
         this.fileInput.files = dt.files;
         
+        // Perform server-side validation if enabled
+        if (this.options.enableServerValidation) {
+            this.validateFileOnServer(file).then(result => {
+                if (result.valid) {
+                    this.completeFileProcessing(file);
+                } else {
+                    this.showError(result.error || 'Server validation failed');
+                    this.removeFile();
+                }
+            }).catch(error => {
+                console.error('Server validation error:', error);
+                // Still allow the file if server validation fails
+                this.completeFileProcessing(file);
+            });
+        } else {
+            this.completeFileProcessing(file);
+        }
+    }
+    
+    completeFileProcessing(file) {
         // Show preview if enabled
         if (this.options.showPreview) {
             this.showPreview(file);
@@ -412,7 +436,51 @@ class DragDropUploader {
         this.fileInput.dispatchEvent(new Event('change', { bubbles: true }));
     }
     
+    async validateFileOnServer(file) {
+        if (!this.options.validationEndpoint) {
+            return { valid: true };
+        }
+        
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('field_type', this.options.fieldType || 'file');
+            
+            // Get CSRF token
+            const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value ||
+                             document.querySelector('meta[name=csrf-token]')?.getAttribute('content');
+            
+            const response = await fetch(this.options.validationEndpoint, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': csrfToken,
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const result = await response.json();
+            return result;
+            
+        } catch (error) {
+            console.error('Server validation request failed:', error);
+            return { valid: false, error: 'Could not validate file on server' };
+        }
+    }
+    
     validateFile(file) {
+        // Check file name security
+        if (!this.isSecureFilename(file.name)) {
+            return {
+                valid: false,
+                error: `Invalid filename. Please use only letters, numbers, and basic punctuation.`
+            };
+        }
+        
         // Check file type
         const isValidType = this.options.allowedTypes.some(type => {
             if (type.endsWith('/*')) {
@@ -429,11 +497,70 @@ class DragDropUploader {
         }
         
         // Check file size
+        if (file.size === 0) {
+            return {
+                valid: false,
+                error: `File is empty. Please select a valid file.`
+            };
+        }
+        
         if (file.size > this.options.maxSize) {
             return {
                 valid: false,
                 error: `File size exceeds ${this.formatFileSize(this.options.maxSize)}. Please select a smaller file.`
             };
+        }
+        
+        // Basic content validation for known dangerous patterns
+        if (this.options.enableContentScan) {
+            const contentValidation = this.validateFileContent(file);
+            if (!contentValidation.valid) {
+                return contentValidation;
+            }
+        }
+        
+        return { valid: true };
+    }
+    
+    isSecureFilename(filename) {
+        // Check for path traversal
+        if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+            return false;
+        }
+        
+        // Check for dangerous characters
+        const dangerousChars = /[<>:"|?*\x00-\x1f]/;
+        if (dangerousChars.test(filename)) {
+            return false;
+        }
+        
+        // Check length
+        if (filename.length > 255) {
+            return false;
+        }
+        
+        return true;
+    }
+    
+    validateFileContent(file) {
+        // This is a basic client-side content check
+        // Real validation should happen server-side
+        
+        const filename = file.name.toLowerCase();
+        
+        // Check for potentially dangerous extensions
+        const dangerousExtensions = [
+            '.exe', '.bat', '.cmd', '.scr', '.com', '.pif', '.vbs', '.js', '.jar',
+            '.app', '.deb', '.pkg', '.dmg', '.run', '.msi', '.dll', '.so'
+        ];
+        
+        for (const ext of dangerousExtensions) {
+            if (filename.endsWith(ext)) {
+                return {
+                    valid: false,
+                    error: `File type ${ext} is not allowed for security reasons.`
+                };
+            }
         }
         
         return { valid: true };
