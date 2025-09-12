@@ -15,7 +15,7 @@
     <meta name="msapplication-TileColor" content="#ffffff">
     <meta name="theme-color" content="#ffffff">
     
-    <!-- Prevent theme flicker - this runs before anything else loads -->
+    <!-- Prevent theme flicker - Edge-compatible version -->
     <script>
         (function() {
             // Get theme from localStorage or use server-provided default
@@ -28,8 +28,37 @@
                 theme = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
             }
             
-            // Apply theme immediately
-            document.documentElement.setAttribute('data-theme', theme);
+            // Apply theme immediately with Edge-specific handling
+            var html = document.documentElement;
+            html.setAttribute('data-theme', theme);
+            
+            // Detect Edge and add class for targeted CSS
+            var isEdge = /Edge|Edg/.test(navigator.userAgent);
+            if (isEdge) {
+                html.className += ' ms-browser';
+            }
+            
+            // Edge-specific: Force immediate style recalculation
+            if (theme === 'dark') {
+                html.style.backgroundColor = '#1a1a1a';
+                document.body && (document.body.style.backgroundColor = '#1a1a1a');
+                document.body && (document.body.style.color = '#e9ecef');
+            } else {
+                html.style.backgroundColor = '#ffffff';
+                document.body && (document.body.style.backgroundColor = '#ffffff');
+                document.body && (document.body.style.color = '#212529');
+            }
+            
+            // Remove inline styles once CSS loads (cleanup)
+            document.addEventListener('DOMContentLoaded', function() {
+                setTimeout(function() {
+                    html.style.backgroundColor = '';
+                    if (document.body) {
+                        document.body.style.backgroundColor = '';
+                        document.body.style.color = '';
+                    }
+                }, 100);
+            });
         })();
     </script>
     
@@ -47,25 +76,44 @@
     <link href="{% static 'css/dark-mode.css' %}" rel="stylesheet">
     
     <style>
-        /* Critical dark theme styles to prevent flash */
+        /* Critical dark theme styles to prevent flash - Edge compatible */
         html {
-            background-color: var(--color-bg-primary);
-            transition: background-color 0s;
+            background-color: #ffffff !important;
+            transition: background-color 0s !important;
         }
         
         html[data-theme="dark"] {
-            background-color: var(--color-bg-primary) !important;
+            background-color: #1a1a1a !important;
         }
         
         body {
-            background-color: var(--color-bg-primary);
-            color: var(--color-text-primary);
-            transition: none;
+            background-color: #ffffff !important;
+            color: #212529 !important;
+            transition: none !important;
         }
         
         html[data-theme="dark"] body {
-            background-color: var(--color-bg-primary) !important;
-            color: var(--color-text-primary) !important;
+            background-color: #1a1a1a !important;
+            color: #e9ecef !important;
+        }
+        
+        /* Edge-specific: Additional high-priority selectors */
+        html.ms-browser {
+            background-color: #ffffff !important;
+        }
+        
+        html.ms-browser[data-theme="dark"] {
+            background-color: #1a1a1a !important;
+        }
+        
+        html.ms-browser body {
+            background-color: #ffffff !important;
+            color: #212529 !important;
+        }
+        
+        html.ms-browser[data-theme="dark"] body {
+            background-color: #1a1a1a !important;
+            color: #e9ecef !important;
         }
         
         /* Critical navbar styles for dark theme */
@@ -1577,7 +1625,7 @@
         }
         
         [data-theme="dark"] .theme-toggle {
-            color: var(--color-text-primary);
+            color: #e9ecef;
         }
         
         [data-theme="dark"] .theme-toggle:hover {
@@ -1631,7 +1679,7 @@
         }
         
         .loading-spinner {
-            background: var(--color-bg-primary);
+            background: #ffffff;
             border-radius: 8px;
             padding: 2rem;
             text-align: center;
@@ -1639,8 +1687,8 @@
         }
         
         [data-theme="dark"] .loading-spinner {
-            background: var(--color-bg-secondary);
-            color: var(--color-text-primary);
+            background: #2d3748;
+            color: #e9ecef;
         }
     </style>
     
