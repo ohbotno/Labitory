@@ -364,6 +364,46 @@
     background-color: #6b7280 !important;
 }
 
+/* Site Admin Forms - Enhanced Dark Mode Support */
+[data-theme="dark"] .alert-light {
+    background-color: #374151 !important;
+    border-color: #4a5568 !important;
+    color: #e5e7eb !important;
+}
+
+[data-theme="dark"] .alert-light .alert-heading {
+    color: #f9fafb !important;
+}
+
+[data-theme="dark"] .form-text {
+    color: #a0aec0 !important;
+}
+
+[data-theme="dark"] .form-check-label {
+    color: #e5e7eb !important;
+}
+
+/* Enhanced form required asterisk visibility */
+[data-theme="dark"] .text-danger {
+    color: #f87171 !important;
+}
+
+/* Site admin page headers and icons */
+[data-theme="dark"] .h2 {
+    color: #f9fafb !important;
+}
+
+[data-theme="dark"] .fas {
+    color: inherit !important;
+}
+
+/* Improved contrast for placeholder text */
+[data-theme="dark"] .form-control::placeholder,
+[data-theme="dark"] .form-select option {
+    color: #9ca3af !important;
+    opacity: 1 !important;
+}
+
 /* Background Utilities */
 [data-theme="dark"] .bg-light {
     background-color: #2d3748 !important;
