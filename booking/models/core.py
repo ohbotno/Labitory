@@ -206,6 +206,12 @@ class UserProfile(models.Model):
     
     # Contact and system fields
     phone = models.CharField(max_length=20, blank=True)
+    avatar = models.ImageField(
+        upload_to='avatars/%Y/%m/',
+        blank=True,
+        null=True,
+        help_text="Profile picture - Max 2MB, JPEG/PNG formats"
+    )
     training_level = models.PositiveIntegerField(default=1)
     is_inducted = models.BooleanField(default=False)
     email_verified = models.BooleanField(default=False)

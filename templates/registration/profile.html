@@ -20,7 +20,7 @@
                     {% endfor %}
                 {% endif %}
 
-                <form method="post">
+                <form method="post" enctype="multipart/form-data">
                     {% csrf_token %}
                     
                     {% if form.errors %}
@@ -37,17 +37,70 @@
 
                     <h5 class="mb-3">Personal Information</h5>
                     
+                    <!-- Avatar Section -->
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h6 class="card-title">Profile Picture</h6>
+                                    
+                                    <!-- Current Avatar Display -->
+                                    <div class="mb-3">
+                                        {% if profile.avatar %}
+                                            <img src="{{ profile.avatar.url }}" alt="Current Avatar" 
+                                                 class="rounded-circle img-thumbnail" 
+                                                 style="width: 120px; height: 120px; object-fit: cover;">
+                                        {% else %}
+                                            <div class="rounded-circle bg-secondary d-inline-flex align-items-center justify-content-center" 
+                                                 style="width: 120px; height: 120px;">
+                                                <i class="bi bi-person-fill text-white" style="font-size: 3rem;"></i>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                    
+                                    <!-- Avatar Upload Field -->
+                                    <div class="mb-3">
+                                        <label for="{{ form.avatar.id_for_label }}" class="form-label">Upload New Picture</label>
+                                        {{ form.avatar }}
+                                        {% if form.avatar.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {% for error in form.avatar.errors %}
+                                                    {{ error }}
+                                                {% endfor %}
+                                            </div>
+                                        {% endif %}
+                                        <div class="form-text">Max 2MB, JPEG/PNG formats recommended</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="{{ form.first_name.id_for_label }}" class="form-label">First Name *</label>
                                 {{ form.first_name }}
+                                {% if form.first_name.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.first_name.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
                                 <label for="{{ form.last_name.id_for_label }}" class="form-label">Last Name *</label>
                                 {{ form.last_name }}
+                                {% if form.last_name.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.last_name.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -78,21 +131,155 @@
                     <div class="row">
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="{{ form.college.id_for_label }}" class="form-label">College/Department</label>
-                                {{ form.college }}
+                                <label for="{{ form.faculty.id_for_label }}" class="form-label">Faculty</label>
+                                {{ form.faculty }}
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="mb-3">
-                                <label for="{{ form.student_id.id_for_label }}" class="form-label">Student ID</label>
-                                {{ form.student_id }}
+                                <label for="{{ form.college.id_for_label }}" class="form-label">College</label>
+                                {{ form.college }}
                             </div>
                         </div>
                     </div>
 
-                    <div class="mb-3">
-                        <label for="{{ form.phone.id_for_label }}" class="form-label">Phone Number</label>
-                        {{ form.phone }}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.department.id_for_label }}" class="form-label">Department</label>
+                                {{ form.department }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <!-- Role-specific fields -->
+                            <div class="mb-3" id="student_id_field" style="display: none;">
+                                <label for="{{ form.student_id.id_for_label }}" class="form-label">Student ID *</label>
+                                {{ form.student_id }}
+                                {% if form.student_id.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.student_id.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            <div class="mb-3" id="staff_number_field" style="display: none;">
+                                <label for="{{ form.staff_number.id_for_label }}" class="form-label">Staff Number *</label>
+                                {{ form.staff_number }}
+                                {% if form.staff_number.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.staff_number.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row" id="student_level_row" style="display: none;">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.student_level.id_for_label }}" class="form-label">Student Level *</label>
+                                {{ form.student_level }}
+                                {% if form.student_level.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {% for error in form.student_level.errors %}
+                                            {{ error }}
+                                        {% endfor %}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6"></div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.phone.id_for_label }}" class="form-label">Phone Number</label>
+                                {{ form.phone }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="{{ form.theme_preference.id_for_label }}" class="form-label">Theme Preference</label>
+                                {{ form.theme_preference }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h5 class="mb-3">Localization Preferences</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="{{ form.timezone.id_for_label }}" class="form-label">Timezone</label>
+                                {{ form.timezone }}
+                                <div class="form-text">Your preferred timezone for displaying dates and times</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="{{ form.date_format.id_for_label }}" class="form-label">Date Format</label>
+                                {{ form.date_format }}
+                                <div class="form-text">How dates should be displayed</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="{{ form.time_format.id_for_label }}" class="form-label">Time Format</label>
+                                {{ form.time_format }}
+                                <div class="form-text">12-hour or 24-hour time format</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h5 class="mb-3">Account Information</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Email Verification</label>
+                                <div class="form-control-plaintext">
+                                    {% if profile.email_verified %}
+                                        <span class="badge bg-success"><i class="bi bi-check-circle"></i> Verified</span>
+                                    {% else %}
+                                        <span class="badge bg-warning"><i class="bi bi-exclamation-circle"></i> Unverified</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">First Login</label>
+                                <div class="form-control-plaintext">
+                                    {% if profile.first_login %}
+                                        {{ profile.first_login|date:"M d, Y H:i" }}
+                                    {% else %}
+                                        <span class="text-muted">Not recorded</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Account Created</label>
+                                <div class="form-control-plaintext">
+                                    {{ profile.created_at|date:"M d, Y" }}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Last Updated</label>
+                                <div class="form-control-plaintext">
+                                    {{ profile.updated_at|date:"M d, Y H:i" }}
+                                </div>
+                            </div>
+                        </div>
                     </div>
 
                     <hr>
@@ -124,6 +311,73 @@
                                 <label class="form-label">Member Since</label>
                                 <div class="form-control-plaintext">
                                     {{ profile.created_at|date:"M d, Y" }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h5 class="mb-3">Security Status</h5>
+                    
+                    <div class="row">
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Account Status</label>
+                                <div class="form-control-plaintext">
+                                    {% if profile.account_locked %}
+                                        <span class="badge bg-danger"><i class="bi bi-lock"></i> Locked</span>
+                                        {% if profile.lock_reason %}
+                                            <br><small class="text-muted">{{ profile.lock_reason }}</small>
+                                        {% endif %}
+                                        {% if profile.locked_until %}
+                                            <br><small class="text-muted">Until: {{ profile.locked_until|date:"M d, Y H:i" }}</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-success"><i class="bi bi-unlock"></i> Active</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Password Changed</label>
+                                <div class="form-control-plaintext">
+                                    {% if profile.password_changed_at %}
+                                        {{ profile.password_changed_at|date:"M d, Y" }}
+                                    {% else %}
+                                        <span class="text-muted">Not recorded</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Failed Login Attempts</label>
+                                <div class="form-control-plaintext">
+                                    {% if profile.failed_login_attempts > 0 %}
+                                        <span class="badge bg-warning">{{ profile.failed_login_attempts }}</span>
+                                        {% if profile.last_failed_login %}
+                                            <br><small class="text-muted">Last: {{ profile.last_failed_login|date:"M d, Y H:i" }}</small>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-success">0</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="mb-3">
+                                <label class="form-label">Login Security</label>
+                                <div class="form-control-plaintext">
+                                    {% if profile.user.twofactorauthentication %}
+                                        {% if profile.user.twofactorauthentication.is_enabled %}
+                                            <span class="badge bg-success"><i class="bi bi-shield-check"></i> 2FA Enabled</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary"><i class="bi bi-shield"></i> 2FA Disabled</span>
+                                        {% endif %}
+                                    {% else %}
+                                        <span class="badge bg-secondary"><i class="bi bi-shield"></i> 2FA Disabled</span>
+                                    {% endif %}
                                 </div>
                             </div>
                         </div>
@@ -170,4 +424,56 @@
         </div>
     </div>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const roleField = document.getElementById('{{ form.role.id_for_label }}');
+    const studentIdField = document.getElementById('student_id_field');
+    const staffNumberField = document.getElementById('staff_number_field');
+    const studentLevelRow = document.getElementById('student_level_row');
+    
+    function toggleRoleFields() {
+        const selectedRole = roleField.value;
+        
+        if (selectedRole === 'student') {
+            // Show student fields
+            studentIdField.style.display = 'block';
+            studentLevelRow.style.display = 'block';
+            staffNumberField.style.display = 'none';
+            
+            // Make student fields required
+            const studentIdInput = document.querySelector('#{{ form.student_id.id_for_label }}');
+            const studentLevelInput = document.querySelector('#{{ form.student_level.id_for_label }}');
+            const staffNumberInput = document.querySelector('#{{ form.staff_number.id_for_label }}');
+            
+            if (studentIdInput) studentIdInput.required = true;
+            if (studentLevelInput) studentLevelInput.required = true;
+            if (staffNumberInput) staffNumberInput.required = false;
+            
+        } else {
+            // Show staff fields
+            staffNumberField.style.display = 'block';
+            studentIdField.style.display = 'none';
+            studentLevelRow.style.display = 'none';
+            
+            // Make staff fields required
+            const studentIdInput = document.querySelector('#{{ form.student_id.id_for_label }}');
+            const studentLevelInput = document.querySelector('#{{ form.student_level.id_for_label }}');
+            const staffNumberInput = document.querySelector('#{{ form.staff_number.id_for_label }}');
+            
+            if (staffNumberInput) staffNumberInput.required = true;
+            if (studentIdInput) studentIdInput.required = false;
+            if (studentLevelInput) studentLevelInput.required = false;
+        }
+    }
+    
+    // Set initial state based on current role
+    if (roleField) {
+        toggleRoleFields();
+        // Add event listener for role changes
+        roleField.addEventListener('change', toggleRoleFields);
+    }
+});
+</script>
+
 {% endblock %}

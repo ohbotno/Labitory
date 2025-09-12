@@ -231,13 +231,17 @@ class UserRegistrationForm(EnhancedUserCreationForm):
 
 class UserProfileForm(forms.ModelForm):
     """Form for editing user profile."""
+    # Add User model fields to the profile form
+    first_name = forms.CharField(max_length=30, required=False, label="First Name")
+    last_name = forms.CharField(max_length=30, required=False, label="Last Name")
+    email = forms.EmailField(required=False, label="Email Address")
     
     class Meta:
         model = UserProfile
         fields = [
             'role', 'faculty', 'college', 'department', 'group',
             'student_id', 'student_level', 'staff_number', 'phone',
-            'theme_preference'
+            'avatar', 'theme_preference', 'timezone', 'date_format', 'time_format'
         ]
         widgets = {
             'theme_preference': forms.Select(choices=[
@@ -245,17 +249,45 @@ class UserProfileForm(forms.ModelForm):
                 ('dark', 'Dark'),
                 ('system', 'System'),
             ]),
+            'timezone': forms.Select(),
+            'date_format': forms.Select(choices=[
+                ('DD/MM/YYYY', 'DD/MM/YYYY (European)'),
+                ('MM/DD/YYYY', 'MM/DD/YYYY (US)'),
+                ('YYYY-MM-DD', 'YYYY-MM-DD (ISO)'),
+                ('DD-MM-YYYY', 'DD-MM-YYYY'),
+                ('DD.MM.YYYY', 'DD.MM.YYYY (German)'),
+            ]),
+            'time_format': forms.Select(choices=[
+                ('24h', '24-hour (13:30)'),
+                ('12h', '12-hour (1:30 PM)'),
+            ]),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
+        # Make all fields non-required so we can handle validation in clean methods
+        for field in self.fields.values():
+            field.required = False
+        
+        # Populate User model fields if instance exists
+        if self.instance and self.instance.pk and hasattr(self.instance, 'user') and self.instance.user:
+            self.fields['first_name'].initial = self.instance.user.first_name
+            self.fields['last_name'].initial = self.instance.user.last_name
+            self.fields['email'].initial = self.instance.user.email
+        
+        # Set timezone choices
+        self.fields['timezone'].widget.choices = UserProfile.get_available_timezones()
+        
         # Add CSS classes
         for field_name, field in self.fields.items():
             field.widget.attrs.update({'class': 'form-control'})
         
+        # All validation is now handled in clean methods, so no need to set required here
+        # JavaScript will handle show/hide of fields dynamically
+        
         # Set up dynamic choices for college and department
-        if self.instance and self.instance.faculty:
+        if self.instance and self.instance.pk and self.instance.faculty:
             self.fields['college'].queryset = College.objects.filter(
                 faculty=self.instance.faculty, is_active=True
             ).order_by('name')
@@ -264,6 +296,82 @@ class UserProfileForm(forms.ModelForm):
                 self.fields['department'].queryset = Department.objects.filter(
                     college=self.instance.college, is_active=True
                 ).order_by('name')
+    
+    def clean_first_name(self):
+        first_name = self.cleaned_data.get('first_name', '').strip()
+        if not first_name:
+            raise forms.ValidationError('First Name is required.')
+        return first_name
+
+    def clean_last_name(self):
+        last_name = self.cleaned_data.get('last_name', '').strip()
+        if not last_name:
+            raise forms.ValidationError('Last Name is required.')
+        return last_name
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email', '').strip()
+        if not email:
+            raise forms.ValidationError('Email Address is required.')
+        return email
+
+    def clean_role(self):
+        role = self.cleaned_data.get('role')
+        if not role:
+            raise forms.ValidationError('Role is required.')
+        return role
+
+    def clean(self):
+        cleaned_data = super().clean()
+        
+        # Role-specific validation with specific error messages
+        role = cleaned_data.get('role')
+        student_id = cleaned_data.get('student_id', '').strip() if cleaned_data.get('student_id') else ''
+        student_level = cleaned_data.get('student_level')
+        staff_number = cleaned_data.get('staff_number', '').strip() if cleaned_data.get('staff_number') else ''
+        
+        if role == 'student':
+            if not student_id:
+                self.add_error('student_id', 'Student ID is required for students.')
+            if not student_level:
+                self.add_error('student_level', 'Student Level is required for students.')
+        elif role in ['researcher', 'academic', 'technician', 'sysadmin']:
+            if not staff_number:
+                role_display = dict(UserProfile.ROLE_CHOICES).get(role, role)
+                self.add_error('staff_number', f'Staff Number is required for {role_display} role.')
+
+        # Validate academic hierarchy with specific messages
+        faculty = cleaned_data.get('faculty')
+        college = cleaned_data.get('college')
+        department = cleaned_data.get('department')
+        
+        if department and not college:
+            self.add_error('college', 'College must be selected when Department is specified.')
+        if college and not faculty:
+            self.add_error('faculty', 'Faculty must be selected when College is specified.')
+        if department and college and department.college != college:
+            self.add_error('department', 'Selected Department does not belong to the selected College.')
+        if college and faculty and college.faculty != faculty:
+            self.add_error('college', 'Selected College does not belong to the selected Faculty.')
+
+        return cleaned_data
+    
+    def save(self, commit=True):
+        # Save the UserProfile instance
+        profile = super().save(commit=False)
+        
+        # Update the related User instance
+        if profile.user:
+            profile.user.first_name = self.cleaned_data['first_name']
+            profile.user.last_name = self.cleaned_data['last_name']
+            profile.user.email = self.cleaned_data['email']
+            if commit:
+                profile.user.save()
+        
+        if commit:
+            profile.save()
+        
+        return profile
 
 
 class CustomPasswordResetForm(PasswordResetForm):

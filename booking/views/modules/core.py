@@ -85,7 +85,7 @@ def profile_view(request):
         profile = UserProfile.objects.create(user=request.user)
     
     if request.method == 'POST':
-        form = UserProfileForm(request.POST, instance=profile)
+        form = UserProfileForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
             form.save()
             messages.success(request, 'Profile updated successfully.')
