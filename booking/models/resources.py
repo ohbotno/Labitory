@@ -18,6 +18,9 @@ from django.contrib.auth.models import User
 from django.utils import timezone
 from decimal import Decimal
 
+# Import UserTraining to avoid circular import issues
+from django.apps import apps
+
 
 class Resource(models.Model):
     """Bookable resources (robots, instruments, rooms, etc.)."""
@@ -203,6 +206,12 @@ class Resource(models.Model):
         training_completed = []
         training_pending = []
         training_records = []  # Store actual UserTraining record info
+        
+        # Get models to avoid circular imports
+        UserTraining = apps.get_model('booking', 'UserTraining')
+        RiskAssessment = apps.get_model('booking', 'RiskAssessment')
+        UserRiskAssessment = apps.get_model('booking', 'UserRiskAssessment')
+        AccessRequest = apps.get_model('booking', 'AccessRequest')
         
         for req in required_training:
             user_training = UserTraining.objects.filter(

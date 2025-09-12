@@ -40,18 +40,26 @@ def notifications_list(request):
     """Display user's notifications."""
     
     # Get user's notifications, ordered by most recent first
-    notifications = Notification.objects.filter(user=request.user).order_by('-created_at')[:50]
+    # Only show in-app notifications to avoid duplicates from multiple delivery methods
+    notifications = Notification.objects.filter(
+        user=request.user, 
+        delivery_method='in_app'
+    ).order_by('-created_at')[:50]
     
     # Count unread notifications (not marked as read)
+    # Only count in-app notifications to avoid duplicates
     unread_count = Notification.objects.filter(
         user=request.user, 
+        delivery_method='in_app',
         read_at__isnull=True
     ).count()
     
     # Mark notifications as read when viewing the list
+    # Only mark in-app notifications as read
     if request.method == 'GET':
         Notification.objects.filter(
             user=request.user,
+            delivery_method='in_app',
             read_at__isnull=True
         ).update(read_at=timezone.now(), status='read')
     
@@ -287,7 +295,11 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     
     def get_queryset(self):
         """Return notifications for the current user."""
-        return Notification.objects.filter(user=self.request.user).order_by('-created_at')
+        # Only return in-app notifications to avoid duplicates from multiple delivery methods
+        return Notification.objects.filter(
+            user=self.request.user, 
+            delivery_method='in_app'
+        ).order_by('-created_at')
     
     @action(detail=True, methods=['post'])
     def mark_read(self, request, pk=None):
@@ -301,11 +313,13 @@ class NotificationViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=False, methods=['post'])
     def mark_all_read(self, request):
         """Mark all notifications as read."""
-        Notification.objects.filter(
+        # Only mark in-app notifications as read
+        marked_read = Notification.objects.filter(
             user=request.user,
+            delivery_method='in_app',
             read_at__isnull=True
         ).update(read_at=timezone.now(), status='read')
-        return Response({'status': 'success'})
+        return Response({'status': 'success', 'marked_read': marked_read})
 
 
 # API Views for Waiting List

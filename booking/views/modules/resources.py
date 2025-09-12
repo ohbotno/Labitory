@@ -18,6 +18,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib import messages
 from django.core.paginator import Paginator
+from django.core.exceptions import ValidationError
 from django.db.models import Q, Count
 from django.http import JsonResponse
 from django.template.loader import render_to_string
@@ -91,6 +92,14 @@ def resource_detail_view(request, resource_id):
         status='pending'
     ).exists()
     
+    # Check for recent rejected requests
+    recent_rejected_request = AccessRequest.objects.filter(
+        resource=resource,
+        user=request.user,
+        status='rejected',
+        reviewed_at__gte=timezone.now() - timedelta(days=30)  # Show rejections from last 30 days
+    ).order_by('-reviewed_at').first()
+    
     # Check if user has pending training request
     has_pending_training = TrainingRequest.objects.filter(
         resource=resource,
@@ -162,6 +171,7 @@ def resource_detail_view(request, resource_id):
             'user_risk_assessments': user_risk_assessments,
             'risk_assessment_status': risk_assessment_status,
             'needs_risk_assessments': needs_risk_assessments,
+            'recent_rejected_request': recent_rejected_request,
             'show_calendar': True,
         })
     
@@ -177,6 +187,7 @@ def resource_detail_view(request, resource_id):
         'user_risk_assessments': user_risk_assessments,
         'risk_assessment_status': risk_assessment_status,
         'needs_risk_assessments': needs_risk_assessments,
+        'recent_rejected_request': recent_rejected_request,
         'show_calendar': False,
     })
 
@@ -299,15 +310,19 @@ def request_resource_access_view(request, resource_id):
             return redirect('booking:resource_detail', resource_id=resource.id)
         
         # User has sufficient training, proceed with access request
-        access_request = AccessRequest.objects.create(
-            resource=resource,
-            user=request.user,
-            access_type=access_type,
-            justification=justification,
-            requested_duration_days=int(requested_duration_days) if requested_duration_days else None,
-            supervisor_name=supervisor_name if user_profile.role == 'student' else '',
-            supervisor_email=supervisor_email if user_profile.role == 'student' else ''
-        )
+        try:
+            access_request = AccessRequest.objects.create_request(
+                resource=resource,
+                user=request.user,
+                access_type=access_type,
+                justification=justification,
+                requested_duration_days=int(requested_duration_days) if requested_duration_days else None,
+                supervisor_name=supervisor_name if user_profile.role == 'student' else '',
+                supervisor_email=supervisor_email if user_profile.role == 'student' else ''
+            )
+        except ValidationError as e:
+            messages.error(request, str(e), extra_tags='persistent-alert')
+            return redirect('booking:resource_detail', resource_id=resource.id)
         
         messages.success(request, f'Access request for {resource.name} has been submitted successfully.', extra_tags='persistent-alert')
         

@@ -20,6 +20,35 @@ from django.utils import timezone
 from datetime import timedelta
 
 
+class AccessRequestManager(models.Manager):
+    """Custom manager for AccessRequest with improved constraint handling."""
+    
+    def create_request(self, user, resource, **kwargs):
+        """Create a new access request, handling existing rejected requests."""
+        # Check if user has existing pending request for this resource
+        existing_pending = self.filter(
+            user=user,
+            resource=resource,
+            status='pending'
+        ).first()
+        
+        if existing_pending:
+            raise ValidationError(
+                f"You already have a pending access request for {resource.name}. "
+                "Please wait for the current request to be processed."
+            )
+        
+        # Archive any existing rejected requests (change status to archived)
+        self.filter(
+            user=user,
+            resource=resource,
+            status='rejected'
+        ).update(status='archived')
+        
+        # Create the new request
+        return self.create(user=user, resource=resource, **kwargs)
+
+
 class ApprovalRule(models.Model):
     """Rules for booking approval workflows with advanced conditional logic."""
     APPROVAL_TYPES = [
@@ -408,6 +437,7 @@ class AccessRequest(models.Model):
         ('approved', 'Approved'),
         ('rejected', 'Rejected'),
         ('cancelled', 'Cancelled'),
+        ('archived', 'Archived'),
     ]
     
     resource = models.ForeignKey('Resource', on_delete=models.CASCADE, related_name='access_requests')
@@ -446,15 +476,23 @@ class AccessRequest(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     
+    objects = AccessRequestManager()
+    
     class Meta:
         db_table = 'booking_accessrequest'
         ordering = ['-created_at']
-        unique_together = ['resource', 'user', 'status']  # Prevent duplicate pending requests
+        constraints = [
+            models.UniqueConstraint(
+                fields=['resource', 'user'],
+                condition=models.Q(status='pending'),
+                name='unique_pending_access_request'
+            )
+        ]
     
     def __str__(self):
         return f"{self.user.username} requesting {self.get_access_type_display()} access to {self.resource.name}"
     
-    def approve(self, reviewed_by, review_notes="", expires_in_days=None):
+    def approve(self, reviewed_by, review_notes="", expires_in_days=None, send_notification=True):
         """Approve the access request and create ResourceAccess."""
         if self.status != 'pending':
             raise ValueError("Can only approve pending requests")
@@ -489,14 +527,15 @@ class AccessRequest(models.Model):
         self.review_notes = review_notes
         self.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'review_notes', 'updated_at'])
         
-        # Send notification
-        try:
-            from .notifications import access_request_notifications
-            access_request_notifications.access_request_approved(self, reviewed_by)
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Failed to send access request approval notification: {e}")
+        # Send notification (only if requested)
+        if send_notification:
+            try:
+                from .notifications import access_request_notifications
+                access_request_notifications.access_request_approved(self, reviewed_by)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send access request approval notification: {e}")
     
     def confirm_safety_induction(self, confirmed_by, notes=""):
         """Confirm that user has completed safety induction."""
@@ -593,7 +632,7 @@ class AccessRequest(models.Model):
         if self.requires_supervisor_info() and not self.has_supervisor_info():
             raise ValidationError("Supervisor name and email are required for student access requests.")
     
-    def reject(self, reviewed_by, review_notes=""):
+    def reject(self, reviewed_by, review_notes="", send_notification=True, reset_progress=True):
         """Reject the access request."""
         if self.status != 'pending':
             raise ValueError("Can only reject pending requests")
@@ -602,16 +641,27 @@ class AccessRequest(models.Model):
         self.reviewed_by = reviewed_by
         self.reviewed_at = timezone.now()
         self.review_notes = review_notes
-        self.save(update_fields=['status', 'reviewed_by', 'reviewed_at', 'review_notes', 'updated_at'])
         
-        # Send notification
-        try:
-            from .notifications import access_request_notifications
-            access_request_notifications.access_request_rejected(self, reviewed_by, review_notes)
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Failed to send access request rejection notification: {e}")
+        # Reset approval progress if requested (default behavior)
+        if reset_progress:
+            self.reset_approval_progress()
+        
+        self.save(update_fields=[
+            'status', 'reviewed_by', 'reviewed_at', 'review_notes', 'updated_at',
+            'safety_induction_confirmed', 'safety_induction_confirmed_by', 'safety_induction_confirmed_at', 'safety_induction_notes',
+            'lab_training_confirmed', 'lab_training_confirmed_by', 'lab_training_confirmed_at', 'lab_training_notes',
+            'risk_assessment_confirmed', 'risk_assessment_confirmed_by', 'risk_assessment_confirmed_at', 'risk_assessment_notes'
+        ])
+        
+        # Send notification (only if requested)
+        if send_notification:
+            try:
+                from .notifications import access_request_notifications
+                access_request_notifications.access_request_rejected(self, reviewed_by, review_notes)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send access request rejection notification: {e}")
     
     def cancel(self):
         """Cancel the access request."""
@@ -619,6 +669,35 @@ class AccessRequest(models.Model):
             raise ValueError("Can only cancel pending requests")
         
         self.status = 'cancelled'
+        self.save(update_fields=['status', 'updated_at'])
+    
+    def reset_approval_progress(self):
+        """Reset all approval progress (safety induction, lab training, risk assessment)."""
+        # Reset safety induction
+        self.safety_induction_confirmed = False
+        self.safety_induction_confirmed_by = None
+        self.safety_induction_confirmed_at = None
+        self.safety_induction_notes = ""
+        
+        # Reset lab training
+        self.lab_training_confirmed = False
+        self.lab_training_confirmed_by = None
+        self.lab_training_confirmed_at = None
+        self.lab_training_notes = ""
+        
+        # Reset risk assessment
+        self.risk_assessment_confirmed = False
+        self.risk_assessment_confirmed_by = None
+        self.risk_assessment_confirmed_at = None
+        self.risk_assessment_notes = ""
+    
+    def allow_resubmission(self):
+        """Allow user to resubmit after rejection by creating a fresh request."""
+        if self.status != 'rejected':
+            raise ValueError("Can only enable resubmission for rejected requests")
+        
+        # Archive this request to allow new submission
+        self.status = 'archived'
         self.save(update_fields=['status', 'updated_at'])
     
     def get_approval_requirements(self):
@@ -686,7 +765,7 @@ class TrainingRequest(models.Model):
     def __str__(self):
         return f"{self.user.username} requesting level {self.requested_level} training for {self.resource.name}"
     
-    def complete_training(self, reviewed_by, completed_date=None):
+    def complete_training(self, reviewed_by, completed_date=None, send_notification=True):
         """Mark training as completed and update user's training level."""
         self.status = 'completed'
         self.completed_date = completed_date or timezone.now()
@@ -700,16 +779,17 @@ class TrainingRequest(models.Model):
             user_profile.training_level = self.requested_level
             user_profile.save()
         
-        # Send notification
-        try:
-            from .notifications import training_request_notifications
-            training_request_notifications.training_request_completed(self)
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Failed to send training completion notification: {e}")
+        # Send notification (only if requested)
+        if send_notification:
+            try:
+                from .notifications import training_request_notifications
+                training_request_notifications.training_request_completed(self)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send training completion notification: {e}")
     
-    def schedule_training(self, training_date, reviewed_by, notes=""):
+    def schedule_training(self, training_date, reviewed_by, notes="", send_notification=True):
         """Schedule training for the user."""
         self.status = 'scheduled'
         self.training_date = training_date
@@ -718,16 +798,17 @@ class TrainingRequest(models.Model):
         self.review_notes = notes
         self.save()
         
-        # Send notification
-        try:
-            from .notifications import training_request_notifications
-            training_request_notifications.training_request_scheduled(self, training_date)
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Failed to send training scheduled notification: {e}")
+        # Send notification (only if requested)
+        if send_notification:
+            try:
+                from .notifications import training_request_notifications
+                training_request_notifications.training_request_scheduled(self, training_date)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send training scheduled notification: {e}")
     
-    def cancel_training(self, cancelled_by, reason=""):
+    def cancel_training(self, cancelled_by, reason="", send_notification=True):
         """Cancel the training request."""
         if self.status not in ['pending', 'scheduled']:
             raise ValueError("Can only cancel pending or scheduled training")
@@ -738,11 +819,12 @@ class TrainingRequest(models.Model):
         self.review_notes = reason
         self.save()
         
-        # Send notification
-        try:
-            from .notifications import training_request_notifications
-            training_request_notifications.training_request_cancelled(self, cancelled_by, reason)
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Failed to send training cancellation notification: {e}")
+        # Send notification (only if requested)
+        if send_notification:
+            try:
+                from .notifications import training_request_notifications
+                training_request_notifications.training_request_cancelled(self, cancelled_by, reason)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send training cancellation notification: {e}")

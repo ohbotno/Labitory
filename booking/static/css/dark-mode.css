@@ -457,21 +457,21 @@
 
 /* Calendar */
 [data-theme="dark"] .calendar-wrapper {
-    background-color: #2d3748 !important;
-    border-color: #495057 !important;
+    background-color: #1f2937 !important;
+    border-color: #6b7280 !important;
 }
 
 [data-theme="dark"] .fc {
-    color: #e9ecef !important;
+    color: #f9fafb !important;
 }
 
 [data-theme="dark"] .fc-theme-standard td,
 [data-theme="dark"] .fc-theme-standard th {
-    border-color: #495057 !important;
+    border-color: #4b5563 !important;
 }
 
 [data-theme="dark"] .fc-theme-standard .fc-scrollgrid {
-    border-color: #495057 !important;
+    border-color: #4b5563 !important;
 }
 
 [data-theme="dark"] .fc-button {
@@ -491,14 +491,131 @@
 
 [data-theme="dark"] .fc-col-header-cell {
     background-color: #374151 !important;
+    border-color: #4b5563 !important;
 }
 
 [data-theme="dark"] .fc-daygrid-day {
-    background-color: #2d3748 !important;
+    background-color: #1f2937 !important;
+    border-color: #374151 !important;
 }
 
 [data-theme="dark"] .fc-day-today {
-    background-color: #1e40af !important;
+    background-color: rgba(59, 130, 246, 0.3) !important;
+    border-color: #3b82f6 !important;
+    border-width: 2px !important;
+}
+
+/* Enhanced dark mode calendar styles */
+[data-theme="dark"] .calendar-wrapper {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .fc-toolbar {
+    border-bottom-color: #4b5563 !important;
+}
+
+[data-theme="dark"] .fc-toolbar-title {
+    color: #f9fafb !important;
+}
+
+[data-theme="dark"] .fc-col-header-cell-cushion {
+    color: #f9fafb !important;
+    font-weight: 700 !important;
+}
+
+[data-theme="dark"] .fc-daygrid-day-number {
+    color: #ffffff !important;
+    font-weight: 600 !important;
+}
+
+[data-theme="dark"] .fc-timegrid-slot-label-cushion {
+    color: #e5e7eb !important;
+}
+
+[data-theme="dark"] .fc-daygrid-day:hover {
+    background-color: rgba(59, 130, 246, 0.15) !important;
+    border-color: #60a5fa !important;
+}
+
+[data-theme="dark"] .fc-day-sat,
+[data-theme="dark"] .fc-day-sun {
+    background-color: rgba(107, 114, 128, 0.08) !important;
+    border-color: #4b5563 !important;
+}
+
+[data-theme="dark"] .fc-day-sat:hover,
+[data-theme="dark"] .fc-day-sun:hover {
+    background-color: rgba(59, 130, 246, 0.12) !important;
+}
+
+/* Dark mode filter card */
+[data-theme="dark"] .card {
+    background-color: #374151 !important;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3) !important;
+}
+
+[data-theme="dark"] .form-select {
+    background-color: #374151 !important;
+    border-color: #6b7280 !important;
+    color: #e5e7eb !important;
+}
+
+[data-theme="dark"] .form-select:focus {
+    border-color: #3b82f6 !important;
+    background-color: #374151 !important;
+}
+
+[data-theme="dark"] .form-label {
+    color: #d1d5db !important;
+}
+
+/* Dark mode maintenance legend */
+[data-theme="dark"] .maintenance-legend {
+    background-color: #374151 !important;
+    border-color: #4b5563 !important;
+    color: #e5e7eb !important;
+}
+
+/* Enhanced event visibility in dark mode */
+[data-theme="dark"] .fc-event {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important;
+}
+
+[data-theme="dark"] .fc-event:hover {
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5) !important;
+}
+
+[data-theme="dark"] .fc-event-title,
+[data-theme="dark"] .fc-event-time {
+    color: #ffffff !important;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5) !important;
+}
+
+/* Dark mode status-based event colors with better contrast */
+[data-theme="dark"] .fc-event.status-pending {
+    background-color: #f59e0b !important;
+    border-color: #d97706 !important;
+}
+
+[data-theme="dark"] .fc-event.status-approved {
+    background-color: #10b981 !important;
+    border-color: #059669 !important;
+}
+
+[data-theme="dark"] .fc-event.status-rejected {
+    background-color: #ef4444 !important;
+    border-color: #dc2626 !important;
+}
+
+[data-theme="dark"] .fc-event.status-cancelled {
+    background-color: #6b7280 !important;
+    border-color: #4b5563 !important;
+    opacity: 0.8 !important;
+}
+
+[data-theme="dark"] .fc-event.status-completed {
+    background-color: #3b82f6 !important;
+    border-color: #2563eb !important;
 }
 
 /* Theme Toggle Button */

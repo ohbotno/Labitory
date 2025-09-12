@@ -106,35 +106,27 @@ class AccessRequestAdmin(admin.ModelAdmin):
         """Bulk approve access requests."""
         count = 0
         for access_request in queryset.filter(status='pending'):
-            access_request.status = 'approved'
-            access_request.reviewed_by = request.user
-            access_request.reviewed_at = timezone.now()
-            access_request.save()
-            
-            # Create resource access
-            ResourceAccess.objects.get_or_create(
-                user=access_request.user,
-                resource=access_request.resource,
-                defaults={
-                    'granted_by': request.user,
-                    'granted_at': timezone.now(),
-                    'is_active': True,
-                }
-            )
-            count += 1
+            try:
+                access_request.approve(request.user, "Approved via admin bulk action")
+                count += 1
+            except Exception as e:
+                self.message_user(request, f'Error approving request {access_request.id}: {str(e)}', level='ERROR')
         
         self.message_user(request, f'Approved {count} access requests.')
     approve_requests.short_description = 'Approve selected requests'
     
     def deny_requests(self, request, queryset):
         """Bulk deny access requests."""
-        count = queryset.filter(status='pending').update(
-            status='denied',
-            reviewed_by=request.user,
-            reviewed_at=timezone.now()
-        )
-        self.message_user(request, f'Denied {count} access requests.')
-    deny_requests.short_description = 'Deny selected requests'
+        count = 0
+        for access_request in queryset.filter(status='pending'):
+            try:
+                access_request.reject(request.user, "Rejected via admin bulk action")
+                count += 1
+            except Exception as e:
+                self.message_user(request, f'Error rejecting request {access_request.id}: {str(e)}', level='ERROR')
+        
+        self.message_user(request, f'Rejected {count} access requests.')
+    deny_requests.short_description = 'Reject selected requests'
 
 
 @admin.register(ResourceResponsible)

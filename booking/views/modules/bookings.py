@@ -710,8 +710,83 @@ def delete_booking_view(request, pk):
         confirm = request.POST.get('confirm_delete')
         if confirm == 'yes':
             booking_title = booking.title
-            booking.delete()
-            messages.success(request, f'Booking "{booking_title}" has been permanently deleted.')
+            
+            # Safe deletion: manually handle related objects first
+            try:
+                from django.db import transaction
+                
+                with transaction.atomic():
+                    # Temporarily disable foreign key checks for SQLite
+                    from django.db import connection
+                    cursor = connection.cursor()
+                    
+                    # Check if foreign keys are enabled and disable them temporarily
+                    cursor.execute("PRAGMA foreign_keys;")
+                    fk_enabled = cursor.fetchone()[0]
+                    if fk_enabled:
+                        cursor.execute("PRAGMA foreign_keys = OFF;")
+                        print(f"DEBUG: Temporarily disabled foreign keys for deletion")
+                    
+                    # Delete related objects manually to avoid foreign key constraints
+                    
+                    # Delete notifications first
+                    booking.notification_set.all().delete()
+                    
+                    # Delete booking history
+                    booking.history.all().delete()
+                    
+                    # Delete booking attendees
+                    booking.bookingattendee_set.all().delete()
+                    
+                    # Delete checkin/checkout events
+                    booking.checkin_events.all().delete()
+                    
+                    # Delete checklist responses
+                    booking.checklist_responses.all().delete()
+                    
+                    # Delete billing record (OneToOne)
+                    if hasattr(booking, 'billing_record'):
+                        booking.billing_record.delete()
+                    
+                    # Delete Google Calendar sync logs
+                    try:
+                        from booking.models.calendar import GoogleCalendarSyncLog
+                        GoogleCalendarSyncLog.objects.filter(booking=booking).delete()
+                    except ImportError:
+                        pass
+                    
+                    # Delete waiting list notifications related to this booking
+                    try:
+                        from booking.models.waiting_list import WaitingListNotification
+                        WaitingListNotification.objects.filter(booking_created=booking).delete()
+                    except ImportError:
+                        pass
+                    
+                    # Set waiting list entries to null (should happen automatically)
+                    booking.waiting_list_entry.update(resulting_booking=None)
+                    
+                    # Set resource issues to null (should happen automatically)
+                    booking.reported_issues.update(related_booking=None)
+                    
+                    # Clear many-to-many relationships
+                    booking.prerequisite_bookings.clear()
+                    
+                    # Finally delete the booking
+                    booking.delete()
+                    
+                    # Re-enable foreign key checks if they were enabled
+                    if fk_enabled:
+                        cursor.execute("PRAGMA foreign_keys = ON;")
+                        print(f"DEBUG: Re-enabled foreign keys after deletion")
+                    
+                messages.success(request, f'Booking "{booking_title}" has been permanently deleted.')
+                
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to delete booking {booking.id}: {e}")
+                messages.error(request, f'Failed to delete booking: {str(e)}')
+                return redirect('booking:booking_detail', pk=pk)
             
             # Redirect based on user role
             if hasattr(request.user, 'userprofile') and request.user.userprofile.role in ['technician', 'sysadmin']:

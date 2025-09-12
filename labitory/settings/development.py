@@ -65,6 +65,18 @@ else:  # Default to SQLite for development
             },
         }
     }
+    
+    # Enable foreign key constraints for SQLite
+    import sqlite3
+    # This is a workaround to enable foreign keys for SQLite in Django
+    def enable_foreign_keys(sender, connection, **kwargs):
+        if connection.vendor == 'sqlite':
+            cursor = connection.cursor()
+            cursor.execute('PRAGMA foreign_keys = ON;')
+            print(f"DEBUG: Enabled foreign keys for SQLite connection")
+            
+    from django.db.backends.signals import connection_created
+    connection_created.connect(enable_foreign_keys)
 
 # Cache configuration - Try Redis first, fallback to local memory
 try:

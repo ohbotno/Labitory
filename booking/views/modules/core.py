@@ -118,19 +118,30 @@ def profile_view(request):
 @login_required
 def calendar_view(request):
     """Calendar view showing bookings."""
+    # Check if filtering by resource
+    resource_id = request.GET.get('resource')
+    
+    # Base query for user's bookings
+    base_query = Q(user=request.user) | Q(attendees=request.user)
+    
+    # Add resource filter if specified
+    if resource_id:
+        base_query = base_query & Q(resource_id=resource_id)
+    
     # Get user's bookings
     user_bookings = Booking.objects.filter(
-        Q(user=request.user) | Q(attendees=request.user),
+        base_query,
         status__in=['pending', 'approved', 'in_progress']
     ).distinct()
     
-    # If user is a manager, show all bookings
+    # If user is a manager, show all bookings (with resource filter if applicable)
     try:
         user_profile = request.user.userprofile
         if user_profile.role in ['technician', 'sysadmin']:
-            all_bookings = Booking.objects.filter(
-                status__in=['pending', 'approved', 'in_progress']
-            )
+            filter_kwargs = {'status__in': ['pending', 'approved', 'in_progress']}
+            if resource_id:
+                filter_kwargs['resource_id'] = resource_id
+            all_bookings = Booking.objects.filter(**filter_kwargs)
         else:
             all_bookings = user_bookings
     except UserProfile.DoesNotExist:
@@ -154,8 +165,24 @@ def calendar_view(request):
         }
         events.append(event)
     
+    # Get resource info if filtering
+    resource = None
+    if resource_id:
+        try:
+            from booking.models import Resource
+            resource = Resource.objects.get(id=resource_id)
+        except Resource.DoesNotExist:
+            pass
+    
+    # Get all active resources for the filter dropdown
+    from booking.models import Resource
+    resources = Resource.objects.filter(is_active=True).order_by('name')
+    
     context = {
         'events_json': json.dumps(events),
+        'resource': resource,
+        'resource_id': resource_id,
+        'resources': resources,
     }
     
     return render(request, 'booking/calendar.html', context)
@@ -203,16 +230,22 @@ def about_page_edit_view(request):
 # AJAX views for dynamic form loading
 def ajax_load_colleges(request):
     """Load colleges based on selected faculty."""
-    faculty_id = request.GET.get('faculty')
-    colleges = College.objects.filter(faculty_id=faculty_id).order_by('name')
-    return render(request, 'booking/ajax/college_dropdown_list_options.html', {'colleges': colleges})
+    from django.http import JsonResponse
+    faculty_id = request.GET.get('faculty_id')
+    colleges = []
+    if faculty_id:
+        colleges = list(College.objects.filter(faculty_id=faculty_id, is_active=True).order_by('name').values('id', 'name'))
+    return JsonResponse({'colleges': colleges})
 
 
 def ajax_load_departments(request):
     """Load departments based on selected college."""
-    college_id = request.GET.get('college')
-    departments = Department.objects.filter(college_id=college_id).order_by('name')
-    return render(request, 'booking/ajax/department_dropdown_list_options.html', {'departments': departments})
+    from django.http import JsonResponse
+    college_id = request.GET.get('college_id')
+    departments = []
+    if college_id:
+        departments = list(Department.objects.filter(college_id=college_id, is_active=True).order_by('name').values('id', 'name'))
+    return JsonResponse({'departments': departments})
 
 
 # Group Management Views

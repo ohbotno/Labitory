@@ -183,6 +183,45 @@ class BookingViewSet(APIRateLimitMixin, viewsets.ModelViewSet):
         except UserProfile.DoesNotExist:
             return queryset.filter(user=user)
     
+    @action(detail=False, methods=['get'])
+    def calendar(self, request):
+        """Get bookings in calendar event format."""
+        queryset = self.get_queryset()
+        
+        # Apply any filtering from query parameters
+        resource_filter = request.query_params.get('resource')
+        if resource_filter:
+            queryset = queryset.filter(resource_id=resource_filter)
+        
+        # Convert to FullCalendar event format
+        events = []
+        for booking in queryset:
+            color = {
+                'pending': '#ffc107',
+                'approved': '#28a745', 
+                'rejected': '#dc3545',
+                'cancelled': '#6c757d',
+                'completed': '#17a2b8'
+            }.get(booking.status, '#007bff')
+            
+            events.append({
+                'id': booking.id,
+                'title': booking.title,
+                'start': booking.start_time.isoformat(),
+                'end': booking.end_time.isoformat(),
+                'backgroundColor': color,
+                'borderColor': color,
+                'url': f'/booking/{booking.id}/',
+                'extendedProps': {
+                    'resource': booking.resource.name,
+                    'user': booking.user.get_full_name() or booking.user.username,
+                    'status': booking.status,
+                    'type': 'booking'
+                }
+            })
+        
+        return Response(events)
+
     def create(self, request, *args, **kwargs):
         """Create booking with security logging."""
         response = super().create(request, *args, **kwargs)
@@ -246,6 +285,39 @@ class MaintenanceViewSet(APIRateLimitMixin, viewsets.ModelViewSet):
                 return queryset.filter(resource__in=user_resources)
         except UserProfile.DoesNotExist:
             return queryset.none()
+    
+    @action(detail=False, methods=['get'])
+    def calendar(self, request):
+        """Get maintenance events in calendar format."""
+        queryset = self.get_queryset()
+        
+        # Apply any filtering from query parameters
+        resource_filter = request.query_params.get('resource')
+        if resource_filter:
+            queryset = queryset.filter(resource_id=resource_filter)
+        
+        # Convert to FullCalendar event format
+        events = []
+        for maintenance in queryset:
+            color = '#dc3545' if maintenance.is_emergency else '#fd7e14'  # Red for emergency, orange for regular
+            
+            events.append({
+                'id': f'maintenance-{maintenance.id}',
+                'title': f'Maintenance: {maintenance.resource.name}',
+                'start': maintenance.scheduled_date.isoformat(),
+                'end': (maintenance.scheduled_date + maintenance.estimated_duration).isoformat() if maintenance.estimated_duration else maintenance.scheduled_date.isoformat(),
+                'backgroundColor': color,
+                'borderColor': color,
+                'extendedProps': {
+                    'resource': maintenance.resource.name,
+                    'type': 'maintenance',
+                    'is_emergency': maintenance.is_emergency,
+                    'blocks_booking': True,
+                    'description': maintenance.description
+                }
+            })
+        
+        return Response(events)
 
 
 class WaitingListEntryViewSet(APIRateLimitMixin, viewsets.ModelViewSet):
