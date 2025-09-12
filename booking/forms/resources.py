@@ -58,9 +58,9 @@ class ResourceForm(forms.ModelForm):
     class Meta:
         model = Resource
         fields = [
-            'name', 'resource_type', 'description', 'location',
-            'capacity', 'max_booking_hours', 'required_training_level',
-            'requires_induction', 'requires_checkout_checklist', 
+            'name', 'resource_type', 'description', 'url', 'location',
+            'image', 'capacity', 'max_booking_hours', 'required_training_level',
+            'requires_induction', 'requires_risk_assessment', 'requires_checkout_checklist', 
             'checkout_checklist_title', 'checkout_checklist_description',
             'is_active'
         ]
@@ -68,10 +68,13 @@ class ResourceForm(forms.ModelForm):
             'name': forms.TextInput(attrs={'class': 'form-control'}),
             'resource_type': forms.Select(attrs={'class': 'form-control'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'url': forms.URLInput(attrs={'class': 'form-control', 'placeholder': 'https://example.com/resource-info'}),
             'location': forms.TextInput(attrs={'class': 'form-control'}),
+            'image': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
             'capacity': forms.NumberInput(attrs={'class': 'form-control'}),
             'max_booking_hours': forms.NumberInput(attrs={'class': 'form-control'}),
             'requires_induction': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'requires_risk_assessment': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'requires_checkout_checklist': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
             'checkout_checklist_title': forms.TextInput(attrs={'class': 'form-control'}),
             'checkout_checklist_description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),

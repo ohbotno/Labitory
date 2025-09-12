@@ -35,6 +35,7 @@ class Resource(models.Model):
     name = models.CharField(max_length=200)
     resource_type = models.CharField(max_length=20, choices=RESOURCE_TYPES)
     description = models.TextField(blank=True)
+    url = models.URLField(blank=True, help_text="Optional URL for additional information about the resource")
     location = models.CharField(max_length=200)
     capacity = models.PositiveIntegerField(default=1)
     required_training_level = models.PositiveIntegerField(default=1)

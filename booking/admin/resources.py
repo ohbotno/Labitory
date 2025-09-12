@@ -18,7 +18,7 @@ class ResourceChecklistItemInline(admin.TabularInline):
     """Inline admin for resource checklist items."""
     model = ResourceChecklistItem
     extra = 0
-    fields = ('checklist_item', 'is_required', 'order')
+    fields = ('checklist_item', 'override_required', 'is_required_override', 'is_active', 'order')
     ordering = ('order',)
 
 
@@ -39,7 +39,7 @@ class ResourceAdmin(admin.ModelAdmin):
     
     fieldsets = [
         ('Basic Information', {
-            'fields': ('name', 'resource_type', 'description', 'location', 'image')
+            'fields': ('name', 'resource_type', 'description', 'url', 'location', 'image')
         }),
         ('Booking Configuration', {
             'fields': ('capacity', 'max_booking_hours', 'is_active')
