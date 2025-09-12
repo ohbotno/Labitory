@@ -208,15 +208,19 @@ def two_factor_verification(request):
         form = TwoFactorVerificationForm(request.POST, user=user)
         if form.is_valid():
             # Create 2FA session
-            TwoFactorSession.create_session(
+            from datetime import timedelta
+            TwoFactorSession.objects.create(
                 user=user,
                 session_key=request.session.session_key,
+                expires_at=timezone.now() + timedelta(hours=8),  # 8-hour session
                 ip_address=request.META.get('REMOTE_ADDR'),
                 user_agent=request.META.get('HTTP_USER_AGENT', '')
             )
             
             # Complete login
             from django.contrib.auth import login
+            # Set the backend that was used for authentication
+            user.backend = 'django.contrib.auth.backends.ModelBackend'
             login(request, user)
             
             # Clean up session
@@ -242,7 +246,9 @@ def two_factor_verification(request):
                 # If no profile exists, redirect to about page
                 next_url = '/about/'
             
-            messages.success(request, f"Welcome back, {user.first_name}!")
+            # Create personalized welcome message
+            name = user.first_name.strip() if user.first_name else user.username
+            messages.success(request, f"Welcome back, {name}!")
             return redirect(next_url)
     else:
         form = TwoFactorVerificationForm(user=user)
