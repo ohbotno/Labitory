@@ -15,18 +15,23 @@ https://aperture-booking.org/commercial
 """
 
 from rest_framework import viewsets, status, permissions
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view, permission_classes
 from rest_framework.response import Response
 from django.db.models import Q
 from django.utils import timezone
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
 from datetime import datetime
+import json
+import os
+import mimetypes
 
 from ...models import (
-    UserProfile, Resource, Booking, ApprovalRule, Maintenance, 
+    UserProfile, Resource, Booking, ApprovalRule, Maintenance,
     Notification, NotificationPreference, WaitingListEntry
 )
 from ...serializers import (
-    UserProfileSerializer, ResourceSerializer, BookingSerializer, 
+    UserProfileSerializer, ResourceSerializer, BookingSerializer,
     ApprovalRuleSerializer, MaintenanceSerializer, WaitingListEntrySerializer
 )
 
@@ -36,6 +41,43 @@ class IsOwnerOrManagerPermission(permissions.BasePermission):
     
     def has_object_permission(self, request, view, obj):
         # Read permissions for authenticated users
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        
+        # Write permissions only to owner or lab managers
+        if hasattr(request.user, 'userprofile'):
+            user_profile = request.user.userprofile
+            return (obj.user == request.user or 
+                   user_profile.role in ['technician', 'sysadmin'])
+        
+        return obj.user == request.user
+
+
+class CanViewResourceCalendar(permissions.BasePermission):
+    """Custom permission to allow users to view calendar events for resources they have access to."""
+    
+    def has_permission(self, request, view):
+        # Must be authenticated
+        if not request.user.is_authenticated:
+            return False
+        
+        # For calendar views, check if user has access to the specified resource
+        if view.action == 'calendar':
+            resource_id = request.query_params.get('resource')
+            if resource_id:
+                try:
+                    from ...models import Resource
+                    resource = Resource.objects.get(id=resource_id)
+                    # User can view calendar if they can view the resource calendar
+                    return resource.can_user_view_calendar(request.user)
+                except (Resource.DoesNotExist, ValueError):
+                    return False
+        
+        # For other actions, use default permission logic
+        return True
+    
+    def has_object_permission(self, request, view, obj):
+        # For individual booking objects, use standard read permissions
         if request.method in permissions.SAFE_METHODS:
             return True
         
@@ -313,3 +355,175 @@ class WaitingListEntryViewSet(viewsets.ModelViewSet):
         
         entry.delete()
         return Response({'status': 'removed from waiting list'})
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def validate_file_api(request):
+    """Validate uploaded files for security and requirements."""
+    if 'file' not in request.FILES:
+        return JsonResponse({
+            'valid': False,
+            'error': 'No file provided'
+        }, status=400)
+
+    uploaded_file = request.FILES['file']
+    field_type = request.POST.get('field_type', 'file')
+
+    # Basic validation
+    validation_result = {
+        'valid': True,
+        'error': None,
+        'warnings': []
+    }
+
+    # Check file size (5MB limit by default)
+    max_size = 5 * 1024 * 1024  # 5MB
+    if uploaded_file.size > max_size:
+        validation_result['valid'] = False
+        validation_result['error'] = f'File size exceeds {max_size / (1024*1024):.1f}MB limit'
+        return JsonResponse(validation_result, status=400)
+
+    # Check if file is empty
+    if uploaded_file.size == 0:
+        validation_result['valid'] = False
+        validation_result['error'] = 'File is empty'
+        return JsonResponse(validation_result, status=400)
+
+    # Check file extension
+    file_ext = os.path.splitext(uploaded_file.name)[1].lower()
+
+    # Dangerous extensions that should never be allowed
+    dangerous_extensions = [
+        '.exe', '.bat', '.cmd', '.scr', '.com', '.pif', '.vbs', '.js', '.jar',
+        '.app', '.deb', '.pkg', '.dmg', '.run', '.msi', '.dll', '.so', '.sh',
+        '.ps1', '.psm1', '.reg', '.scf', '.lnk', '.inf', '.msc'
+    ]
+
+    if file_ext in dangerous_extensions:
+        validation_result['valid'] = False
+        validation_result['error'] = f'File type {file_ext} is not allowed for security reasons'
+        return JsonResponse(validation_result, status=400)
+
+    # Check MIME type
+    mime_type, _ = mimetypes.guess_type(uploaded_file.name)
+
+    if field_type == 'image' or field_type == 'file':
+        # For image fields, only allow image types
+        allowed_image_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
+        allowed_image_extensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg']
+
+        if field_type == 'image':
+            if mime_type not in allowed_image_types:
+                validation_result['valid'] = False
+                validation_result['error'] = 'Only image files are allowed (JPEG, PNG, GIF, WebP, SVG)'
+                return JsonResponse(validation_result, status=400)
+
+            if file_ext not in allowed_image_extensions:
+                validation_result['valid'] = False
+                validation_result['error'] = f'Invalid image extension: {file_ext}'
+                return JsonResponse(validation_result, status=400)
+
+    # Check filename for path traversal attempts
+    if '..' in uploaded_file.name or '/' in uploaded_file.name or '\\' in uploaded_file.name:
+        validation_result['valid'] = False
+        validation_result['error'] = 'Invalid filename'
+        return JsonResponse(validation_result, status=400)
+
+    # Check for double extensions
+    name_parts = uploaded_file.name.split('.')
+    if len(name_parts) > 2:
+        # Warn about double extensions but don't block
+        validation_result['warnings'].append('Filename contains multiple extensions')
+
+    # Additional checks for images (optional - only if PIL is available)
+    if field_type == 'image' and mime_type and mime_type.startswith('image/'):
+        try:
+            from PIL import Image
+            from io import BytesIO
+
+            # Try to open and verify the image
+            img_data = uploaded_file.read()
+            uploaded_file.seek(0)  # Reset file pointer
+
+            img = Image.open(BytesIO(img_data))
+            img.verify()  # Verify it's a valid image
+
+            # Check image dimensions
+            img = Image.open(BytesIO(img_data))  # Need to reopen after verify
+            width, height = img.size
+
+            # Warn if image is too large
+            if width > 4000 or height > 4000:
+                validation_result['warnings'].append(f'Image dimensions are very large ({width}x{height})')
+
+            # Add image info to response
+            validation_result['image_info'] = {
+                'width': width,
+                'height': height,
+                'format': img.format,
+                'mode': img.mode
+            }
+
+        except ImportError:
+            # PIL not installed - skip advanced image validation
+            validation_result['warnings'].append('Advanced image validation unavailable')
+        except Exception as e:
+            validation_result['valid'] = False
+            validation_result['error'] = 'Invalid or corrupted image file'
+            return JsonResponse(validation_result, status=400)
+
+    return JsonResponse(validation_result)
+
+
+@api_view(['GET'])
+@permission_classes([permissions.IsAuthenticated])
+def get_theme_preference_api(request):
+    """Get the current user's theme preference."""
+    try:
+        profile = request.user.userprofile
+        theme = getattr(profile, 'theme_preference', 'system')
+        return JsonResponse({
+            'theme': theme,
+            'success': True
+        })
+    except UserProfile.DoesNotExist:
+        # Return default theme if profile doesn't exist
+        return JsonResponse({
+            'theme': 'system',
+            'success': True
+        })
+
+
+@api_view(['POST'])
+@permission_classes([permissions.IsAuthenticated])
+def update_theme_preference_api(request):
+    """Update the current user's theme preference."""
+    theme = request.data.get('theme')
+    if theme not in ['light', 'dark', 'system']:
+        return JsonResponse({
+            'error': 'Invalid theme. Must be light, dark, or system.',
+            'success': False
+        }, status=400)
+
+    try:
+        profile = request.user.userprofile
+        profile.theme_preference = theme
+        profile.save()
+
+        return JsonResponse({
+            'success': True,
+            'theme': theme,
+            'message': 'Theme preference updated successfully.'
+        })
+    except UserProfile.DoesNotExist:
+        # Create profile if it doesn't exist
+        profile = UserProfile.objects.create(
+            user=request.user,
+            theme_preference=theme
+        )
+        return JsonResponse({
+            'success': True,
+            'theme': theme,
+            'message': 'Theme preference updated successfully.'
+        })

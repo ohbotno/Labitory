@@ -13,7 +13,7 @@ from datetime import datetime, timedelta
 
 from ...models import Booking, WaitingListEntry, BookingHistory, UserProfile
 from ...serializers import BookingSerializer, WaitingListEntrySerializer
-from ..modules.api import IsOwnerOrManagerPermission
+from ..modules.api import IsOwnerOrManagerPermission, CanViewResourceCalendar
 from ...utils.security_utils import APIRateLimitMixin
 from ...utils.query_optimization import OptimizedQuerySets, PaginationMixin
 
@@ -23,6 +23,18 @@ class BookingViewSet(APIRateLimitMixin, viewsets.ModelViewSet):
     queryset = Booking.objects.all()
     serializer_class = BookingSerializer
     permission_classes = [permissions.IsAuthenticated, IsOwnerOrManagerPermission]
+    
+    def get_permissions(self):
+        """Override permissions for specific actions."""
+        if self.action == 'calendar':
+            # For calendar action, use CanViewResourceCalendar permission
+            # which checks if user can view the specific resource's calendar
+            permission_classes = [permissions.IsAuthenticated, CanViewResourceCalendar]
+        else:
+            # For all other actions, use default permissions
+            permission_classes = self.permission_classes
+        
+        return [permission() for permission in permission_classes]
     
     def get_queryset(self):
         """Filter bookings based on user role and query parameters."""

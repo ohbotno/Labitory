@@ -23,7 +23,7 @@ from ..serializers import (
 )
 from ..utils.security_utils import APIRateLimitMixin
 from ..views.modules.api import (
-    IsOwnerOrManagerPermission, IsManagerPermission, IsManagerOrReadOnly
+    IsOwnerOrManagerPermission, IsManagerPermission, IsManagerOrReadOnly, CanViewResourceCalendar
 )
 
 
@@ -183,15 +183,25 @@ class BookingViewSet(APIRateLimitMixin, viewsets.ModelViewSet):
         except UserProfile.DoesNotExist:
             return queryset.filter(user=user)
     
-    @action(detail=False, methods=['get'])
+    @action(detail=False, methods=['get'], permission_classes=[permissions.IsAuthenticated, CanViewResourceCalendar])
     def calendar(self, request):
         """Get bookings in calendar event format."""
-        queryset = self.get_queryset()
-        
-        # Apply any filtering from query parameters
+        # For calendar view, show all bookings for the specified resource
+        # (if user has calendar access, verified by permission class)
         resource_filter = request.query_params.get('resource')
+        
         if resource_filter:
-            queryset = queryset.filter(resource_id=resource_filter)
+            try:
+                resource_id = int(resource_filter)
+                # Get all bookings for this resource (not just user's own bookings)
+                queryset = Booking.objects.filter(
+                    resource_id=resource_id
+                ).select_related('resource', 'user', 'approved_by')
+            except ValueError:
+                return Response({'error': 'Invalid resource ID'}, status=400)
+        else:
+            # If no resource specified, fall back to user's own bookings
+            queryset = self.get_queryset()
         
         # Convert to FullCalendar event format
         events = []
@@ -204,19 +214,28 @@ class BookingViewSet(APIRateLimitMixin, viewsets.ModelViewSet):
                 'completed': '#17a2b8'
             }.get(booking.status, '#007bff')
             
+            # Show booking title or user name based on user's relationship to booking
+            user_is_owner = booking.user == request.user
+            if user_is_owner:
+                title = booking.title or f"My Booking"
+            else:
+                # Show generic info for other users' bookings for privacy
+                title = f"Booked by {booking.user.first_name or booking.user.username}"
+            
             events.append({
                 'id': booking.id,
-                'title': booking.title,
+                'title': title,
                 'start': booking.start_time.isoformat(),
                 'end': booking.end_time.isoformat(),
                 'backgroundColor': color,
                 'borderColor': color,
-                'url': f'/booking/{booking.id}/',
+                'url': f'/booking/{booking.id}/' if user_is_owner else '#',
                 'extendedProps': {
                     'resource': booking.resource.name,
                     'user': booking.user.get_full_name() or booking.user.username,
                     'status': booking.status,
-                    'type': 'booking'
+                    'type': 'booking',
+                    'is_owner': user_is_owner
                 }
             })
         

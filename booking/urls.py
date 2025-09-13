@@ -10,7 +10,7 @@ Licensed under the MIT License - see LICENSE file for details.
 from django.urls import path, include
 from django.shortcuts import redirect
 from . import views
-from .views.modules import calendar, hierarchy, training, approvals, site_admin, lab_admin, two_factor, security
+from .views.modules import api, calendar, hierarchy, training, approvals, site_admin, lab_admin, two_factor, security
 
 app_name = 'booking'
 
@@ -236,6 +236,11 @@ urlpatterns = [
     
     # AJAX URLs
     path('ajax/checklist-item/create/', views.ajax_create_checklist_item, name='ajax_create_checklist_item'),
+
+    # API URLs for file validation and theme preferences
+    path('api/validate-file/', api.validate_file_api, name='api_validate_file'),
+    path('api/profiles/theme/', api.get_theme_preference_api, name='api_get_theme'),
+    path('api/profiles/update-theme/', api.update_theme_preference_api, name='api_update_theme'),
     
     # Academic Hierarchy Management URLs (Site Admin)
     path('site-admin/academic-hierarchy/', hierarchy.site_admin_academic_hierarchy_view, name='site_admin_academic_hierarchy'),

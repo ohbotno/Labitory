@@ -128,10 +128,7 @@
                                     <label for="{{ form.image.id_for_label }}" class="form-label">
                                         {{ form.image.label }}
                                     </label>
-                                    
-                                    <!-- Include drag-drop uploader component -->
-                                    {% include 'booking/components/drag_drop_uploader.html' %}
-                                    
+
                                     {{ form.image }}
                                     {% if form.image.help_text %}
                                     <small class="form-text text-muted">{{ form.image.help_text }}</small>
@@ -520,14 +517,20 @@
 {% endblock %}
 
 {% block extra_js %}
+<!-- Include the drag-drop uploader component -->
+{% include 'booking/components/drag_drop_uploader.html' %}
+
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Initialize drag-drop uploader for resource image
-    if (document.getElementById('{{ form.image.id_for_label }}')) {
-        initDragDropUploader('{{ form.image.id_for_label }}', {
+    // Initialize drag-drop uploader for resource image (will skip if already initialized)
+    const imageInputId = '{{ form.image.id_for_label }}';
+    if (document.getElementById(imageInputId) && typeof window.initDragDropUploader !== 'undefined') {
+        window.initDragDropUploader(imageInputId, {
             allowedTypes: ['image/*'],
             maxSize: 5 * 1024 * 1024, // 5MB
-            showPreview: true
+            showPreview: true,
+            fieldType: 'image',
+            enableServerValidation: false  // Temporarily disable to fix the loop
         });
     }
     

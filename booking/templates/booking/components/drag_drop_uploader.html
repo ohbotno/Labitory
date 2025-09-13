@@ -267,14 +267,28 @@
 </style>
 
 <script>
+// Track initialized uploaders to prevent duplicates
+window.initializedUploaders = window.initializedUploaders || new Set();
+
 class DragDropUploader {
     constructor(fileInputId, options = {}) {
+        // Check if already initialized
+        if (window.initializedUploaders.has(fileInputId)) {
+            console.warn(`DragDropUploader already initialized for ${fileInputId}`);
+            return;
+        }
+
         this.fileInput = document.getElementById(fileInputId);
         if (!this.fileInput) {
             console.error(`File input with ID "${fileInputId}" not found`);
             return;
         }
-        
+
+        // Mark as initialized
+        window.initializedUploaders.add(fileInputId);
+
+        this.isProcessing = false;
+
         this.options = {
             allowedTypes: options.allowedTypes || ['image/*'],
             maxSize: options.maxSize || 5 * 1024 * 1024, // 5MB default
@@ -286,13 +300,14 @@ class DragDropUploader {
             validationEndpoint: options.validationEndpoint || '/api/validate-file/',
             ...options
         };
-        
+
         this.init();
     }
-    
+
     init() {
         this.createDragDropContainer();
         this.bindEvents();
+        this.setupFormSubmissionHandler();
     }
     
     createDragDropContainer() {
@@ -361,6 +376,25 @@ class DragDropUploader {
         // Prevent clicks on the file input itself
         this.fileInput.addEventListener('click', (e) => e.stopPropagation());
     }
+
+    setupFormSubmissionHandler() {
+        // Find the form that contains this file input
+        const form = this.fileInput.closest('form');
+        if (form) {
+            form.addEventListener('submit', (e) => {
+                // If we have a selected file but the input is empty, re-attach it
+                if (this.selectedFile && this.fileInput.files.length === 0) {
+                    try {
+                        const dt = new DataTransfer();
+                        dt.items.add(this.selectedFile);
+                        this.fileInput.files = dt.files;
+                    } catch (error) {
+                        console.warn('Could not reattach file for form submission:', error);
+                    }
+                }
+            });
+        }
+    }
     
     handleDragOver(e) {
         e.preventDefault();
@@ -389,21 +423,35 @@ class DragDropUploader {
     }
     
     processFile(file) {
+        // Prevent processing if already processing
+        if (this.isProcessing) {
+            return;
+        }
+        this.isProcessing = true;
+
         // Clear any previous errors
         this.clearMessages();
-        
+
         // Validate file
         const validation = this.validateFile(file);
         if (!validation.valid) {
             this.showError(validation.error);
+            this.isProcessing = false;
             return;
         }
-        
-        // Update the file input
-        const dt = new DataTransfer();
-        dt.items.add(file);
-        this.fileInput.files = dt.files;
-        
+
+        // Store the file for form submission
+        this.selectedFile = file;
+
+        // Try to update the file input using DataTransfer (if supported)
+        try {
+            const dt = new DataTransfer();
+            dt.items.add(file);
+            this.fileInput.files = dt.files;
+        } catch (error) {
+            console.warn('DataTransfer not supported, will handle differently');
+        }
+
         // Perform server-side validation if enabled
         if (this.options.enableServerValidation) {
             this.validateFileOnServer(file).then(result => {
@@ -413,13 +461,16 @@ class DragDropUploader {
                     this.showError(result.error || 'Server validation failed');
                     this.removeFile();
                 }
+                this.isProcessing = false;
             }).catch(error => {
                 console.error('Server validation error:', error);
                 // Still allow the file if server validation fails
                 this.completeFileProcessing(file);
+                this.isProcessing = false;
             });
         } else {
             this.completeFileProcessing(file);
+            this.isProcessing = false;
         }
     }
     
@@ -605,18 +656,24 @@ class DragDropUploader {
     }
     
     removeFile() {
+        // Reset processing flag
+        this.isProcessing = false;
+
+        // Clear the selected file
+        this.selectedFile = null;
+
         // Clear the file input
         this.fileInput.value = '';
-        
+
         // Hide preview
         this.preview.classList.remove('show');
-        
+
         // Update container state
         this.container.classList.remove('has-file');
-        
+
         // Clear messages
         this.clearMessages();
-        
+
         // Trigger change event
         this.fileInput.dispatchEvent(new Event('change', { bubbles: true }));
     }
@@ -666,25 +723,32 @@ class DragDropUploader {
 }
 
 // Global function to initialize drag-drop uploader
-function initDragDropUploader(fileInputId, options = {}) {
-    return new DragDropUploader(fileInputId, options);
+if (typeof window.initDragDropUploader === 'undefined') {
+    window.initDragDropUploader = function(fileInputId, options = {}) {
+        return new DragDropUploader(fileInputId, options);
+    };
 }
 
-// Auto-initialize if data attributes are present
-document.addEventListener('DOMContentLoaded', function() {
-    const autoInitInputs = document.querySelectorAll('[data-drag-drop="true"]');
-    autoInitInputs.forEach(input => {
-        const options = {};
-        
-        // Parse options from data attributes
-        if (input.dataset.allowedTypes) {
-            options.allowedTypes = input.dataset.allowedTypes.split(',');
-        }
-        if (input.dataset.maxSize) {
-            options.maxSize = parseInt(input.dataset.maxSize);
-        }
-        
-        initDragDropUploader(input.id, options);
+// Auto-initialize if data attributes are present (only once)
+if (!window.dragDropAutoInitialized) {
+    window.dragDropAutoInitialized = true;
+    document.addEventListener('DOMContentLoaded', function() {
+        const autoInitInputs = document.querySelectorAll('[data-drag-drop="true"]');
+        autoInitInputs.forEach(input => {
+            if (!window.initializedUploaders.has(input.id)) {
+                const options = {};
+
+                // Parse options from data attributes
+                if (input.dataset.allowedTypes) {
+                    options.allowedTypes = input.dataset.allowedTypes.split(',');
+                }
+                if (input.dataset.maxSize) {
+                    options.maxSize = parseInt(input.dataset.maxSize);
+                }
+
+                window.initDragDropUploader(input.id, options);
+            }
+        });
     });
-});
+}
 </script>
