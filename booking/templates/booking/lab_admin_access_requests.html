@@ -190,7 +190,8 @@
                             </div>
                             {% endif %}
                             
-                            <!-- Risk Assessment -->
+                            <!-- Risk Assessment (only show if resource requires risk assessment) -->
+                            {% if request.resource.requires_risk_assessment %}
                             <div class="border rounded p-3 mb-3">
                                 <div class="d-flex align-items-start justify-content-between">
                                     <div class="d-flex align-items-start">
@@ -200,7 +201,7 @@
                                         <i class="bi bi-circle text-muted me-2 mt-1"></i>
                                         {% endif %}
                                         <div>
-                                            <strong>Risk Assessment</strong>
+                                            <strong>Risk Assessment Required</strong>
                                             {% if request.prerequisite_status.risk_assessment.completed %}
                                             <div class="small text-success">
                                                 ✓ Confirmed by {{ request.prerequisite_status.risk_assessment.confirmed_by.get_full_name }}
@@ -232,6 +233,7 @@
                                     {% endif %}
                                 </div>
                             </div>
+                            {% endif %}
                             {% else %}
                             <h6 class="fw-bold mb-3">Review Information</h6>
                             {% if request.reviewed_by %}
@@ -513,7 +515,8 @@
             </div>
             {% endif %}
 
-            <!-- Risk Assessment Confirmation Modal -->
+            <!-- Risk Assessment Confirmation Modal (only show if resource requires risk assessment) -->
+            {% if request.resource.requires_risk_assessment %}
             <div class="modal fade" id="riskAssessmentModal{{ request.id }}" tabindex="-1">
                 <div class="modal-dialog">
                     <div class="modal-content">
@@ -545,6 +548,7 @@
                     </div>
                 </div>
             </div>
+            {% endif %}
             {% endif %}
             {% empty %}
             <div class="card">

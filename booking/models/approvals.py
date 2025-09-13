@@ -587,9 +587,18 @@ class AccessRequest(models.Model):
     
     def prerequisites_met(self):
         """Check if all prerequisites for approval are met."""
-        return (self.safety_induction_confirmed and 
-                self.lab_training_confirmed and 
-                self.risk_assessment_confirmed)
+        # Always require safety induction (this is a lab-wide requirement)
+        prerequisites = [self.safety_induction_confirmed]
+
+        # Only check training if resource requires it
+        if self.resource.required_training_level > 0:
+            prerequisites.append(self.lab_training_confirmed)
+
+        # Only check risk assessment if resource requires it
+        if self.resource.requires_risk_assessment:
+            prerequisites.append(self.risk_assessment_confirmed)
+
+        return all(prerequisites)
     
     def get_prerequisite_status(self):
         """Get the status of prerequisites for display."""
@@ -598,19 +607,22 @@ class AccessRequest(models.Model):
                 'completed': self.safety_induction_confirmed,
                 'confirmed_by': self.safety_induction_confirmed_by,
                 'confirmed_at': self.safety_induction_confirmed_at,
-                'notes': self.safety_induction_notes
+                'notes': self.safety_induction_notes,
+                'required': True  # Always required
             },
             'lab_training': {
                 'completed': self.lab_training_confirmed,
                 'confirmed_by': self.lab_training_confirmed_by,
                 'confirmed_at': self.lab_training_confirmed_at,
-                'notes': self.lab_training_notes
+                'notes': self.lab_training_notes,
+                'required': self.resource.required_training_level > 0
             },
             'risk_assessment': {
                 'completed': self.risk_assessment_confirmed,
                 'confirmed_by': self.risk_assessment_confirmed_by,
                 'confirmed_at': self.risk_assessment_confirmed_at,
-                'notes': self.risk_assessment_notes
+                'notes': self.risk_assessment_notes,
+                'required': self.resource.requires_risk_assessment
             },
             'all_met': self.prerequisites_met()
         }
