@@ -573,17 +573,59 @@
 
 {% if show_calendar %}
 <!-- FullCalendar Integration -->
+<link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.8/index.global.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const calendarEl = document.getElementById('resource-calendar');
     
+    // Get CSRF token for API requests
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+    const csrfToken = getCookie('csrftoken');
+    
+    // Debug: Test API endpoint directly
+    console.log('Testing API endpoint: /api/v1/bookings/calendar/?resource={{ resource.id }}');
+    console.log('CSRF Token:', csrfToken);
+    
+    // Direct API test
+    fetch('/api/v1/bookings/calendar/?resource={{ resource.id }}', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
+    .then(response => {
+        console.log('Direct API test response status:', response.status);
+        console.log('Response headers:', [...response.headers.entries()]);
+        return response.json();
+    })
+    .then(data => {
+        console.log('Direct API test data:', data);
+    })
+    .catch(error => {
+        console.error('Direct API test failed:', error);
+    });
+    
     const calendar = new FullCalendar.Calendar(calendarEl, {
-        initialView: 'timeGridWeek',
+        initialView: 'dayGridMonth',
         headerToolbar: {
             left: 'prev,next today',
             center: 'title',
-            right: 'timeGridWeek,timeGridDay,listWeek'
+            right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
         },
         slotMinTime: '09:00:00',
         slotMaxTime: '18:00:00',
@@ -595,10 +637,87 @@ document.addEventListener('DOMContentLoaded', function() {
         },
         height: 'auto',
         contentHeight: 600,
-        events: '/api/bookings/?resource={{ resource.id }}',
+        events: function(fetchInfo, successCallback, failureCallback) {
+            // Fetch bookings
+            fetch('/api/v1/bookings/calendar/?resource={{ resource.id }}', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+            .then(response => response.json())
+            .then(bookingData => {
+                console.log('Fetched booking data:', bookingData);
+                
+                // Fetch maintenance events
+                return fetch('/api/v1/maintenance/calendar/?resource={{ resource.id }}', {
+                    method: 'GET',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    }
+                })
+                .then(response => response.json())
+                .then(maintenanceData => {
+                    console.log('Fetched maintenance data:', maintenanceData);
+                    // Combine both event sources
+                    const allEvents = [...bookingData, ...maintenanceData];
+                    console.log('All events to display:', allEvents);
+                    successCallback(allEvents);
+                })
+                .catch(error => {
+                    console.error('Error fetching maintenance:', error);
+                    // Even if maintenance fails, show bookings
+                    successCallback(bookingData);
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching events:', error);
+                failureCallback(error);
+            });
+        },
+        loading: function(isLoading) {
+            console.log('Calendar loading state:', isLoading);
+            if (isLoading) {
+                console.log('Loading events for resource {{ resource.id }}...');
+            } else {
+                console.log('Finished loading events for resource {{ resource.id }}');
+            }
+        },
+        eventSourceSuccess: function(content, xhr) {
+            console.log('Successfully loaded events:', content.length, 'events');
+            console.log('Event data:', content);
+            // Debug: Check if events are being added to calendar
+            setTimeout(() => {
+                const calendarEvents = calendar.getEvents();
+                console.log('Events in calendar after loading:', calendarEvents.length);
+                calendarEvents.forEach(event => {
+                    console.log('Event in calendar:', {
+                        title: event.title,
+                        start: event.start,
+                        end: event.end,
+                        display: event.display,
+                        backgroundColor: event.backgroundColor
+                    });
+                });
+            }, 1000);
+            return content;
+        },
+        eventSourceFailure: function(errorObj) {
+            console.error('Event source failed:', errorObj);
+            return [];
+        },
         eventClick: function(info) {
-            // Handle event click - could open booking details
-            window.location.href = `/booking/${info.event.extendedProps.booking_id}/`;
+            // Handle event click based on event type
+            const eventType = info.event.extendedProps.type;
+            if (eventType === 'booking') {
+                window.location.href = `/booking/${info.event.id}/`;
+            } else if (eventType === 'maintenance') {
+                // Extract maintenance ID from the event ID format 'maintenance-{id}'
+                const maintenanceId = info.event.id.replace('maintenance-', '');
+                window.location.href = `/lab-admin/maintenance/${maintenanceId}/`;
+            }
         },
         selectable: true,
         selectMirror: true,
@@ -641,8 +760,35 @@ document.addEventListener('DOMContentLoaded', function() {
     border-color: #545b62 !important;
 }
 
+.fc-event-completed {
+    background-color: #17a2b8 !important;
+    border-color: #138496 !important;
+}
+
+.fc-event-rejected {
+    background-color: #dc3545 !important;
+    border-color: #c82333 !important;
+}
+
+/* Maintenance event styles */
+.fc-event[data-type="maintenance"] {
+    background-color: #fd7e14 !important;
+    border-color: #e8590c !important;
+    color: white !important;
+}
+
+.fc-event[data-type="maintenance"].emergency {
+    background-color: #dc3545 !important;
+    border-color: #c82333 !important;
+}
+
 .fc-event:hover {
     opacity: 0.8;
+}
+
+/* Dark mode calendar event adjustments */
+[data-theme="dark"] .fc-event-pending {
+    color: #000 !important;
 }
 </style>
 {% endif %}
