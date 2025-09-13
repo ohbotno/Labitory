@@ -109,7 +109,7 @@
                         <!-- Supervisor Information (Students Only) -->
                         {% if is_student %}
                         <div class="mb-4">
-                            <div class="alert alert-info">
+                            <div class="alert alert-info persistent-alert">
                                 <h6><i class="bi bi-mortarboard-fill me-2"></i>Student Supervisor Information</h6>
                                 <p class="mb-0">As a student, you are required to provide your academic supervisor's details. Your supervisor may be contacted regarding this access request.</p>
                             </div>
@@ -135,43 +135,25 @@
                         </div>
                         {% endif %}
 
-                        <!-- Training Verification -->
+                        <!-- Training Required -->
                         {% if resource.required_training_level > user.userprofile.training_level %}
                         <div class="mb-3">
-                            <label class="form-label">Training Verification <span class="text-danger">*</span></label>
-                            <div class="alert alert-warning">
+                            <div class="alert alert-warning persistent-alert">
                                 <h6><i class="bi bi-exclamation-triangle-fill me-2"></i>Training Required</h6>
                                 <p class="mb-2">This resource requires training level {{ resource.required_training_level }} or higher. Your current training level is {{ user.userprofile.training_level }}.</p>
+                                <p class="mb-0"><strong>Submitting this request will automatically register you for the required training.</strong> Training information will be sent to you.</p>
                             </div>
-                            
-                            <div class="form-check mb-2">
-                                <input class="form-check-input" type="radio" id="has_training_yes" name="has_training" value="yes" required>
-                                <label class="form-check-label" for="has_training_yes">
-                                    <strong>I have completed the required training for this resource</strong>
-                                </label>
-                            </div>
-                            
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" id="has_training_no" name="has_training" value="no" required>
-                                <label class="form-check-label" for="has_training_no">
-                                    <strong>I need training for this resource</strong>
-                                </label>
-                            </div>
-                            
-                            <div class="form-text mt-2">
-                                If you have completed training, please select the first option. If you need training, training information will be sent to you.
-                            </div>
+
+                            <!-- Hidden input to automatically request training -->
+                            <input type="hidden" name="has_training" value="no">
                         </div>
                         {% endif %}
 
                         <!-- Requirements Information -->
-                        {% if resource.required_training_level > 1 or resource.requires_induction %}
-                        <div class="alert alert-info">
-                            <h6><i class="bi bi-info-circle-fill me-2"></i>Resource Requirements</h6>
+                        {% if resource.requires_induction %}
+                        <div class="alert alert-info persistent-alert">
+                            <h6><i class="bi bi-info-circle-fill me-2"></i>Additional Requirements</h6>
                             <ul class="mb-0">
-                                {% if resource.required_training_level > 1 %}
-                                <li>This resource requires training level {{ resource.required_training_level }} or higher</li>
-                                {% endif %}
                                 {% if resource.requires_induction %}
                                 <li>This resource requires completion of a safety induction</li>
                                 {% endif %}
@@ -217,30 +199,22 @@ document.addEventListener('DOMContentLoaded', function() {
         this.style.height = (this.scrollHeight) + 'px';
     });
 
-    // Training radio button interaction
-    const hasTrainingYes = document.getElementById('has_training_yes');
-    const hasTrainingNo = document.getElementById('has_training_no');
+    // Update submit button text based on training requirements
     const submitButton = document.querySelector('button[type="submit"]');
-    
+    const hasTrainingHidden = document.querySelector('input[name="has_training"][type="hidden"]');
+
     function updateSubmitButton() {
-        if (hasTrainingYes && hasTrainingYes.checked) {
-            submitButton.innerHTML = '<i class="bi bi-send me-1"></i>Submit Training Verification';
-            submitButton.className = 'btn btn-primary';
-        } else if (hasTrainingNo && hasTrainingNo.checked) {
-            submitButton.innerHTML = '<i class="bi bi-book me-1"></i>Request Training';
+        if (hasTrainingHidden && hasTrainingHidden.value === 'no') {
+            submitButton.innerHTML = '<i class="bi bi-book me-1"></i>Request Training & Access';
             submitButton.className = 'btn btn-info';
         } else {
             submitButton.innerHTML = '<i class="bi bi-send me-1"></i>Submit Request';
             submitButton.className = 'btn btn-primary';
         }
     }
-    
-    if (hasTrainingYes) {
-        hasTrainingYes.addEventListener('change', updateSubmitButton);
-    }
-    if (hasTrainingNo) {
-        hasTrainingNo.addEventListener('change', updateSubmitButton);
-    }
+
+    // Set initial button state
+    updateSubmitButton();
 
     // Form validation
     const form = document.querySelector('form');
@@ -283,17 +257,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         {% endif %}
         
-        // Training verification confirmation
-        if (hasTrainingYes && hasTrainingYes.checked) {
-            const confirmed = confirm(
-                'Are you sure you have completed the required training? ' +
-                'False declarations may result in access being denied.'
-            );
-            if (!confirmed) {
-                e.preventDefault();
-                return false;
-            }
-        }
     });
 });
 </script>

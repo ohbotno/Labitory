@@ -59,13 +59,15 @@ def resources_list_view(request):
             status='pending'
         ).exists()
         
-        # Check if user has pending training request
+        # Check if user has pending training request (only if resource requires training)
         from ...models import TrainingRequest
-        resource.has_pending_training = TrainingRequest.objects.filter(
-            resource=resource,
-            user=request.user,
-            status__in=['pending', 'scheduled']
-        ).exists()
+        resource.has_pending_training = False
+        if resource.required_training_level > 0:
+            resource.has_pending_training = TrainingRequest.objects.filter(
+                resource=resource,
+                user=request.user,
+                status__in=['pending', 'scheduled']
+            ).exists()
     
     return render(request, 'booking/resources_list.html', {
         'resources': resources,
@@ -100,12 +102,14 @@ def resource_detail_view(request, resource_id):
         reviewed_at__gte=timezone.now() - timedelta(days=30)  # Show rejections from last 30 days
     ).order_by('-reviewed_at').first()
     
-    # Check if user has pending training request
-    has_pending_training = TrainingRequest.objects.filter(
-        resource=resource,
-        user=request.user,
-        status__in=['pending', 'scheduled']
-    ).exists()
+    # Check if user has pending training request (only if resource requires training)
+    has_pending_training = False
+    if resource.required_training_level > 0:
+        has_pending_training = TrainingRequest.objects.filter(
+            resource=resource,
+            user=request.user,
+            status__in=['pending', 'scheduled']
+        ).exists()
     
     # Get approval progress for the user
     approval_progress = resource.get_approval_progress(request.user)
@@ -208,8 +212,8 @@ def request_resource_access_view(request, resource_id):
         messages.info(request, 'You already have a pending access request for this resource.', extra_tags='persistent-alert')
         return redirect('booking:resource_detail', resource_id=resource.id)
     
-    # Check if user has pending training request
-    if TrainingRequest.objects.filter(resource=resource, user=request.user, status__in=['pending', 'scheduled']).exists():
+    # Check if user has pending training request (only if resource requires training)
+    if resource.required_training_level > 0 and TrainingRequest.objects.filter(resource=resource, user=request.user, status__in=['pending', 'scheduled']).exists():
         messages.info(request, 'You already have a pending training request for this resource.', extra_tags='persistent-alert')
         return redirect('booking:resource_detail', resource_id=resource.id)
     

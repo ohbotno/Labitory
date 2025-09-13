@@ -63,7 +63,7 @@
                                         <li><i class="bi bi-mortarboard me-2"></i><strong>Training Level Required:</strong> {{ resource.required_training_level }}</li>
                                         {% endif %}
                                         {% if resource.requires_induction %}
-                                        <li><i class="bi bi-info-circle me-2"></i><strong>Training Required:</strong> Yes</li>
+                                        <li><i class="bi bi-info-circle me-2"></i><strong>Safety Induction Required:</strong> Yes</li>
                                         {% endif %}
                                         {% if resource.max_booking_hours %}
                                         <li><i class="bi bi-clock me-2"></i><strong>Max Booking:</strong> {{ resource.max_booking_hours }} hour{{ resource.max_booking_hours|pluralize }}</li>
@@ -80,13 +80,16 @@
                                         <i class="bi bi-check-circle-fill me-2"></i>
                                         You have access to this resource
                                     </div>
-                                {% elif has_pending_training %}
+                                {% elif has_pending_training and resource.required_training_level > 0 %}
                                     <div class="alert alert-info persistent-alert">
                                         <i class="bi bi-book-fill me-2"></i>
                                         Training pending - You will be contacted with training details
                                     </div>
                                 {% elif has_pending_request %}
-                                    <!-- Removed duplicate pending request message - shown in main content area -->
+                                    <div class="alert alert-warning persistent-alert">
+                                        <i class="bi bi-clock-fill me-2"></i>
+                                        Approval pending - Your access request is being reviewed
+                                    </div>
                                 {% else %}
                                     <div class="alert alert-info">
                                         <i class="bi bi-lock-fill me-2"></i>
@@ -408,7 +411,7 @@
                                 <!-- Equipment Training Action Section -->
                                 {% if not user_has_access %}
                                 {% for stage in approval_progress.stages %}
-                                    {% if stage.key == 'training' and stage.required and not stage.completed %}
+                                    {% if stage.key == 'training' and stage.required and not stage.completed and resource.required_training_level > 0 %}
                                     <div class="mt-4" id="equipment-training-actions">
                                         <h6 class="fw-bold text-warning mb-3">
                                             <i class="bi bi-mortarboard me-2"></i>Equipment Training Required
@@ -559,6 +562,29 @@
                                         </div>
                                     </div>
                                     {% endfor %}
+                                </div>
+                                {% endif %}
+
+                                <!-- Approval Required Section (for resources that don't need training but need approval) -->
+                                {% if not user_has_access and has_pending_request and resource.required_training_level == 0 %}
+                                <div class="mt-4" id="approval-pending-actions">
+                                    <h6 class="fw-bold text-warning mb-3">
+                                        <i class="bi bi-clock me-2"></i>Access Approval Required
+                                    </h6>
+                                    <div class="border rounded p-3">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <h6 class="mb-1">Access Request Pending</h6>
+                                                <div class="small text-muted mb-2">
+                                                    Your access request for {{ resource.name }} is currently being reviewed by the resource manager.
+                                                </div>
+                                                <div class="small">
+                                                    <i class="bi bi-clock me-1"></i>
+                                                    <span class="badge bg-warning">Approval Pending</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                                 {% endif %}
 
