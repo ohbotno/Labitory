@@ -583,9 +583,9 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link {% if request.resolver_match.url_name == 'training_dashboard' %}active{% endif %}" 
-                               href="{% url 'booking:training_dashboard' %}" {% if request.resolver_match.url_name == 'training_dashboard' %}aria-current="page"{% endif %}>
-                                <i class="bi bi-mortarboard" aria-hidden="true"></i> My Training
+                            <a class="nav-link {% if request.resolver_match.url_name == 'training_and_inductions' or request.resolver_match.url_name == 'training_dashboard' %}active{% endif %}"
+                               href="{% url 'booking:training_and_inductions' %}" {% if request.resolver_match.url_name == 'training_and_inductions' or request.resolver_match.url_name == 'training_dashboard' %}aria-current="page"{% endif %}>
+                                <i class="bi bi-mortarboard" aria-hidden="true"></i> Training & Inductions
                             </a>
                         </li>
                     </ul>

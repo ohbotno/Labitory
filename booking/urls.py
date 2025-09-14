@@ -118,6 +118,7 @@ urlpatterns = [
     path('training/courses/<int:course_id>/enroll/', training.enroll_training_view, name='enroll_training'),
     path('training/my-training/', training.my_training_view, name='my_training'),
     path('training/manage/', training.manage_training_view, name='manage_training'),
+    path('training/inductions/', training.training_and_inductions_view, name='training_and_inductions'),
     
     # Resource Management URLs
     path('resources/<int:resource_id>/manage/', training.manage_resource_view, name='manage_resource'),

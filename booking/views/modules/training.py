@@ -113,12 +113,100 @@ def my_training_view(request):
     training_records = UserTraining.objects.filter(
         user=request.user
     ).select_related('training_course').order_by('-enrolled_at')
-    
+
     context = {
         'training_records': training_records,
     }
-    
+
     return render(request, 'booking/my_training.html', context)
+
+
+@login_required
+def training_and_inductions_view(request):
+    """Combined view for training and inductions."""
+    from booking.models import AccessRequest, UserRiskAssessment
+
+    # User's induction status
+    user_profile = getattr(request.user, 'userprofile', None)
+    induction_status = {
+        'completed': user_profile.is_inducted if user_profile else False,
+        'required': True  # Lab induction is always required
+    }
+
+    # Get pending access requests that require induction
+    pending_induction_requests = []
+    if not induction_status['completed']:
+        pending_induction_requests = AccessRequest.objects.filter(
+            user=request.user,
+            status='pending',
+            safety_induction_confirmed=False
+        ).select_related('resource')
+
+    # Get training requirements from access requests
+    training_requirements = UserTraining.objects.filter(
+        user=request.user,
+        status__in=['enrolled', 'in_progress', 'scheduled']
+    ).select_related('training_course')
+
+    # Get required training from resource access requests
+    training_from_access_requests = []
+    pending_access_requests = AccessRequest.objects.filter(
+        user=request.user,
+        status='pending',
+        lab_training_confirmed=False
+    ).select_related('resource')
+
+    for access_request in pending_access_requests:
+        resource = access_request.resource
+        # Check if resource has training requirements
+        training_reqs = resource.training_requirements.filter(
+            is_mandatory=True
+        ).select_related('training_course')
+
+        for req in training_reqs:
+            # Check if user already has this training
+            has_training = UserTraining.objects.filter(
+                user=request.user,
+                training_course=req.training_course,
+                status='completed'
+            ).exists()
+
+            if not has_training:
+                training_from_access_requests.append({
+                    'resource': resource,
+                    'training_course': req.training_course,
+                    'access_request': access_request
+                })
+
+    # Get risk assessment requirements
+    risk_assessments = UserRiskAssessment.objects.filter(
+        user=request.user,
+        status__in=['draft', 'submitted', 'in_review']
+    ).select_related('risk_assessment', 'risk_assessment__resource')
+
+    # Get pending risk assessments from access requests
+    pending_risk_assessments = []
+    for access_request in AccessRequest.objects.filter(
+        user=request.user,
+        status='pending',
+        risk_assessment_confirmed=False
+    ).select_related('resource'):
+        if access_request.resource.requires_risk_assessment:
+            pending_risk_assessments.append({
+                'resource': access_request.resource,
+                'access_request': access_request
+            })
+
+    context = {
+        'induction_status': induction_status,
+        'pending_induction_requests': pending_induction_requests,
+        'training_requirements': training_requirements,
+        'training_from_access_requests': training_from_access_requests,
+        'risk_assessments': risk_assessments,
+        'pending_risk_assessments': pending_risk_assessments,
+    }
+
+    return render(request, 'booking/training_and_inductions.html', context)
 
 
 @login_required

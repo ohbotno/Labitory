@@ -1,0 +1,268 @@
+{% extends "booking/base.html" %}
+{% load static %}
+
+{% block title %}Training & Inductions - {{ block.super }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <div>
+                    <h1 class="h3">Training & Inductions</h1>
+                    <p class="text-muted">Complete required training and inductions to access lab resources</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lab Induction Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-shield-check me-2"></i>Lab Induction
+                    </h5>
+                    {% if induction_status.completed %}
+                        <span class="badge bg-success">Completed</span>
+                    {% else %}
+                        <span class="badge bg-warning">Pending</span>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if induction_status.completed %}
+                        <p class="text-success mb-0">
+                            <i class="bi bi-check-circle me-2"></i>You have completed the general lab safety induction.
+                        </p>
+                    {% else %}
+                        <p class="text-warning mb-3">
+                            <i class="bi bi-exclamation-triangle me-2"></i>You need to complete the general lab safety induction before accessing resources.
+                        </p>
+
+                        {% if pending_induction_requests %}
+                            <div class="alert alert-info">
+                                <h6 class="alert-heading">Induction Required for:</h6>
+                                <ul class="mb-0">
+                                    {% for request in pending_induction_requests %}
+                                        <li>{{ request.resource.name }} - <small class="text-muted">Request submitted {{ request.created_at|date:"M d, Y" }}</small></li>
+                                    {% endfor %}
+                                </ul>
+                                <hr>
+                                <p class="mb-0">Lab administrators have been notified. You will be contacted to schedule your induction.</p>
+                            </div>
+                        {% else %}
+                            <p class="text-muted">No pending resource requests requiring induction.</p>
+                        {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Training Requirements Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-mortarboard me-2"></i>Training Requirements
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if training_requirements or training_from_access_requests %}
+                        <!-- Enrolled Training -->
+                        {% if training_requirements %}
+                            <h6>Current Training Enrollments</h6>
+                            <div class="table-responsive mb-4">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Course</th>
+                                            <th>Status</th>
+                                            <th>Enrolled</th>
+                                            <th>Session Date</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for training in training_requirements %}
+                                        <tr>
+                                            <td>{{ training.training_course.title }}</td>
+                                            <td>
+                                                {% if training.status == 'enrolled' %}
+                                                    <span class="badge bg-info">Enrolled</span>
+                                                {% elif training.status == 'in_progress' %}
+                                                    <span class="badge bg-warning">In Progress</span>
+                                                {% elif training.status == 'scheduled' %}
+                                                    <span class="badge bg-primary">Scheduled</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ training.enrolled_at|date:"M d, Y" }}</td>
+                                            <td>
+                                                {% if training.session_date %}
+                                                    {{ training.session_date|date:"M d, Y H:i" }}
+                                                {% else %}
+                                                    <em class="text-muted">Not scheduled</em>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% endif %}
+
+                        <!-- Training Required from Access Requests -->
+                        {% if training_from_access_requests %}
+                            <h6>Training Required for Resource Access</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Resource</th>
+                                            <th>Required Training</th>
+                                            <th>Request Date</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in training_from_access_requests %}
+                                        <tr>
+                                            <td>
+                                                <a href="{% url 'booking:resource_detail' item.resource.id %}">{{ item.resource.name }}</a>
+                                            </td>
+                                            <td>{{ item.training_course.title }}</td>
+                                            <td>{{ item.access_request.created_at|date:"M d, Y" }}</td>
+                                            <td><span class="badge bg-warning">Pending Training</span></td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div class="alert alert-info mt-3">
+                                <i class="bi bi-info-circle me-2"></i>Training will be scheduled by lab administrators. You will be contacted with details.
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-muted mb-0">No training requirements at this time.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Risk Assessments Section -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-shield-exclamation me-2"></i>Risk Assessments
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if risk_assessments or pending_risk_assessments %}
+                        <!-- Active Risk Assessments -->
+                        {% if risk_assessments %}
+                            <h6>Current Risk Assessments</h6>
+                            <div class="table-responsive mb-4">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Assessment</th>
+                                            <th>Resource</th>
+                                            <th>Status</th>
+                                            <th>Created</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for assessment in risk_assessments %}
+                                        <tr>
+                                            <td>{{ assessment.risk_assessment.title }}</td>
+                                            <td>{{ assessment.risk_assessment.resource.name }}</td>
+                                            <td>
+                                                {% if assessment.status == 'draft' %}
+                                                    <span class="badge bg-secondary">Draft</span>
+                                                {% elif assessment.status == 'submitted' %}
+                                                    <span class="badge bg-info">Submitted</span>
+                                                {% elif assessment.status == 'in_review' %}
+                                                    <span class="badge bg-warning">In Review</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ assessment.created_at|date:"M d, Y" }}</td>
+                                            <td>
+                                                {% if assessment.status == 'draft' %}
+                                                    <a href="{% url 'booking:start_risk_assessment' assessment.risk_assessment.id %}" class="btn btn-sm btn-outline-primary">Continue</a>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% endif %}
+
+                        <!-- Risk Assessments Required from Access Requests -->
+                        {% if pending_risk_assessments %}
+                            <h6>Risk Assessments Required for Resource Access</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Resource</th>
+                                            <th>Request Date</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in pending_risk_assessments %}
+                                        <tr>
+                                            <td>
+                                                <a href="{% url 'booking:resource_detail' item.resource.id %}">{{ item.resource.name }}</a>
+                                            </td>
+                                            <td>{{ item.access_request.created_at|date:"M d, Y" }}</td>
+                                            <td><span class="badge bg-warning">Risk Assessment Required</span></td>
+                                            <td>
+                                                <a href="{% url 'booking:resource_detail' item.resource.id %}" class="btn btn-sm btn-outline-primary">View Details</a>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <p class="text-muted mb-0">No risk assessments required at this time.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Section -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6><i class="bi bi-question-circle me-2"></i>Need Help?</h6>
+                    <p class="mb-0">
+                        If you have questions about training requirements or inductions, please contact the lab administrators.
+                        All training and inductions will be scheduled based on your resource access requests.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-refresh page every 30 seconds to show updates
+setTimeout(function() {
+    location.reload();
+}, 30000);
+</script>
+{% endblock %}

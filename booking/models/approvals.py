@@ -31,22 +31,41 @@ class AccessRequestManager(models.Manager):
             resource=resource,
             status='pending'
         ).first()
-        
+
         if existing_pending:
             raise ValidationError(
                 f"You already have a pending access request for {resource.name}. "
                 "Please wait for the current request to be processed."
             )
-        
+
         # Archive any existing rejected requests (change status to archived)
         self.filter(
             user=user,
             resource=resource,
             status='rejected'
         ).update(status='archived')
-        
+
+        # Auto-check lab induction status from UserProfile
+        try:
+            user_profile = user.userprofile
+            if user_profile.is_inducted:
+                kwargs['safety_induction_confirmed'] = True
+                kwargs['safety_induction_confirmed_by'] = user  # System auto-confirmation
+                kwargs['safety_induction_confirmed_at'] = timezone.now()
+                kwargs['safety_induction_notes'] = 'Auto-confirmed: User profile shows induction completed'
+        except AttributeError:
+            pass  # No user profile exists
+
         # Create the new request
-        return self.create(user=user, resource=resource, **kwargs)
+        request = self.create(user=user, resource=resource, **kwargs)
+
+        # Create training records for required training if needed
+        request._create_required_training_records()
+
+        # Create risk assessment records if needed
+        request._create_required_risk_assessments()
+
+        return request
 
 
 class ApprovalRule(models.Model):
@@ -719,25 +738,100 @@ class AccessRequest(models.Model):
             'risk_assessments': [],
             'responsible_persons': []
         }
-        
+
         # Get required training courses
         training_requirements = self.resource.training_requirements.filter(
             is_mandatory=True
         ).select_related('training_course')
-        
+
         for req in training_requirements:
             # Check if access type requires this training
             if not req.required_for_access_types or self.access_type in req.required_for_access_types:
                 requirements['training'].append(req.training_course)
-        
+
         # Get required risk assessments
         risk_assessments = self.resource.risk_assessments.filter(
             is_mandatory=True,
             is_active=True
         )
         requirements['risk_assessments'] = list(risk_assessments)
-        
+
         return requirements
+
+    def _create_required_training_records(self):
+        """Create UserTraining records for required training courses."""
+        from django.apps import apps
+        UserTraining = apps.get_model('booking', 'UserTraining')
+
+        # Get required training courses
+        training_requirements = self.resource.training_requirements.filter(
+            is_mandatory=True
+        ).select_related('training_course')
+
+        for req in training_requirements:
+            # Check if access type requires this training
+            if req.required_for_access_types and self.access_type not in req.required_for_access_types:
+                continue
+
+            # Check if user already has this training
+            existing_training = UserTraining.objects.filter(
+                user=self.user,
+                training_course=req.training_course
+            ).first()
+
+            if not existing_training:
+                # Create new training record
+                UserTraining.objects.create(
+                    user=self.user,
+                    training_course=req.training_course,
+                    status='enrolled',
+                    enrolled_at=timezone.now(),
+                    notes=f'Auto-enrolled for resource access: {self.resource.name}'
+                )
+            elif existing_training.status in ['cancelled', 'failed']:
+                # Re-enroll if previously cancelled/failed
+                existing_training.status = 'enrolled'
+                existing_training.enrolled_at = timezone.now()
+                existing_training.notes = f'Re-enrolled for resource access: {self.resource.name}'
+                existing_training.save(update_fields=['status', 'enrolled_at', 'notes'])
+
+    def _create_required_risk_assessments(self):
+        """Create UserRiskAssessment records for required risk assessments."""
+        if not self.resource.requires_risk_assessment:
+            return
+
+        from django.apps import apps
+        RiskAssessment = apps.get_model('booking', 'RiskAssessment')
+        UserRiskAssessment = apps.get_model('booking', 'UserRiskAssessment')
+
+        # Get required risk assessments for this resource
+        required_assessments = RiskAssessment.objects.filter(
+            resource=self.resource,
+            is_mandatory=True,
+            is_active=True
+        )
+
+        for assessment in required_assessments:
+            # Check if user already has this assessment
+            existing_assessment = UserRiskAssessment.objects.filter(
+                user=self.user,
+                risk_assessment=assessment
+            ).first()
+
+            if not existing_assessment:
+                # Create new risk assessment record
+                UserRiskAssessment.objects.create(
+                    user=self.user,
+                    risk_assessment=assessment,
+                    status='draft',
+                    created_at=timezone.now(),
+                    notes=f'Required for resource access: {self.resource.name}'
+                )
+            elif existing_assessment.status == 'rejected':
+                # Reset if previously rejected
+                existing_assessment.status = 'draft'
+                existing_assessment.notes = f'Reset for resource access: {self.resource.name}'
+                existing_assessment.save(update_fields=['status', 'notes'])
 
 
 class TrainingRequest(models.Model):
