@@ -56,103 +56,77 @@
                                 <div class="d-flex justify-content-between align-items-start">
                                     <div>
                                         <h6 class="mb-1">{{ request.user.get_full_name }}</h6>
-                                        <p class="mb-1 text-muted">{{ request.training_course.name }}</p>
-                                        <small class="text-muted">Requested {{ request.created_at|date:"M j, Y" }}</small>
-                                        {% if request.training_date %}
+                                        <p class="mb-1 text-muted">{{ request.training_course.title }}</p>
+                                        <small class="text-muted">Enrolled {{ request.enrolled_at|date:"M j, Y" }}</small>
+                                        {% if request.session_date %}
                                         <br><small class="text-info">
-                                            <i class="fas fa-calendar"></i> Scheduled for {{ request.training_date|date:"M j, Y g:i A" }}
+                                            <i class="fas fa-calendar"></i> Scheduled for {{ request.session_date|date:"M j, Y g:i A" }}
                                         </small>
                                         {% endif %}
                                     </div>
                                     <div class="btn-group" role="group">
-                                        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#editModal{{ request.id }}" title="Edit Request">
-                                            <i class="fas fa-edit"></i>
+                                        {% if not request.session_date %}
+                                        <button type="button" class="btn btn-outline-primary btn-sm" data-bs-toggle="modal" data-bs-target="#scheduleModal{{ request.id }}" title="Schedule Training">
+                                            <i class="fas fa-calendar-plus"></i>
                                         </button>
+                                        {% endif %}
                                         <form method="post" style="display: inline;">
                                             {% csrf_token %}
-                                            <input type="hidden" name="action" value="complete_training">
-                                            <input type="hidden" name="request_id" value="{{ request.id }}">
-                                            <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Mark this training as completed? This will update the user\\'s training level.')" title="Mark Training Complete">
+                                            <input type="hidden" name="action" value="complete_user_training">
+                                            <input type="hidden" name="user_training_id" value="{{ request.id }}">
+                                            <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('Mark this training as completed?')" title="Mark Training Complete">
                                                 <i class="fas fa-graduation-cap"></i>
                                             </button>
                                         </form>
                                         <form method="post" style="display: inline;">
                                             {% csrf_token %}
-                                            <input type="hidden" name="action" value="delete_request">
-                                            <input type="hidden" name="request_id" value="{{ request.id }}">
-                                            <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Delete this training request? This action cannot be undone.')" title="Delete Request">
-                                                <i class="fas fa-trash"></i>
+                                            <input type="hidden" name="action" value="cancel_user_training">
+                                            <input type="hidden" name="user_training_id" value="{{ request.id }}">
+                                            <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Cancel this training? This action cannot be undone.')" title="Cancel Training">
+                                                <i class="fas fa-times"></i>
                                             </button>
                                         </form>
                                     </div>
                                 </div>
-                                {% if request.justification %}
+                                {% if request.instructor_notes %}
                                 <div class="mt-2">
-                                    <small><strong>Justification:</strong> {{ request.justification }}</small>
+                                    <small><strong>Notes:</strong> {{ request.instructor_notes }}</small>
                                 </div>
                                 {% endif %}
                             </div>
                             
-                            <!-- Edit Training Request Modal -->
-                            <div class="modal fade" id="editModal{{ request.id }}" tabindex="-1">
-                                <div class="modal-dialog modal-lg">
+                            <!-- Schedule Training Modal -->
+                            {% if not request.session_date %}
+                            <div class="modal fade" id="scheduleModal{{ request.id }}" tabindex="-1">
+                                <div class="modal-dialog">
                                     <div class="modal-content">
                                         <div class="modal-header">
-                                            <h5 class="modal-title">Edit Training Request</h5>
+                                            <h5 class="modal-title">Schedule Training Session</h5>
                                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                                         </div>
                                         <form method="post">
                                             {% csrf_token %}
-                                            <input type="hidden" name="action" value="edit_request">
-                                            <input type="hidden" name="request_id" value="{{ request.id }}">
                                             <div class="modal-body">
-                                                <div class="row mb-3">
-                                                    <div class="col-md-6">
-                                                        <p><strong>User:</strong> {{ request.user.get_full_name }}</p>
-                                                        <p><strong>Email:</strong> {{ request.user.email }}</p>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <p><strong>Resource:</strong> {{ request.resource.name }}</p>
-                                                        <p><strong>Created:</strong> {{ request.created_at|date:"M j, Y g:i A" }}</p>
-                                                    </div>
-                                                </div>
-                                                
-                                                <!-- Training Date and Time -->
-                                                <div class="mb-4">
-                                                    <h6 class="fw-bold mb-3">Training Schedule</h6>
-                                                    <div class="row">
-                                                        <div class="col-md-6 mb-3">
-                                                            <label for="edit_training_date{{ request.id }}" class="form-label">Training Date</label>
-                                                            <input type="date" class="form-control" id="edit_training_date{{ request.id }}" name="training_date" 
-                                                                   value="{% if request.training_date %}{{ request.training_date|date:'Y-m-d' }}{% endif %}"
-                                                                   min="{{ today|date:'Y-m-d' }}">
-                                                            <div class="form-text">Leave blank for no specific date</div>
-                                                        </div>
-                                                        <div class="col-md-6 mb-3">
-                                                            <label for="edit_training_time{{ request.id }}" class="form-label">Training Time</label>
-                                                            <input type="time" class="form-control" id="edit_training_time{{ request.id }}" name="training_time"
-                                                                   value="{% if request.training_date %}{{ request.training_date|time:'H:i' }}{% endif %}">
-                                                            <div class="form-text">Leave blank for no specific time</div>
-                                                        </div>
-                                                    </div>
-                                                </div>
-                                                
-                                                <!-- Training Details -->
+                                                <input type="hidden" name="action" value="schedule_training">
+                                                <input type="hidden" name="user_training_id" value="{{ request.id }}">
+
+                                                <p><strong>Student:</strong> {{ request.user.get_full_name }}</p>
+                                                <p><strong>Course:</strong> {{ request.training_course.title }}</p>
+
                                                 <div class="mb-3">
-                                                    <label for="edit_training_justification{{ request.id }}" class="form-label">Training Requirements & Notes</label>
-                                                    <textarea class="form-control" id="edit_training_justification{{ request.id }}" name="training_justification" rows="4">{{ request.justification }}</textarea>
+                                                    <label class="form-label">Session Date</label>
+                                                    <input type="date" name="session_date" class="form-control" required min="{{ today|date:'Y-m-d' }}">
                                                 </div>
                                             </div>
                                             <div class="modal-footer">
                                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                <button type="submit" class="btn btn-primary">
-                                                    <i class="fas fa-save me-1"></i>Save Changes
-                                                </button>
+                                                <button type="submit" class="btn btn-primary">Schedule Session</button>
                                             </div>
                                         </form>
                                     </div>
                                 </div>
                             </div>
+                            {% endif %}
                             {% empty %}
                             <div class="text-center py-4">
                                 <i class="fas fa-inbox fa-2x text-muted mb-2"></i>

@@ -486,11 +486,40 @@ def lab_admin_training_view(request):
                     messages.error(request, 'Invalid date format.')
                 except Exception as e:
                     messages.error(request, f'Error scheduling training session: {str(e)}')
-        
+
+        elif action == 'complete_user_training':
+            user_training_id = request.POST.get('user_training_id')
+            user_training = get_object_or_404(UserTraining, id=user_training_id)
+
+            # Complete the training
+            user_training.complete_training(
+                instructor=request.user,
+                notes=f'Training marked complete by {request.user.get_full_name()}'
+            )
+
+            messages.success(request, f'Training marked as completed for {user_training.user.get_full_name()}')
+
+        elif action == 'cancel_user_training':
+            user_training_id = request.POST.get('user_training_id')
+            user_training = get_object_or_404(UserTraining, id=user_training_id)
+
+            # Cancel the training
+            user_training.status = 'cancelled'
+            user_training.save()
+
+            messages.success(request, f'Training cancelled for {user_training.user.get_full_name()}')
+
         return redirect('booking:lab_admin_training')
     
     # Get training data
-    pending_requests = TrainingRequest.objects.filter(status='pending').select_related('user', 'resource', 'reviewed_by')
+    # Get pending UserTraining records (users who need training for resource access)
+    pending_requests = UserTraining.objects.filter(
+        status='enrolled'
+    ).select_related('user', 'training_course')
+
+    # Keep legacy TrainingRequest support for backward compatibility
+    legacy_training_requests = TrainingRequest.objects.filter(status='pending').select_related('user', 'resource', 'reviewed_by')
+
     upcoming_sessions = UserTraining.objects.filter(
         session_date__gte=timezone.now().date(),
         status='scheduled'
@@ -503,6 +532,7 @@ def lab_admin_training_view(request):
     
     context = {
         'pending_requests': pending_requests,
+        'legacy_training_requests': legacy_training_requests,
         'upcoming_sessions': upcoming_sessions,
         'training_courses': training_courses,
     }
