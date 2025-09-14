@@ -454,7 +454,7 @@
                                                             {% endif %}
                                                         </div>
                                                     {% elif record.status == 'enrolled' or record.status == 'in_progress' %}
-                                                        <a href="{% url 'booking:my_training' %}" class="btn btn-primary btn-sm">
+                                                        <a href="{% url 'booking:training_dashboard' %}" class="btn btn-primary btn-sm">
                                                             <i class="bi bi-arrow-right me-1"></i>Continue Training
                                                         </a>
                                                     {% elif record.status == 'failed' or record.status == 'expired' %}

@@ -60,7 +60,7 @@
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="{% url 'booking:my_training' %}?status=completed" class="text-white text-decoration-none">
+                    <a href="{% url 'booking:training_dashboard' %}?status=completed" class="text-white text-decoration-none">
                         View Certificates <i class="fas fa-arrow-circle-right"></i>
                     </a>
                 </div>
@@ -79,7 +79,7 @@
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="{% url 'booking:my_training' %}?status=in_progress" class="text-white text-decoration-none">
+                    <a href="{% url 'booking:training_dashboard' %}?status=in_progress" class="text-white text-decoration-none">
                         Continue Training <i class="fas fa-arrow-circle-right"></i>
                     </a>
                 </div>
@@ -117,7 +117,7 @@
                     </div>
                 </div>
                 <div class="card-footer">
-                    <a href="{% url 'booking:my_training' %}?expiring=true" class="text-white text-decoration-none">
+                    <a href="{% url 'booking:training_dashboard' %}?expiring=true" class="text-white text-decoration-none">
                         Renew Training <i class="fas fa-arrow-circle-right"></i>
                     </a>
                 </div>
@@ -169,11 +169,6 @@
                                 </div>
                             </div>
                             {% endfor %}
-                        </div>
-                        <div class="text-center">
-                            <a href="{% url 'booking:my_training' %}" class="btn btn-primary">
-                                View All My Training
-                            </a>
                         </div>
                     {% else %}
                         <div class="text-center py-4">
@@ -256,7 +251,7 @@
                         <a href="{% url 'booking:training_courses' %}" class="btn btn-outline-primary btn-sm">
                             <i class="fas fa-search"></i> Browse All Courses
                         </a>
-                        <a href="{% url 'booking:my_training' %}" class="btn btn-outline-info btn-sm">
+                        <a href="{% url 'booking:training_dashboard' %}" class="btn btn-outline-info btn-sm">
                             <i class="fas fa-user-graduate"></i> My Training Record
                         </a>
                         {% if user.userprofile.role in 'technician,academic,sysadmin' %}

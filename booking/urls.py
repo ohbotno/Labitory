@@ -116,7 +116,6 @@ urlpatterns = [
     path('training/courses/', training.training_redirect_view, name='training_courses'),
     path('training/courses/<int:course_id>/', training.training_course_detail_view, name='training_course_detail'),
     path('training/courses/<int:course_id>/enroll/', training.enroll_training_view, name='enroll_training'),
-    path('training/my-training/', training.my_training_view, name='my_training'),
     path('training/manage/', training.manage_training_view, name='manage_training'),
     path('training/inductions/', training.training_and_inductions_view, name='training_and_inductions'),
     

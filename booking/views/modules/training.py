@@ -107,18 +107,6 @@ def enroll_training_view(request, course_id):
     return training_redirect_view(request, course_id)
 
 
-@login_required
-def my_training_view(request):
-    """View user's training records."""
-    training_records = UserTraining.objects.filter(
-        user=request.user
-    ).select_related('training_course').order_by('-enrolled_at')
-
-    context = {
-        'training_records': training_records,
-    }
-
-    return render(request, 'booking/my_training.html', context)
 
 
 @login_required
