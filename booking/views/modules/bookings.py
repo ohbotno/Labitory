@@ -142,7 +142,17 @@ def booking_detail_view(request, pk):
             else:
                 messages.error(request, 'You do not have permission to cancel this booking.')
     
-    return render(request, 'booking/booking_detail.html', {'booking': booking})
+    # Get recurring series if this is a recurring booking
+    recurring_series = None
+    if booking.is_recurring:
+        from ...models import RecurringBookingManager
+        recurring_series = RecurringBookingManager.get_recurring_series(booking)
+
+    return render(request, 'booking/booking_detail.html', {
+        'booking': booking,
+        'now': timezone.now(),
+        'recurring_series': recurring_series
+    })
 
 
 @login_required
@@ -218,6 +228,7 @@ def my_bookings_view(request):
         'date_from': date_from,
         'date_to': date_to,
         'status_choices': Booking.STATUS_CHOICES,
+        'now': timezone.now(),
     }
     
     return render(request, 'booking/my_bookings.html', context)

@@ -162,14 +162,14 @@
                 <h6 class="mb-0">Actions</h6>
             </div>
             <div class="card-body">
-                {% if booking.user == request.user or request.user.userprofile.role in 'lab_manager,sysadmin' %}
+                {% if booking.user == request.user or request.user.userprofile.role == 'technician' or request.user.userprofile.role == 'sysadmin' %}
                     <div class="d-grid gap-2">
                         <!-- Edit Button -->
-                        {% if booking.status in 'pending,approved' and booking.start_time > now %}
+                        {% if booking.status == 'pending' or booking.status == 'approved' %}{% if booking.start_time > now %}
                             <a href="{% url 'booking:edit_booking' booking.pk %}" class="btn btn-outline-primary">
                                 <i class="bi bi-pencil"></i> Edit Booking
                             </a>
-                        {% endif %}
+                        {% endif %}{% endif %}
                         
                         <!-- Cancel Button -->
                         {% if booking.can_be_cancelled %}

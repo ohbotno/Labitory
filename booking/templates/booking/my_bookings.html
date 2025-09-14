@@ -168,12 +168,12 @@
                                         <i class="bi bi-eye"></i>
                                     </a>
                                     
-                                    {% if booking.status in 'pending,approved' and booking.start_time > now %}
-                                        <a href="{% url 'booking:edit_booking' booking.pk %}" 
+                                    {% if booking.status == 'pending' or booking.status == 'approved' %}{% if booking.start_time > now %}
+                                        <a href="{% url 'booking:edit_booking' booking.pk %}"
                                            class="btn btn-outline-info" title="Edit">
                                             <i class="bi bi-pencil"></i>
                                         </a>
-                                    {% endif %}
+                                    {% endif %}{% endif %}
                                     
                                     <a href="{% url 'booking:duplicate_booking' booking.pk %}" 
                                        class="btn btn-outline-secondary" title="Duplicate">
