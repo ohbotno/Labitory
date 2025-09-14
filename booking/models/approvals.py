@@ -786,14 +786,14 @@ class AccessRequest(models.Model):
                     training_course=req.training_course,
                     status='enrolled',
                     enrolled_at=timezone.now(),
-                    notes=f'Auto-enrolled for resource access: {self.resource.name}'
+                    instructor_notes=f'Auto-enrolled for resource access: {self.resource.name}'
                 )
             elif existing_training.status in ['cancelled', 'failed']:
                 # Re-enroll if previously cancelled/failed
                 existing_training.status = 'enrolled'
                 existing_training.enrolled_at = timezone.now()
-                existing_training.notes = f'Re-enrolled for resource access: {self.resource.name}'
-                existing_training.save(update_fields=['status', 'enrolled_at', 'notes'])
+                existing_training.instructor_notes = f'Re-enrolled for resource access: {self.resource.name}'
+                existing_training.save(update_fields=['status', 'enrolled_at', 'instructor_notes'])
 
     def _create_required_risk_assessments(self):
         """Create UserRiskAssessment records for required risk assessments."""
