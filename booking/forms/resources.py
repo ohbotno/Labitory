@@ -187,26 +187,60 @@ class UserTrainingEnrollForm(forms.ModelForm):
 
 class ResourceIssueReportForm(forms.ModelForm):
     """Form for reporting resource issues."""
-    
+
+    def __init__(self, *args, **kwargs):
+        self.user = kwargs.pop('user', None)
+        self.resource = kwargs.pop('resource', None)
+        self.booking = kwargs.pop('booking', None)
+        super().__init__(*args, **kwargs)
+
     class Meta:
         model = ResourceIssue
-        fields = ['title', 'description', 'severity']
+        fields = ['title', 'description', 'severity', 'category', 'specific_location', 'image', 'blocks_resource_use']
         widgets = {
             'title': forms.TextInput(attrs={'class': 'form-control'}),
             'description': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'severity': forms.Select(attrs={'class': 'form-control'}),
+            'category': forms.Select(attrs={'class': 'form-control'}),
+            'specific_location': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'e.g., Front panel, Left side, Screen, etc.'}),
+            'image': forms.ClearableFileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
+            'blocks_resource_use': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.user:
+            instance.reported_by = self.user
+        if self.resource:
+            instance.resource = self.resource
+        if self.booking:
+            instance.related_booking = self.booking
+        if commit:
+            instance.save()
+        return instance
 
 
 class ResourceIssueUpdateForm(forms.ModelForm):
     """Form for updating resource issues."""
-    
+
     class Meta:
         model = ResourceIssue
-        fields = ['status', 'category']
+        fields = [
+            'status', 'assigned_to', 'is_urgent', 'admin_notes',
+            'resolution_description', 'estimated_repair_cost', 'actual_repair_cost'
+        ]
         widgets = {
             'status': forms.Select(attrs={'class': 'form-control'}),
-            'category': forms.Select(attrs={'class': 'form-control'}),
+            'assigned_to': forms.Select(attrs={'class': 'form-control'}),
+            'is_urgent': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+            'admin_notes': forms.Textarea(attrs={'class': 'form-control', 'rows': 3, 'placeholder': 'Internal notes for technicians...'}),
+            'resolution_description': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Provide an update on the issue status, progress made, or resolution details...'
+            }),
+            'estimated_repair_cost': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
+            'actual_repair_cost': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01', 'min': '0'}),
         }
 
 
