@@ -265,6 +265,123 @@ class BookingViewSet(APIRateLimitMixin, viewsets.ModelViewSet):
         
         return super().destroy(request, *args, **kwargs)
 
+    @action(detail=True, methods=['post'])
+    def cancel(self, request, pk=None):
+        """Cancel a booking."""
+        booking = self.get_object()
+
+        # Check permissions: users can cancel their own bookings, managers can cancel any
+        try:
+            user_profile = request.user.userprofile
+            can_cancel = (
+                booking.user == request.user or
+                user_profile.role in ['technician', 'sysadmin']
+            )
+        except UserProfile.DoesNotExist:
+            can_cancel = booking.user == request.user
+
+        if not can_cancel:
+            return Response(
+                {"error": "You do not have permission to cancel this booking"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if not booking.can_be_cancelled:
+            return Response(
+                {"error": "This booking cannot be cancelled"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        booking.status = 'cancelled'
+        booking.save()
+
+        log_security_event(
+            request.user, 'booking_cancelled',
+            f'Booking {booking.id} cancelled via API',
+            request, {'booking_id': booking.id}
+        )
+
+        serializer = self.get_serializer(booking)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def approve(self, request, pk=None):
+        """Approve a booking."""
+        booking = self.get_object()
+
+        # Check permissions: only technicians and sysadmins can approve
+        try:
+            user_profile = request.user.userprofile
+            if user_profile.role not in ['technician', 'sysadmin']:
+                return Response(
+                    {"error": "Permission denied"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except UserProfile.DoesNotExist:
+            return Response(
+                {"error": "Permission denied"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if booking.status != 'pending':
+            return Response(
+                {"error": "Only pending bookings can be approved"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        booking.status = 'approved'
+        booking.approved_by = request.user
+        booking.approved_at = timezone.now()
+        booking.save()
+
+        log_security_event(
+            request.user, 'booking_approved',
+            f'Booking {booking.id} approved via API',
+            request, {'booking_id': booking.id}
+        )
+
+        serializer = self.get_serializer(booking)
+        return Response(serializer.data)
+
+    @action(detail=True, methods=['post'])
+    def reject(self, request, pk=None):
+        """Reject a booking."""
+        booking = self.get_object()
+
+        # Check permissions: only technicians and sysadmins can reject
+        try:
+            user_profile = request.user.userprofile
+            if user_profile.role not in ['technician', 'sysadmin']:
+                return Response(
+                    {"error": "Permission denied"},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+        except UserProfile.DoesNotExist:
+            return Response(
+                {"error": "Permission denied"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
+        if booking.status != 'pending':
+            return Response(
+                {"error": "Only pending bookings can be rejected"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        booking.status = 'rejected'
+        booking.approved_by = request.user
+        booking.approved_at = timezone.now()
+        booking.save()
+
+        log_security_event(
+            request.user, 'booking_rejected',
+            f'Booking {booking.id} rejected via API',
+            request, {'booking_id': booking.id}
+        )
+
+        serializer = self.get_serializer(booking)
+        return Response(serializer.data)
+
 
 class ApprovalRuleViewSet(APIRateLimitMixin, viewsets.ModelViewSet):
     """ViewSet for approval rules with rate limiting."""
