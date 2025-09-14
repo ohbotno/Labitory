@@ -212,7 +212,6 @@ class UserProfile(models.Model):
         null=True,
         help_text="Profile picture - Max 2MB, JPEG/PNG formats"
     )
-    training_level = models.PositiveIntegerField(default=1)
     is_inducted = models.BooleanField(default=False)
     email_verified = models.BooleanField(default=False)
     first_login = models.DateTimeField(

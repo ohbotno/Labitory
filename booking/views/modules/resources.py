@@ -59,14 +59,16 @@ def resources_list_view(request):
             status='pending'
         ).exists()
         
-        # Check if user has pending training request (only if resource requires training)
-        from ...models import TrainingRequest
+        # Check if user has pending training (only if resource requires training)
+        from ...models.training import UserTraining
         resource.has_pending_training = False
-        if resource.required_training_level > 0:
-            resource.has_pending_training = TrainingRequest.objects.filter(
-                resource=resource,
+        if resource.training_requirements.filter(is_mandatory=True).exists():
+            # Check if user has pending training for any required courses
+            resource.has_pending_training = UserTraining.objects.filter(
                 user=request.user,
-                status__in=['pending', 'scheduled']
+                training_course__resource_requirements__resource=resource,
+                training_course__resource_requirements__is_mandatory=True,
+                status__in=['enrolled', 'in_progress']
             ).exists()
     
     return render(request, 'booking/resources_list.html', {
@@ -79,9 +81,38 @@ def resources_list_view(request):
 def resource_detail_view(request, resource_id):
     """View to show resource details and calendar or access request form."""
     from django.utils import timezone
-    from ...models import RiskAssessment, UserRiskAssessment, TrainingRequest
-    
+    from ...models import RiskAssessment, UserRiskAssessment
+
     resource = get_object_or_404(Resource, id=resource_id, is_active=True)
+
+    # Handle POST requests (like re-request training)
+    if request.method == 'POST':
+        action = request.POST.get('action', '')
+
+        # Handle re-request training action
+        if action == 'rerequest_training':
+            training_id = request.POST.get('training_id')
+
+            # Debug: Check if training_id is valid
+            if not training_id or training_id == '':
+                messages.error(request, 'Invalid training ID provided.')
+                return redirect('booking:resource_detail', resource_id=resource.id)
+
+            try:
+                from ...models.training import UserTraining
+                user_training = get_object_or_404(UserTraining, id=training_id, user=request.user)
+
+                if user_training.status not in ['failed', 'cancelled', 'expired']:
+                    messages.error(request, 'Can only re-request failed, cancelled, or expired training.')
+                else:
+                    # Reset the UserTraining status to allow re-enrollment
+                    user_training.reset_for_retry()
+                    messages.success(request, f'Training re-requested for {user_training.training_course.title}. Your training status has been reset and you can now re-enroll.', extra_tags='persistent-alert')
+
+            except Exception as e:
+                messages.error(request, f'Error re-requesting training: {str(e)}')
+
+            return redirect('booking:resource_detail', resource_id=resource.id)
     
     # Check user's access
     user_has_access = resource.user_has_access(request.user)
@@ -199,7 +230,6 @@ def resource_detail_view(request, resource_id):
 @login_required
 def request_resource_access_view(request, resource_id):
     """Handle resource access requests."""
-    from ...models import TrainingRequest
     
     resource = get_object_or_404(Resource, id=resource_id, is_active=True)
     
@@ -218,6 +248,7 @@ def request_resource_access_view(request, resource_id):
         return redirect('booking:resource_detail', resource_id=resource.id)
     
     if request.method == 'POST':
+        # Existing access request handling
         access_type = request.POST.get('access_type', 'book')
         justification = request.POST.get('justification', '').strip()
         requested_duration_days = request.POST.get('requested_duration_days')
@@ -239,81 +270,10 @@ def request_resource_access_view(request, resource_id):
                 messages.error(request, 'Supervisor email is required for student access requests.')
                 return redirect('booking:request_resource_access', resource_id=resource.id)
         
-        # Check if user meets training requirements
-        user_profile = request.user.userprofile
-        needs_training = resource.required_training_level > user_profile.training_level
-        
-        if needs_training:
-            if has_training == 'yes':
-                # User claims to have training but system shows they don't
-                messages.warning(request, 
-                    f'Our records show you have training level {user_profile.training_level}, but {resource.name} requires level {resource.required_training_level}. '
-                    'Training information will be sent to you to update your qualifications.', extra_tags='persistent-alert')
-                
-                # Create training request for verification
-                existing_training = TrainingRequest.objects.filter(
-                    user=request.user,
-                    resource=resource,
-                    status__in=['pending', 'scheduled']
-                ).first()
-                
-                if existing_training:
-                    training_request = existing_training
-                    created = False
-                else:
-                    training_request = TrainingRequest.objects.create(
-                        user=request.user,
-                        resource=resource,
-                        status='pending',
-                        requested_level=resource.required_training_level,
-                        current_level=user_profile.training_level,
-                        justification=f"Training verification needed for access to {resource.name}. User claims training completion. Original request: {justification}"
-                    )
-                    created = True
-                
-            elif has_training == 'no':
-                # User acknowledges they need training
-                messages.info(request, 'Training information will be sent to you as this resource requires additional training.', extra_tags='persistent-alert')
-                
-                # Create training request
-                existing_training = TrainingRequest.objects.filter(
-                    user=request.user,
-                    resource=resource,
-                    status__in=['pending', 'scheduled']
-                ).first()
-                
-                if existing_training:
-                    training_request = existing_training
-                    created = False
-                else:
-                    training_request = TrainingRequest.objects.create(
-                        user=request.user,
-                        resource=resource,
-                        status='pending',
-                        requested_level=resource.required_training_level,
-                        current_level=user_profile.training_level,
-                        justification=f"Training needed for access to {resource.name}. Original request: {justification}"
-                    )
-                    created = True
-            
-            if 'training_request' in locals():
-                if created:
-                    messages.success(request, f'Training request for {resource.name} has been submitted. You will be contacted with training details.', extra_tags='persistent-alert')
-                    
-                    # Send notifications
-                    try:
-                        from booking.notifications import training_request_notifications
-                        training_request_notifications.training_request_submitted(training_request)
-                    except Exception as e:
-                        import logging
-                        logger = logging.getLogger(__name__)
-                        logger.error(f"Failed to send training request submission notification: {e}")
-                else:
-                    messages.info(request, f'You already have a pending training request for {resource.name}.', extra_tags='persistent-alert')
-            
-            return redirect('booking:resource_detail', resource_id=resource.id)
-        
-        # User has sufficient training, proceed with access request
+        # Training requirements handling is now done through AccessRequest creation
+        # which will automatically create UserTraining records for required courses
+
+        # Proceed with access request
         try:
             access_request = AccessRequest.objects.create_request(
                 resource=resource,

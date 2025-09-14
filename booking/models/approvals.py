@@ -234,13 +234,7 @@ class ApprovalRule(models.Model):
                         'reason': f'Required certification {cert_code} not found'
                     }
         
-        # Check minimum training level
-        if 'min_training_level' in logic:
-            if user_profile.training_level < logic['min_training_level']:
-                return {
-                    'approved': False, 
-                    'reason': f'Minimum training level {logic["min_training_level"]} required'
-                }
+        # Training level checks removed - use specific training courses instead
         
         return {'approved': True, 'reason': 'Training conditions met'}
     
@@ -610,7 +604,7 @@ class AccessRequest(models.Model):
         prerequisites = [self.safety_induction_confirmed]
 
         # Only check training if resource requires it
-        if self.resource.required_training_level > 0:
+        if self.resource.training_requirements.filter(is_mandatory=True).exists():
             prerequisites.append(self.lab_training_confirmed)
 
         # Only check risk assessment if resource requires it
@@ -634,7 +628,7 @@ class AccessRequest(models.Model):
                 'confirmed_by': self.lab_training_confirmed_by,
                 'confirmed_at': self.lab_training_confirmed_at,
                 'notes': self.lab_training_notes,
-                'required': self.resource.required_training_level > 0
+                'required': self.resource.training_requirements.filter(is_mandatory=True).exists()
             },
             'risk_assessment': {
                 'completed': self.risk_assessment_confirmed,
@@ -833,104 +827,3 @@ class AccessRequest(models.Model):
                 existing_assessment.notes = f'Reset for resource access: {self.resource.name}'
                 existing_assessment.save(update_fields=['status', 'notes'])
 
-
-class TrainingRequest(models.Model):
-    """Requests for training on specific resources."""
-    STATUS_CHOICES = [
-        ('pending', 'Training Pending'),
-        ('scheduled', 'Training Scheduled'),
-        ('completed', 'Training Completed'),
-        ('cancelled', 'Cancelled'),
-    ]
-    
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='training_requests')
-    resource = models.ForeignKey('Resource', on_delete=models.CASCADE, related_name='training_requests')
-    requested_level = models.PositiveIntegerField(help_text="Training level being requested")
-    current_level = models.PositiveIntegerField(help_text="User's current training level")
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
-    
-    # Training details
-    justification = models.TextField(help_text="Why training is needed")
-    training_date = models.DateTimeField(null=True, blank=True, help_text="Scheduled training date")
-    completed_date = models.DateTimeField(null=True, blank=True, help_text="When training was completed")
-    
-    # Review information
-    reviewed_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='reviewed_training_requests')
-    reviewed_at = models.DateTimeField(null=True, blank=True)
-    review_notes = models.TextField(blank=True)
-    
-    # Metadata
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        db_table = 'booking_trainingrequest'
-        ordering = ['-created_at']
-        unique_together = ['user', 'resource', 'status']  # Prevent duplicate pending requests
-    
-    def __str__(self):
-        return f"{self.user.username} requesting level {self.requested_level} training for {self.resource.name}"
-    
-    def complete_training(self, reviewed_by, completed_date=None, send_notification=True):
-        """Mark training as completed and update user's training level."""
-        self.status = 'completed'
-        self.completed_date = completed_date or timezone.now()
-        self.reviewed_by = reviewed_by
-        self.reviewed_at = timezone.now()
-        self.save()
-        
-        # Update user's training level
-        user_profile = self.user.userprofile
-        if user_profile.training_level < self.requested_level:
-            user_profile.training_level = self.requested_level
-            user_profile.save()
-        
-        # Send notification (only if requested)
-        if send_notification:
-            try:
-                from .notifications import training_request_notifications
-                training_request_notifications.training_request_completed(self)
-            except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"Failed to send training completion notification: {e}")
-    
-    def schedule_training(self, training_date, reviewed_by, notes="", send_notification=True):
-        """Schedule training for the user."""
-        self.status = 'scheduled'
-        self.training_date = training_date
-        self.reviewed_by = reviewed_by
-        self.reviewed_at = timezone.now()
-        self.review_notes = notes
-        self.save()
-        
-        # Send notification (only if requested)
-        if send_notification:
-            try:
-                from .notifications import training_request_notifications
-                training_request_notifications.training_request_scheduled(self, training_date)
-            except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"Failed to send training scheduled notification: {e}")
-    
-    def cancel_training(self, cancelled_by, reason="", send_notification=True):
-        """Cancel the training request."""
-        if self.status not in ['pending', 'scheduled']:
-            raise ValueError("Can only cancel pending or scheduled training")
-        
-        self.status = 'cancelled'
-        self.reviewed_by = cancelled_by
-        self.reviewed_at = timezone.now()
-        self.review_notes = reason
-        self.save()
-        
-        # Send notification (only if requested)
-        if send_notification:
-            try:
-                from .notifications import training_request_notifications
-                training_request_notifications.training_request_cancelled(self, cancelled_by, reason)
-            except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"Failed to send training cancellation notification: {e}")

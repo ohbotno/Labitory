@@ -38,7 +38,6 @@ class Resource(models.Model):
     url = models.URLField(blank=True, help_text="Optional URL for additional information about the resource")
     location = models.CharField(max_length=200)
     capacity = models.PositiveIntegerField(default=1)
-    required_training_level = models.PositiveIntegerField(default=1)
     requires_induction = models.BooleanField(default=False)
     requires_risk_assessment = models.BooleanField(
         default=False,
@@ -123,8 +122,6 @@ class Resource(models.Model):
         if not self.is_active:
             return False
         if self.requires_induction and not user_profile.is_inducted:
-            return False
-        if user_profile.training_level < self.required_training_level:
             return False
         return True
     
@@ -245,23 +242,16 @@ class Resource(models.Model):
                     'enrolled_at': any_training.enrolled_at if any_training else None
                 })
         
-        # Check if training is required either through specific courses or training level
+        # Check if training is required through specific courses
         has_specific_requirements = len(required_training) > 0
-        requires_training_level = self.required_training_level > user_profile.training_level
-        
-        if not has_specific_requirements and not requires_training_level:
+
+        if not has_specific_requirements:
             # No training requirements at all
             training_description = 'Equipment-specific training: Not required for this resource'
             training_status = 'not_required'
             training_completed_flag = True
             training_required = False
-        elif not has_specific_requirements and requires_training_level:
-            # Training level requirement but no specific courses configured yet
-            training_description = f'Equipment-specific training: Level {self.required_training_level} required (current level: {user_profile.training_level})'
-            training_status = 'pending'
-            training_completed_flag = False
-            training_required = True
-        elif has_specific_requirements:
+        else:
             # Specific training courses configured
             training_description = f'Equipment-specific training: {len(training_completed)} of {len(required_training)} courses completed'
             training_status = 'completed' if len(training_pending) == 0 else 'pending'
@@ -280,9 +270,7 @@ class Resource(models.Model):
                 'completed': training_completed,
                 'pending': training_pending,
                 'total_required': len(required_training),
-                'training_records': training_records,  # Include actual training record details
-                'required_level': self.required_training_level,
-                'user_level': user_profile.training_level
+                'training_records': training_records  # Include actual training record details
             }
         }
         progress['stages'].append(training_stage)

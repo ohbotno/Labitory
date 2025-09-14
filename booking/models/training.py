@@ -325,7 +325,7 @@ class UserTraining(models.Model):
         self.started_at = timezone.now()
         self.save(update_fields=['status', 'started_at', 'updated_at'])
     
-    def complete_training(self, theory_score=None, practical_score=None, instructor=None, notes=""):
+    def complete_training(self, theory_score=None, practical_score=None, instructor=None, notes="", send_notification=True):
         """Complete the training with scores."""
         self.theory_score = theory_score
         self.practical_score = practical_score
@@ -358,5 +358,73 @@ class UserTraining(models.Model):
                 self.certificate_issued_at = timezone.now()
         else:
             self.status = 'failed'
-        
+
         self.save()
+
+        # Send notifications
+        if send_notification:
+            try:
+                from ..notifications import training_notifications
+                if self.passed:
+                    training_notifications.training_completed(self)
+                else:
+                    training_notifications.training_failed(self)
+            except Exception as e:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Failed to send training completion notification: {e}")
+
+    def reset_for_retry(self):
+        """Reset training status to allow for retry after failure or cancellation."""
+        if self.status not in ['failed', 'cancelled', 'expired']:
+            raise ValueError("Can only reset failed, cancelled, or expired training")
+
+        # Reset status and scores
+        self.status = 'enrolled'
+        self.theory_score = None
+        self.practical_score = None
+        self.overall_score = None
+        self.passed = False
+        self.completed_at = None
+        self.certificate_number = ""
+        self.certificate_issued_at = None
+        self.instructor_notes = ""
+        self.user_feedback = ""
+
+        # Keep session date if it was scheduled
+        # Reset enrolled date to now
+        self.enrolled_at = timezone.now()
+
+        self.save(update_fields=[
+            'status', 'theory_score', 'practical_score', 'overall_score',
+            'passed', 'completed_at', 'certificate_number', 'certificate_issued_at',
+            'instructor_notes', 'user_feedback', 'enrolled_at', 'updated_at'
+        ])
+
+    def mark_as_completed_by_admin(self, instructor=None, notes=""):
+        """Mark training as completed by admin confirmation without requiring scores."""
+        self.status = 'completed'
+        self.completed_at = timezone.now()
+        self.passed = True  # Admin confirmation means they passed
+        self.instructor = instructor
+        self.instructor_notes = notes
+
+        # Set expiry date
+        if self.training_course.valid_for_months:
+            self.expires_at = timezone.now() + timedelta(days=self.training_course.valid_for_months * 30)
+
+        # Generate certificate number
+        if not self.certificate_number:
+            self.certificate_number = f"{self.training_course.code}-{self.user.id}-{timezone.now().strftime('%Y%m%d')}"
+            self.certificate_issued_at = timezone.now()
+
+        self.save()
+
+        # Send completion notification
+        try:
+            from ..notifications import training_notifications
+            training_notifications.training_completed(self)
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Failed to send training completion notification: {e}")

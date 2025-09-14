@@ -108,7 +108,7 @@ This comprehensive checklist covers all major pages and functions in the Labitor
 - [x] Reject access request (`/approval/access-requests/<id>/reject/`)
 
 ### Training & Risk Assessments
-- [ ] Risk assessments list (`/risk-assessments/`)
+- [x] Risk assessments list (`/risk-assessments/`)
 - [ ] Risk assessment detail (`/risk-assessments/<id>/`)
 - [ ] Start risk assessment (`/risk-assessments/<id>/start/`)
 - [ ] Submit risk assessment (`/risk-assessments/<id>/submit/`)
@@ -117,12 +117,12 @@ This comprehensive checklist covers all major pages and functions in the Labitor
 ## 🎓 Training System
 
 ### Training Courses
-- [ ] Training dashboard (`/training/`)
-- [ ] Training courses list (`/training/courses/`)
-- [ ] Course detail page (`/training/courses/<id>/`)
-- [ ] Course enrollment (`/training/courses/<id>/enroll/`)
-- [ ] My training page (`/training/my-training/`)
-- [ ] Training management (`/training/manage/`)
+- [x] Training dashboard (`/training/`)
+- [x] Training courses list (`/training/courses/`)
+- [x] Course detail page (`/training/courses/<id>/`)
+- [x] Course enrollment (`/training/courses/<id>/enroll/`)
+- [x] My training page (`/training/my-training/`)
+- [x] Training management (`/training/manage/`)
 
 ### Resource Training Requirements
 - [ ] Manage resource training (`/resources/<id>/manage/`)
@@ -132,17 +132,17 @@ This comprehensive checklist covers all major pages and functions in the Labitor
 ## 🔧 Lab Admin Functions
 
 ### Dashboard & Overview
-- [ ] Lab admin dashboard (`/lab-admin/`)
-- [ ] Approval statistics (`/lab-admin/statistics/`)
-- [ ] Booking management (`/lab-admin/manage/`)
+- [x] Lab admin dashboard (`/lab-admin/`)
+- [  Approval statistics (`/lab-admin/statistics/`)
+- [x] Booking management (`/lab-admin/manage/`)
 
 ### User Management
-- [ ] Users list (`/lab-admin/users/`)
-- [ ] User detail view (`/lab-admin/users/<id>/`)
-- [ ] Edit user (`/lab-admin/users/<id>/edit/`)
+- [x] Users list (`/lab-admin/users/`)
+- [x] User detail view (`/lab-admin/users/<id>/`)
+- [x] Edit user (`/lab-admin/users/<id>/edit/`)
 - [ ] Delete user (`/lab-admin/users/<id>/delete/`)
 - [ ] Toggle user status (`/lab-admin/users/<id>/toggle/`)
-- [ ] Add new user (`/lab-admin/users/add/`)
+- [x] Add new user (`/lab-admin/users/add/`)
 - [ ] Bulk import users (`/lab-admin/users/bulk-import/`)
 - [ ] Bulk user actions (`/lab-admin/users/bulk-action/`)
 - [ ] Export users (`/lab-admin/users/export/`)
@@ -158,10 +158,10 @@ This comprehensive checklist covers all major pages and functions in the Labitor
 - [ ] Open resource (`/lab-admin/resources/<id>/open/`)
 
 ### Training Management
-- [ ] Lab admin training view (`/lab-admin/training/`)
-- [ ] Training requirements management
-- [ ] Training course management
-- [ ] User training completion tracking
+- [x] Lab admin training view (`/lab-admin/training/`)
+- [x] Training requirements management
+- [x] Training course management
+- [x] User training completion tracking
 
 ### Approval Rules
 - [ ] Approval rules management (`/lab-admin/approval-rules/`)
@@ -206,11 +206,11 @@ This comprehensive checklist covers all major pages and functions in the Labitor
 ## 🔧 Site Admin Functions (System Admin Only)
 
 ### System Dashboard
-- [ ] Site admin dashboard (`/site-admin/`)
-- [ ] Health check page (`/site-admin/health-check/`)
+- [x] Site admin dashboard (`/site-admin/`)
+- [x] Health check page (`/site-admin/health-check/`)
 
 ### User Management
-- [ ] Site admin users list (`/site-admin/users/`)
+- [x] Site admin users list (`/site-admin/users/`)
 - [ ] Delete user (`/site-admin/users/<id>/delete/`)
 
 ### System Configuration

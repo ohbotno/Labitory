@@ -479,13 +479,47 @@ def lab_admin_training_view(request):
             user_training_id = request.POST.get('user_training_id')
             user_training = get_object_or_404(UserTraining, id=user_training_id)
 
-            # Complete the training
-            user_training.complete_training(
+            # Complete the training by admin confirmation
+            user_training.mark_as_completed_by_admin(
                 instructor=request.user,
                 notes=f'Training marked complete by {request.user.get_full_name()}'
             )
 
             messages.success(request, f'Training marked as completed for {user_training.user.get_full_name()}')
+
+        elif action == 'schedule_legacy_training':
+            request_id = request.POST.get('request_id')
+            training_date = request.POST.get('training_date')
+            training_time = request.POST.get('training_time')
+            training_justification = request.POST.get('training_justification', '')
+
+            training_request = get_object_or_404(TrainingRequest, id=request_id)
+
+            # Build datetime from date and time
+            training_datetime = None
+            if training_date and training_time:
+                try:
+                    from datetime import datetime
+                    training_datetime = datetime.strptime(f"{training_date} {training_time}", "%Y-%m-%d %H:%M")
+                    training_datetime = timezone.make_aware(training_datetime)
+                except ValueError:
+                    messages.error(request, 'Invalid date or time format.')
+                    return redirect('booking:lab_admin_training')
+            elif training_date:
+                try:
+                    from datetime import datetime
+                    training_datetime = datetime.strptime(training_date, "%Y-%m-%d")
+                    training_datetime = timezone.make_aware(training_datetime)
+                except ValueError:
+                    messages.error(request, 'Invalid date format.')
+                    return redirect('booking:lab_admin_training')
+
+            # Update training request fields
+            training_request.training_date = training_datetime
+            training_request.justification = training_justification
+            training_request.save()
+
+            messages.success(request, f'Legacy training request scheduled for {training_request.user.get_full_name()}', extra_tags='persistent-alert')
 
         elif action == 'cancel_user_training':
             user_training_id = request.POST.get('user_training_id')

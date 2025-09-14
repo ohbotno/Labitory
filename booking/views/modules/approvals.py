@@ -807,7 +807,23 @@ def lab_admin_access_requests_view(request):
             elif action == 'confirm_training':
                 notes = request.POST.get('training_notes', '').strip()
                 try:
+                    # Confirm lab training on the access request
                     access_request.confirm_lab_training(request.user, notes)
+
+                    # Also mark any related UserTraining records as completed
+                    from ...models.training import UserTraining
+                    pending_training = UserTraining.objects.filter(
+                        user=access_request.user,
+                        training_course__resource_trainings__resource=access_request.resource,
+                        status__in=['enrolled', 'in_progress', 'failed']
+                    )
+
+                    for user_training in pending_training:
+                        user_training.mark_as_completed_by_admin(
+                            instructor=request.user,
+                            notes=f"Training confirmed by {request.user.get_full_name()} for resource access. {notes}".strip()
+                        )
+
                     messages.success(request, f'Lab training confirmed for {access_request.user.get_full_name()}', extra_tags='persistent-alert')
                 except Exception as e:
                     messages.error(request, f'Error confirming lab training: {str(e)}')

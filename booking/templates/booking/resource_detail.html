@@ -458,9 +458,14 @@
                                                             <i class="bi bi-arrow-right me-1"></i>Continue Training
                                                         </a>
                                                     {% elif record.status == 'failed' or record.status == 'expired' %}
-                                                        <div class="btn btn-secondary btn-sm" disabled>
-                                                            <i class="bi bi-x-circle me-1"></i>Training Pending - Contact Lab Admin
-                                                        </div>
+                                                        <form method="post" action="{% url 'booking:resource_detail' resource.id %}" class="d-inline">
+                                                            {% csrf_token %}
+                                                            <input type="hidden" name="action" value="rerequest_training">
+                                                            <input type="hidden" name="training_id" value="{{ record.training_id }}">
+                                                            <button type="submit" class="btn btn-warning btn-sm" onclick="return confirm('Are you sure you want to re-request training for {{ record.course_title }}?')">
+                                                                <i class="bi bi-arrow-clockwise me-1"></i>Re-request Training
+                                                            </button>
+                                                        </form>
                                                     {% else %}
                                                         <div class="small">
                                                             <i class="bi bi-clock me-1"></i>Training Pending
