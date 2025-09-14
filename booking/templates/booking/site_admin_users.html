@@ -4,6 +4,7 @@
 {% block title %}User Management - Site Administration{% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div class="container-fluid">
     <div class="row">
         <div class="col-12">
@@ -271,6 +272,22 @@
                                                         <p><strong>Theme:</strong> {{ user.userprofile.get_theme_preference_display }}</p>
                                                     </div>
                                                 </div>
+
+                                                <!-- Resource Access Information -->
+                                                <hr>
+                                                <div class="row">
+                                                    <div class="col-12">
+                                                        <h6>Resource Access
+                                                            <span class="badge bg-primary">{{ user.resource_access.count }}</span>
+                                                        </h6>
+                                                        <div id="resourceAccessContainer{{ user.id }}">
+                                                            <div class="text-center">
+                                                                <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                                                Loading resource access...
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
                                                 {% endif %}
                                             </div>
                                             <div class="modal-footer">
@@ -347,6 +364,85 @@ function toggleUserStatus(userId, activate) {
         // Reload page for now
         location.reload();
     }
+}
+
+// Load resource access when modal is shown
+$(document).ready(function() {
+    $('.modal').on('show.bs.modal', function (e) {
+        const modal = $(this);
+        const userId = modal.attr('id').replace('userModal', '');
+
+        // Load resource access data
+        loadResourceAccess(userId);
+    });
+});
+
+function loadResourceAccess(userId) {
+    const container = $(`#resourceAccessContainer${userId}`);
+
+    $.ajax({
+        url: `/site-admin/users/${userId}/resource-access/`,
+        method: 'GET',
+        success: function(data) {
+            if (data.success) {
+                container.html(data.html);
+                // Update the count badge
+                $(`#userModal${userId} .badge`).text(data.count);
+            } else {
+                container.html('<p class="text-danger">Error loading resource access: ' + data.error + '</p>');
+            }
+        },
+        error: function() {
+            container.html('<p class="text-danger">Error loading resource access data.</p>');
+        }
+    });
+}
+
+function revokeResourceAccessSiteAdmin(accessId, resourceName, userId) {
+    if (confirm(`Are you sure you want to revoke access to "${resourceName}"?`)) {
+        $.ajax({
+            url: `/site-admin/users/${userId}/revoke-access/${accessId}/`,
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': $('[name=csrfmiddlewaretoken]').val(),
+                'Content-Type': 'application/json'
+            },
+            success: function(data) {
+                if (data.success) {
+                    // Remove the row from the table
+                    $(`#site-access-${accessId}`).remove();
+
+                    // Show success message
+                    showAlert('success', data.message);
+
+                    // Reload resource access to update count
+                    loadResourceAccess(userId);
+                } else {
+                    showAlert('danger', 'Error: ' + data.error);
+                }
+            },
+            error: function() {
+                showAlert('danger', 'Error revoking resource access.');
+            }
+        });
+    }
+}
+
+function showAlert(type, message) {
+    const alertHtml = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+
+    // Add to top of container
+    $('.container-fluid').prepend(alertHtml);
+
+    // Auto-dismiss after 5 seconds
+    setTimeout(function() {
+        $('.alert').alert('close');
+    }, 5000);
 }
 </script>
 {% endblock %}

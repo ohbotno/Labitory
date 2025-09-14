@@ -142,6 +142,7 @@ urlpatterns = [
     path('lab-admin/users/<int:user_id>/edit/', lab_admin.lab_admin_user_edit_view, name='lab_admin_user_edit'),
     path('lab-admin/users/<int:user_id>/delete/', lab_admin.lab_admin_user_delete_view, name='lab_admin_user_delete'),
     path('lab-admin/users/<int:user_id>/toggle/', lab_admin.lab_admin_user_toggle_view, name='lab_admin_user_toggle'),
+    path('lab-admin/users/<int:user_id>/revoke-access/<int:access_id>/', lab_admin.lab_admin_revoke_resource_access_view, name='lab_admin_revoke_resource_access'),
     path('lab-admin/users/add/', lab_admin.lab_admin_user_add_view, name='lab_admin_user_add'),
     path('lab-admin/users/bulk-import/', lab_admin.lab_admin_users_bulk_import_view, name='lab_admin_users_bulk_import'),
     path('lab-admin/users/bulk-action/', lab_admin.lab_admin_users_bulk_action_view, name='lab_admin_users_bulk_action'),
@@ -197,6 +198,8 @@ urlpatterns = [
     # Site Administration URLs (System Admin only)
     path('site-admin/', site_admin.site_admin_dashboard_view, name='site_admin_dashboard'),
     path('site-admin/users/', site_admin.site_admin_users_view, name='site_admin_users'),
+    path('site-admin/users/<int:user_id>/resource-access/', site_admin.site_admin_user_resource_access_view, name='site_admin_user_resource_access'),
+    path('site-admin/users/<int:user_id>/revoke-access/<int:access_id>/', site_admin.site_admin_revoke_resource_access_view, name='site_admin_revoke_resource_access'),
     path('site-admin/users/<int:user_id>/delete/', site_admin.site_admin_user_delete_view, name='site_admin_user_delete'),
     path('site-admin/config/', site_admin.site_admin_system_config_view, name='site_admin_config'),
     path('site-admin/lab-settings/', site_admin.site_admin_lab_settings_view, name='site_admin_lab_settings'),

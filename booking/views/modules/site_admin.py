@@ -2380,6 +2380,104 @@ def site_admin_updates_ajax_view(request):
         return JsonResponse({'success': False, 'error': str(e)})
 
 
+# ============= USER RESOURCE ACCESS MANAGEMENT =============
+
+@login_required
+@user_passes_test(lambda u: hasattr(u, 'userprofile') and u.userprofile.role == 'sysadmin')
+def site_admin_user_resource_access_view(request, user_id):
+    """Get resource access information for a user."""
+    try:
+        user = User.objects.get(id=user_id)
+        from booking.models import ResourceAccess
+        from django.utils import timezone
+
+        resource_access = ResourceAccess.objects.filter(
+            user=user
+        ).select_related('resource', 'granted_by').order_by('-granted_at')
+
+        # Build HTML response
+        if resource_access.exists():
+            html = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Resource</th><th>Type</th><th>Granted By</th><th>Status</th><th>Actions</th></tr></thead><tbody>'
+
+            for access in resource_access:
+                status_badge = ""
+                action_button = ""
+
+                if not access.is_active:
+                    status_badge = '<span class="badge bg-secondary">Inactive</span>'
+                elif access.is_expired:
+                    status_badge = '<span class="badge bg-warning">Expired</span>'
+                else:
+                    status_badge = '<span class="badge bg-success">Active</span>'
+                    # Only show revoke button for active access
+                    action_button = f'<button class="btn btn-sm btn-outline-danger" onclick="revokeResourceAccessSiteAdmin({access.id}, \'{access.resource.name}\', {user.id})">Revoke</button>'
+
+                expires_text = ""
+                if access.expires_at:
+                    expires_text = f"<br><small class='text-muted'>Expires: {access.expires_at.strftime('%b %d, %Y')}</small>"
+
+                html += f'''
+                <tr id="site-access-{access.id}">
+                    <td>{access.resource.name}</td>
+                    <td><span class="badge bg-info">{access.get_access_type_display()}</span></td>
+                    <td>{access.granted_by.get_full_name() or access.granted_by.username}<br><small class="text-muted">{access.granted_at.strftime('%b %d, %Y')}</small>{expires_text}</td>
+                    <td>{status_badge}</td>
+                    <td>{action_button}</td>
+                </tr>
+                '''
+
+            html += '</tbody></table></div>'
+        else:
+            html = '<p class="text-muted">No resource access found.</p>'
+
+        return JsonResponse({
+            'success': True,
+            'html': html,
+            'count': resource_access.count()
+        })
+
+    except User.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'User not found'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+@user_passes_test(lambda u: hasattr(u, 'userprofile') and u.userprofile.role == 'sysadmin')
+def site_admin_revoke_resource_access_view(request, user_id, access_id):
+    """Revoke a user's access to a specific resource."""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'})
+
+    try:
+        from booking.models import ResourceAccess
+
+        # Get the access record
+        access = ResourceAccess.objects.get(id=access_id, user_id=user_id)
+
+        # Check if access is still active
+        if not access.is_active:
+            return JsonResponse({'success': False, 'error': 'Access is already inactive'})
+
+        # Revoke access
+        access.is_active = False
+        access.save()
+
+        # Log the action
+        from django.contrib import messages
+        messages.success(request, f'Access to {access.resource.name} revoked for {access.user.get_full_name() or access.user.username}')
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Access to {access.resource.name} has been revoked'
+        })
+
+    except ResourceAccess.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Resource access not found'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
 # ============= RESOURCE ISSUE REPORTING VIEWS =============
 
 

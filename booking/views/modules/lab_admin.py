@@ -743,6 +743,50 @@ def lab_admin_user_detail_view(request, user_id):
                 'theme_preference': user.userprofile.theme_preference,
             })
 
+        # Get user's resource access
+        from booking.models import ResourceAccess
+        from django.utils import timezone
+
+        resource_access = ResourceAccess.objects.filter(
+            user=user
+        ).select_related('resource', 'granted_by').order_by('-granted_at')
+
+        # Build resource access HTML
+        resource_access_html = ""
+        if resource_access.exists():
+            resource_access_html = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Resource</th><th>Type</th><th>Granted By</th><th>Status</th><th>Actions</th></tr></thead><tbody>'
+
+            for access in resource_access:
+                status_badge = ""
+                action_button = ""
+
+                if not access.is_active:
+                    status_badge = '<span class="badge bg-secondary">Inactive</span>'
+                elif access.is_expired:
+                    status_badge = '<span class="badge bg-warning">Expired</span>'
+                else:
+                    status_badge = '<span class="badge bg-success">Active</span>'
+                    # Only show revoke button for active access
+                    action_button = f'<button class="btn btn-sm btn-outline-danger" onclick="revokeResourceAccess({access.id}, \'{access.resource.name}\', {user.id})">Revoke</button>'
+
+                expires_text = ""
+                if access.expires_at:
+                    expires_text = f"<br><small class='text-muted'>Expires: {access.expires_at.strftime('%b %d, %Y')}</small>"
+
+                resource_access_html += f'''
+                <tr id="access-{access.id}">
+                    <td>{access.resource.name}</td>
+                    <td><span class="badge bg-info">{access.get_access_type_display()}</span></td>
+                    <td>{access.granted_by.get_full_name() or access.granted_by.username}<br><small class="text-muted">{access.granted_at.strftime('%b %d, %Y')}</small>{expires_text}</td>
+                    <td>{status_badge}</td>
+                    <td>{action_button}</td>
+                </tr>
+                '''
+
+            resource_access_html += '</tbody></table></div>'
+        else:
+            resource_access_html = '<p class="text-muted">No resource access found.</p>'
+
         # Render HTML for modal
         student_id_display = user_data.get('student_id', '')
         staff_number_display = user_data.get('staff_number', '')
@@ -812,6 +856,13 @@ def lab_admin_user_detail_view(request, user_id):
                     {'<dt class="col-sm-4">First Login:</dt>' if user_data.get('first_login') else ''}
                     {'<dd class="col-sm-8">' + user_data.get('first_login').strftime('%B %d, %Y at %I:%M %p') + '</dd>' if user_data.get('first_login') else ''}
                 </dl>
+            </div>
+        </div>
+        <hr>
+        <div class="row">
+            <div class="col-12">
+                <h6>Resource Access ({resource_access.count()} total)</h6>
+                {resource_access_html}
             </div>
         </div>
         """
@@ -977,6 +1028,38 @@ def lab_admin_user_delete_view(request, user_id):
 
 
 @login_required
+@user_passes_test(is_lab_admin)
+def lab_admin_revoke_resource_access_view(request, user_id, access_id):
+    """Revoke a user's access to a specific resource."""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'Method not allowed'})
+
+    try:
+        from booking.models import ResourceAccess
+
+        # Get the access record
+        access = ResourceAccess.objects.get(id=access_id, user_id=user_id)
+
+        # Check if access is still active
+        if not access.is_active:
+            return JsonResponse({'success': False, 'error': 'Access is already inactive'})
+
+        # Revoke access
+        access.is_active = False
+        access.save()
+
+        # Log the action (you could add to an audit log here)
+        messages.success(request, f'Access to {access.resource.name} revoked for {access.user.get_full_name() or access.user.username}')
+
+        return JsonResponse({
+            'success': True,
+            'message': f'Access to {access.resource.name} has been revoked'
+        })
+
+    except ResourceAccess.DoesNotExist:
+        return JsonResponse({'success': False, 'error': 'Resource access not found'})
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
 
 
 @login_required
