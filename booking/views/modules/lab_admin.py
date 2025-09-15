@@ -235,23 +235,37 @@ def lab_admin_access_requests_view(request):
                         # Use the first required course for training
                         training_course = required_courses.first().training_course
 
-                        # Check if user already has training for this course
+                        # Check if user already has any training for this course
                         existing_training = UserTraining.objects.filter(
                             user=access_request.user,
-                            training_course=training_course,
-                            status__in=['enrolled', 'scheduled']
+                            training_course=training_course
                         ).first()
 
                         if existing_training:
-                            # Update existing training
-                            if training_datetime:
-                                existing_training.session_date = training_datetime.date()
-                                existing_training.session_time = training_datetime.time()
-                                existing_training.status = 'scheduled'
-                                existing_training.instructor = request.user
-                            existing_training.save()
-                            training_request = existing_training
-                            created = False
+                            if existing_training.status == 'completed':
+                                # User already completed this training - no need to create new record
+                                messages.info(request, f'{access_request.user.get_full_name()} has already completed training for {training_course.title}')
+                                return redirect('booking:lab_admin_access_requests')
+                            elif existing_training.status in ['enrolled', 'scheduled']:
+                                # Update existing pending training
+                                if training_datetime:
+                                    existing_training.session_date = training_datetime.date()
+                                    existing_training.session_time = training_datetime.time()
+                                    existing_training.status = 'scheduled'
+                                    existing_training.instructor = request.user
+                                existing_training.save()
+                                training_request = existing_training
+                                created = False
+                            else:
+                                # For failed/cancelled/expired - re-enroll
+                                existing_training.status = 'scheduled' if training_datetime else 'enrolled'
+                                if training_datetime:
+                                    existing_training.session_date = training_datetime.date()
+                                    existing_training.session_time = training_datetime.time()
+                                    existing_training.instructor = request.user
+                                existing_training.save()
+                                training_request = existing_training
+                                created = False
                         else:
                             # Create new training enrollment
                             training_request = UserTraining.objects.create(
@@ -260,8 +274,7 @@ def lab_admin_access_requests_view(request):
                                 status='scheduled' if training_datetime else 'enrolled',
                                 session_date=training_datetime.date() if training_datetime else None,
                                 session_time=training_datetime.time() if training_datetime else None,
-                                instructor=request.user if training_datetime else None,
-                                enrolled_at=timezone.now()
+                                instructor=request.user if training_datetime else None
                             )
                             created = True
                     else:
