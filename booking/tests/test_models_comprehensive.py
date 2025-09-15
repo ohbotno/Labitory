@@ -17,7 +17,7 @@ from booking.models import (
     # Booking models
     Booking, BookingTemplate, BookingAttendee, BookingHistory, CheckInOutEvent,
     # Approval models
-    ApprovalRule, ApprovalStatistics, AccessRequest, TrainingRequest,
+    ApprovalRule, ApprovalStatistics, AccessRequest,
     # Maintenance models
     MaintenanceVendor, Maintenance, MaintenanceDocument, MaintenanceAlert, MaintenanceAnalytics,
     # Training models

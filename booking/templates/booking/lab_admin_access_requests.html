@@ -150,7 +150,7 @@
                             </div>
                             
                             <!-- Lab Training (only show if resource requires training) -->
-                            {% if request.resource.required_training_level > 0 %}
+                            {% if request.prerequisite_status.lab_training.required %}
                             <div class="border rounded p-3 mb-3">
                                 <div class="d-flex align-items-start justify-content-between">
                                     <div class="d-flex align-items-start">
@@ -160,7 +160,7 @@
                                         <i class="bi bi-circle text-muted me-2 mt-1"></i>
                                         {% endif %}
                                         <div>
-                                            <strong>Resource Training (Level {{ request.resource.required_training_level }} Required)</strong>
+                                            <strong>Resource Training Required</strong>
                                             {% if request.prerequisite_status.lab_training.completed %}
                                             <div class="small text-success">
                                                 ✓ Confirmed by {{ request.prerequisite_status.lab_training.confirmed_by.get_full_name }}
@@ -396,7 +396,7 @@
             </div>
             
             <!-- Resource Training Confirmation Modal (only show if resource requires training) -->
-            {% if request.resource.required_training_level > 0 %}
+            {% if request.prerequisite_status.lab_training.required %}
             <div class="modal fade" id="trainingModal{{ request.id }}" tabindex="-1">
                 <div class="modal-dialog">
                     <div class="modal-content">

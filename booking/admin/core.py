@@ -118,8 +118,8 @@ class DepartmentAdmin(admin.ModelAdmin):
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):
-    list_display = ('user', 'role', 'academic_path', 'student_level', 'training_level', 'is_inducted')
-    list_filter = ('role', 'faculty', 'college', 'department', 'student_level', 'training_level', 'is_inducted')
+    list_display = ('user', 'role', 'academic_path', 'student_level', 'is_inducted')
+    list_filter = ('role', 'faculty', 'college', 'department', 'student_level', 'is_inducted')
     search_fields = (
         'user__username', 'user__email', 'user__first_name', 'user__last_name', 
         'student_id', 'staff_number', 'faculty__name', 'college__name', 'department__name'
@@ -136,7 +136,7 @@ class UserProfileAdmin(admin.ModelAdmin):
             'fields': ('student_id', 'student_level', 'staff_number')
         }),
         ('System Information', {
-            'fields': ('training_level', 'is_inducted', 'email_verified', 'phone')
+            'fields': ('is_inducted', 'email_verified', 'phone')
         }),
         ('Timestamps', {
             'fields': ('created_at', 'updated_at'),
@@ -144,7 +144,7 @@ class UserProfileAdmin(admin.ModelAdmin):
         })
     )
     
-    actions = ['export_users_csv', 'bulk_assign_group', 'bulk_change_role', 'bulk_set_training_level']
+    actions = ['export_users_csv', 'bulk_assign_group', 'bulk_change_role']
     
     def export_users_csv(self, request, queryset):
         """Export selected users to CSV format."""
@@ -155,7 +155,7 @@ class UserProfileAdmin(admin.ModelAdmin):
         writer.writerow([
             'username', 'email', 'first_name', 'last_name', 'role', 'group',
             'faculty_code', 'college_code', 'department_code', 'student_id',
-            'staff_number', 'training_level', 'phone'
+            'staff_number', 'phone'
         ])
         
         for profile in queryset.select_related('user', 'faculty', 'college', 'department'):
@@ -171,7 +171,6 @@ class UserProfileAdmin(admin.ModelAdmin):
                 profile.department.code if profile.department else '',
                 profile.student_id or '',
                 profile.staff_number or '',
-                profile.training_level,
                 profile.phone or '',
             ])
         

@@ -16,7 +16,7 @@ from django.utils import timezone
 from django.db.models import Q
 from .models import (
     Notification, NotificationPreference, EmailTemplate, 
-    Booking, Resource, Maintenance, UserProfile, AccessRequest, TrainingRequest,
+    Booking, Resource, Maintenance, UserProfile, AccessRequest,
     RiskAssessment, UserRiskAssessment, TrainingCourse, UserTraining, ResourceResponsible
 )
 
@@ -80,7 +80,6 @@ class NotificationService:
         resource: Optional[Resource] = None,
         maintenance: Optional[Maintenance] = None,
         access_request: Optional[AccessRequest] = None,
-        training_request: Optional[TrainingRequest] = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> List[Notification]:
         """Create notifications based on user preferences."""
@@ -326,7 +325,7 @@ class NotificationService:
     
     def send_escalation_notifications(self):
         """Send escalation notifications for overdue requests."""
-        from .models import AccessRequest, TrainingRequest
+        from .models import AccessRequest
         from datetime import timedelta
         
         # Define escalation timeframes
@@ -373,42 +372,8 @@ class NotificationService:
                         days_old
                     )
                     escalated_count += 1
-            
-            # Check overdue training requests
-            overdue_training_requests = TrainingRequest.objects.filter(
-                status='pending',
-                created_at__lte=escalation_1_cutoff
-            )
-            
-            for training_request in overdue_training_requests:
-                days_old = (now - training_request.created_at).days
-                
-                # Determine escalation level
-                if days_old >= 14:
-                    escalation_level = 3
-                    priority = 'urgent'
-                elif days_old >= 7:
-                    escalation_level = 2
-                    priority = 'high'
-                else:
-                    escalation_level = 1
-                    priority = 'medium'
-                
-                # Check if we already sent this escalation
-                existing_escalation = Notification.objects.filter(
-                    training_request=training_request,
-                    notification_type='escalation_notification',
-                    metadata__escalation_level=escalation_level
-                ).exists()
-                
-                if not existing_escalation:
-                    self._send_training_escalation_notification(
-                        training_request, 
-                        escalation_level, 
-                        priority, 
-                        days_old
-                    )
-                    escalated_count += 1
+
+            # Training request escalation removed - now handled through UserTraining model
                     
             return escalated_count
                     
@@ -746,105 +711,8 @@ class AccessRequestNotifications:
         )
 
 
-class TrainingRequestNotifications:
-    """Helper class for training request notifications."""
-    
-    def __init__(self):
-        self.service = NotificationService()
-    
-    def training_request_submitted(self, training_request: TrainingRequest):
-        """Send notification when training request is submitted."""
-        # Notify the user who submitted the request
-        self.service.create_notification(
-            user=training_request.user,
-            notification_type='training_request_submitted',
-            title=f'Training Request Submitted: {training_request.resource.name}',
-            message=f'Your training request for {training_request.resource.name} has been submitted. You will be contacted with training details.',
-            priority='medium',
-            resource=training_request.resource,
-            training_request=training_request,
-            metadata={
-                'training_request_id': training_request.id,
-                'resource_name': training_request.resource.name,
-            }
-        )
-        
-        # Notify lab managers
-        lab_managers = UserProfile.objects.filter(role='lab_manager').select_related('user')
-        for manager_profile in lab_managers:
-            self.service.create_notification(
-                user=manager_profile.user,
-                notification_type='training_request_submitted',
-                title=f'New Training Request: {training_request.resource.name}',
-                message=f'{training_request.user.get_full_name()} has requested training for {training_request.resource.name}.',
-                priority='medium',
-                resource=training_request.resource,
-                training_request=training_request,
-                metadata={
-                    'training_request_id': training_request.id,
-                    'requester': training_request.user.get_full_name(),
-                    'requester_email': training_request.user.email,
-                }
-            )
-    
-    def training_request_scheduled(self, training_request: TrainingRequest, scheduled_date=None):
-        """Send notification when training is scheduled."""
-        message = f'Training for {training_request.resource.name} has been scheduled.'
-        if scheduled_date:
-            message += f' Training date: {scheduled_date.strftime("%B %d, %Y")}.'
-        message += ' Check your email for detailed instructions.'
-        
-        self.service.create_notification(
-            user=training_request.user,
-            notification_type='training_request_scheduled',
-            title=f'Training Scheduled: {training_request.resource.name}',
-            message=message,
-            priority='high',
-            resource=training_request.resource,
-            training_request=training_request,
-            metadata={
-                'training_request_id': training_request.id,
-                'scheduled_date': scheduled_date.isoformat() if scheduled_date else None,
-            }
-        )
-    
-    def training_request_completed(self, training_request: TrainingRequest):
-        """Send notification when training is completed."""
-        self.service.create_notification(
-            user=training_request.user,
-            notification_type='training_request_completed',
-            title=f'Training Completed: {training_request.resource.name}',
-            message=f'You have successfully completed training for {training_request.resource.name}. You can now request access to this resource.',
-            priority='high',
-            resource=training_request.resource,
-            training_request=training_request,
-            metadata={
-                'training_request_id': training_request.id,
-                'resource_name': training_request.resource.name,
-            }
-        )
-    
-    def training_request_cancelled(self, training_request: TrainingRequest, cancelled_by, reason=None):
-        """Send notification when training is cancelled."""
-        message = f'Training for {training_request.resource.name} has been cancelled by {cancelled_by.get_full_name()}.'
-        if reason:
-            message += f' Reason: {reason}'
-        
-        self.service.create_notification(
-            user=training_request.user,
-            notification_type='training_request_cancelled',
-            title=f'Training Cancelled: {training_request.resource.name}',
-            message=message,
-            priority='medium',
-            resource=training_request.resource,
-            training_request=training_request,
-            metadata={
-                'training_request_id': training_request.id,
-                'cancelled_by': cancelled_by.get_full_name(),
-                'reason': reason or '',
-            }
-        )
 
+# TrainingRequestNotifications class removed - now handled through UserTraining model
 
 class ApprovalWorkflowNotifications:
     """Notifications for approval workflow events."""
@@ -1111,5 +979,4 @@ notification_service = NotificationService()
 booking_notifications = BookingNotifications()
 maintenance_notifications = MaintenanceNotifications()
 access_request_notifications = AccessRequestNotifications()
-training_request_notifications = TrainingRequestNotifications()
 approval_workflow_notifications = ApprovalWorkflowNotifications()

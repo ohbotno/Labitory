@@ -129,7 +129,6 @@ class Notification(models.Model):
     resource = models.ForeignKey('Resource', on_delete=models.CASCADE, null=True, blank=True)
     maintenance = models.ForeignKey('Maintenance', on_delete=models.CASCADE, null=True, blank=True)
     access_request = models.ForeignKey('AccessRequest', on_delete=models.CASCADE, null=True, blank=True)
-    training_request = models.ForeignKey('TrainingRequest', on_delete=models.CASCADE, null=True, blank=True)
     
     # Metadata
     metadata = models.JSONField(default=dict, blank=True)
@@ -207,8 +206,6 @@ class Notification(models.Model):
                 return reverse('booking:resource_detail', kwargs={'resource_id': self.resource.id})
             elif self.access_request:
                 return reverse('booking:resource_detail', kwargs={'resource_id': self.access_request.resource.id})
-            elif self.training_request:
-                return reverse('booking:resource_detail', kwargs={'resource_id': self.training_request.resource.id})
             elif self.maintenance:
                 return reverse('booking:resource_detail', kwargs={'resource_id': self.maintenance.resource.id})
             else:

@@ -45,7 +45,7 @@ import time
 from ...models import (
     AboutPage, UserProfile, Resource, Booking, ApprovalRule, Maintenance, EmailVerificationToken, 
     PasswordResetToken, BookingTemplate, Notification, NotificationPreference, WaitingListEntry, 
-    Faculty, College, Department, ResourceAccess, AccessRequest, TrainingRequest,
+    Faculty, College, Department, ResourceAccess, AccessRequest,
     ResourceResponsible, RiskAssessment, UserRiskAssessment, TrainingCourse, 
     ResourceTrainingRequirement, UserTraining, ResourceIssue, UpdateInfo, 
     LabSettings, EmailConfiguration, SMSConfiguration
@@ -117,7 +117,7 @@ def site_admin_dashboard_view(request):
     
     # Pending Approvals
     pending_access_requests = AccessRequest.objects.filter(status='pending').count()
-    pending_training_requests = TrainingRequest.objects.filter(status='pending').count()
+    pending_training_requests = UserTraining.objects.filter(status='enrolled').count()
     
     # Resource Status
     active_resources = Resource.objects.filter(is_active=True).count()

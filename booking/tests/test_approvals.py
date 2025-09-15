@@ -10,7 +10,7 @@ from unittest.mock import patch, Mock
 import json
 
 from booking.models import (
-    ApprovalRule, ApprovalStatistics, AccessRequest, TrainingRequest,
+    ApprovalRule, ApprovalStatistics, AccessRequest,
     Resource, Booking, UserProfile
 )
 from booking.tests.factories import (
@@ -477,69 +477,6 @@ class TestApprovalStatistics(TestCase):
         self.assertEqual(stats.approved_requests, 4)
 
 
-class TestTrainingRequests(TestCase):
-    """Test training request workflows."""
-    
-    def setUp(self):
-        self.resource = ResourceFactory(requires_training=True)
-        self.student = UserProfileFactory(role='student')
-        self.trainer = UserProfileFactory(role='technician')
-    
-    def test_create_training_request(self):
-        """Test creating a training request."""
-        request = TrainingRequest.objects.create(
-            user=self.student.user,
-            resource=self.resource,
-            training_level=2,
-            justification='Need advanced training for research',
-            status='pending'
-        )
-        
-        self.assertEqual(request.user, self.student.user)
-        self.assertEqual(request.resource, self.resource)
-        self.assertEqual(request.training_level, 2)
-        self.assertEqual(request.status, 'pending')
-    
-    def test_approve_training_request(self):
-        """Test approving a training request."""
-        request = TrainingRequest.objects.create(
-            user=self.student.user,
-            resource=self.resource,
-            training_level=1,
-            status='pending'
-        )
-        
-        # Approve training
-        request.approved_by = self.trainer.user
-        request.approved_at = timezone.now()
-        request.status = 'approved'
-        request.training_scheduled_date = timezone.now() + timedelta(days=7)
-        request.save()
-        
-        self.assertEqual(request.status, 'approved')
-        self.assertEqual(request.approved_by, self.trainer.user)
-        self.assertIsNotNone(request.training_scheduled_date)
-    
-    def test_complete_training(self):
-        """Test completing training."""
-        request = TrainingRequest.objects.create(
-            user=self.student.user,
-            resource=self.resource,
-            training_level=1,
-            status='approved',
-            training_scheduled_date=timezone.now() + timedelta(days=7)
-        )
-        
-        # Complete training
-        request.status = 'completed'
-        request.training_completed_date = timezone.now()
-        request.trainer = self.trainer.user
-        request.training_score = 85
-        request.save()
-        
-        self.assertEqual(request.status, 'completed')
-        self.assertEqual(request.training_score, 85)
-        self.assertEqual(request.trainer, self.trainer.user)
 
 
 class TestApprovalNotifications(TestCase):

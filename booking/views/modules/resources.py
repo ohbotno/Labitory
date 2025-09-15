@@ -133,14 +133,23 @@ def resource_detail_view(request, resource_id):
         reviewed_at__gte=timezone.now() - timedelta(days=30)  # Show rejections from last 30 days
     ).order_by('-reviewed_at').first()
     
-    # Check if user has pending training request (only if resource requires training)
+    # Check if user has pending training (only if resource requires training)
     has_pending_training = False
     if resource.required_training_level > 0:
-        has_pending_training = TrainingRequest.objects.filter(
+        # Check for pending UserTraining records for this resource's required courses
+        from ...models.training import UserTraining
+        from ...models import ResourceTrainingRequirement
+        required_courses = ResourceTrainingRequirement.objects.filter(
             resource=resource,
-            user=request.user,
-            status__in=['pending', 'scheduled']
-        ).exists()
+            is_mandatory=True
+        ).values_list('training_course_id', flat=True)
+
+        if required_courses:
+            has_pending_training = UserTraining.objects.filter(
+                user=request.user,
+                training_course_id__in=required_courses,
+                status__in=['enrolled', 'scheduled']
+            ).exists()
     
     # Get approval progress for the user
     approval_progress = resource.get_approval_progress(request.user)
@@ -242,10 +251,22 @@ def request_resource_access_view(request, resource_id):
         messages.info(request, 'You already have a pending access request for this resource.', extra_tags='persistent-alert')
         return redirect('booking:resource_detail', resource_id=resource.id)
     
-    # Check if user has pending training request (only if resource requires training)
-    if resource.required_training_level > 0 and TrainingRequest.objects.filter(resource=resource, user=request.user, status__in=['pending', 'scheduled']).exists():
-        messages.info(request, 'You already have a pending training request for this resource.', extra_tags='persistent-alert')
-        return redirect('booking:resource_detail', resource_id=resource.id)
+    # Check if user has pending training enrollment (only if resource requires training)
+    if resource.required_training_level > 0:
+        from ...models.training import UserTraining
+        from ...models import ResourceTrainingRequirement
+        required_courses = ResourceTrainingRequirement.objects.filter(
+            resource=resource,
+            is_mandatory=True
+        ).values_list('training_course_id', flat=True)
+
+        if required_courses and UserTraining.objects.filter(
+            user=request.user,
+            training_course_id__in=required_courses,
+            status__in=['enrolled', 'scheduled']
+        ).exists():
+            messages.info(request, 'You already have pending training for this resource.', extra_tags='persistent-alert')
+            return redirect('booking:resource_detail', resource_id=resource.id)
     
     if request.method == 'POST':
         # Existing access request handling

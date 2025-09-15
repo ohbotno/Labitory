@@ -26,8 +26,8 @@ from datetime import datetime, timedelta
 import json
 
 from ...models import (
-    Resource, AccessRequest, RiskAssessment, UserRiskAssessment, 
-    ApprovalRule, UserTraining, TrainingRequest, ApprovalStatistics, Booking
+    Resource, AccessRequest, RiskAssessment, UserRiskAssessment,
+    ApprovalRule, UserTraining, ApprovalStatistics, Booking
 )
 from ...forms import (
     AccessRequestReviewForm, RiskAssessmentForm, UserRiskAssessmentForm
@@ -334,7 +334,7 @@ def create_risk_assessment_view(request):
 # License feature removed - all features now available
 def approval_statistics_view(request):
     """User-friendly approval statistics dashboard."""
-    from booking.models import ApprovalStatistics, AccessRequest, TrainingRequest
+    from booking.models import ApprovalStatistics, AccessRequest
     from django.db.models import Avg, Sum, Count
     from datetime import datetime, timedelta
     import json
@@ -755,7 +755,7 @@ def access_request_detail_view(request, request_id):
 @user_passes_test(is_lab_admin)
 def lab_admin_access_requests_view(request):
     """Manage access requests."""
-    from booking.models import AccessRequest, TrainingRequest
+    from booking.models import AccessRequest
     
     # Handle status updates
     if request.method == 'POST':
@@ -874,35 +874,8 @@ def lab_admin_access_requests_view(request):
                     full_justification += f"\n\nTrainer Notes: {trainer_notes}"
                 
                 try:
-                    # Check if training request already exists for this user and resource with active status
-                    existing_request = TrainingRequest.objects.filter(
-                        user=access_request.user,
-                        resource=access_request.resource,
-                        status__in=['pending', 'scheduled']
-                    ).first()
-                    
-                    if existing_request:
-                        # Update existing request with new details
-                        existing_request.justification = full_justification
-                        if training_datetime:
-                            existing_request.training_date = training_datetime
-                            existing_request.status = 'scheduled'
-                        existing_request.save()
-                        training_request = existing_request
-                        created = False
-                    else:
-                        # Create new training request with appropriate status
-                        initial_status = 'scheduled' if training_datetime else 'pending'
-                        training_request = TrainingRequest.objects.create(
-                            user=access_request.user,
-                            resource=access_request.resource,
-                            status=initial_status,
-                            requested_level=access_request.resource.required_training_level or 1,
-                            current_level=access_request.user.userprofile.training_level,
-                            justification=full_justification,
-                            training_date=training_datetime
-                        )
-                        created = True
+                    # Training requests now handled through UserTraining model automatically
+                    # when AccessRequest creates required training records
                     
                     # Handle booking creation and notifications when training is scheduled
                     if training_datetime:

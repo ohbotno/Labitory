@@ -20,7 +20,7 @@ from .models import (
     WaitingListEntry,
     CheckInOutEvent, UsageAnalytics,
     Faculty, College, Department,
-    ResourceAccess, AccessRequest, TrainingRequest,
+    ResourceAccess, AccessRequest,
     SystemSetting, PDFExportSettings,
     ResourceResponsible, RiskAssessment, UserRiskAssessment,
     TrainingCourse, ResourceTrainingRequirement, UserTraining,
@@ -869,80 +869,7 @@ class AccessRequestAdmin(admin.ModelAdmin):
     reject_requests.short_description = 'Reject selected requests'
 
 
-@admin.register(TrainingRequest)
-class TrainingRequestAdmin(admin.ModelAdmin):
-    list_display = ('user', 'resource', 'requested_level', 'current_level', 'status', 'created_at', 'training_date', 'reviewed_by')
-    list_filter = ('status', 'requested_level', 'created_at', 'training_date')
-    search_fields = ('user__username', 'user__email', 'resource__name', 'justification')
-    readonly_fields = ('created_at', 'updated_at', 'reviewed_at', 'completed_date')
-    date_hierarchy = 'created_at'
-    
-    fieldsets = (
-        ('Training Request', {
-            'fields': ('user', 'resource', 'requested_level', 'current_level', 'status')
-        }),
-        ('Request Details', {
-            'fields': ('justification',)
-        }),
-        ('Training Schedule', {
-            'fields': ('training_date', 'completed_date'),
-            'classes': ('collapse',)
-        }),
-        ('Review Information', {
-            'fields': ('reviewed_by', 'reviewed_at', 'review_notes'),
-            'classes': ('collapse',)
-        }),
-        ('Timestamps', {
-            'fields': ('created_at', 'updated_at'),
-            'classes': ('collapse',)
-        })
-    )
-    
-    def get_queryset(self, request):
-        return super().get_queryset(request).select_related('user', 'resource', 'reviewed_by')
-    
-    actions = ['schedule_training', 'complete_training', 'cancel_training']
-    
-    def schedule_training(self, request, queryset):
-        """Schedule training for selected requests."""
-        from django.utils import timezone
-        from datetime import timedelta
-        
-        count = 0
-        training_date = timezone.now() + timedelta(days=7)  # Default to 1 week from now
-        
-        for training_request in queryset.filter(status='pending'):
-            try:
-                training_request.schedule_training(
-                    training_date=training_date,
-                    reviewed_by=request.user,
-                    notes="Scheduled via admin action"
-                )
-                count += 1
-            except Exception as e:
-                self.message_user(request, f'Error scheduling training for request {training_request.id}: {str(e)}', level='ERROR')
-        
-        self.message_user(request, f'Scheduled training for {count} requests.')
-    schedule_training.short_description = 'Schedule training for selected requests'
-    
-    def complete_training(self, request, queryset):
-        """Mark training as completed for selected requests."""
-        count = 0
-        for training_request in queryset.filter(status__in=['pending', 'scheduled']):
-            try:
-                training_request.complete_training(request.user)
-                count += 1
-            except Exception as e:
-                self.message_user(request, f'Error completing training for request {training_request.id}: {str(e)}', level='ERROR')
-        
-        self.message_user(request, f'Completed training for {count} requests.')
-    complete_training.short_description = 'Mark training as completed'
-    
-    def cancel_training(self, request, queryset):
-        """Cancel selected training requests."""
-        updated = queryset.filter(status__in=['pending', 'scheduled']).update(status='cancelled')
-        self.message_user(request, f'Cancelled {updated} training requests.')
-    cancel_training.short_description = 'Cancel selected training requests'
+# TrainingRequest admin removed - now handled through UserTraining model
 
 
 @admin.register(SystemSetting)

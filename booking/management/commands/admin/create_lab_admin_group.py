@@ -16,7 +16,7 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
 from booking.models import (
-    UserProfile, AccessRequest, TrainingRequest, ResourceAccess, 
+    UserProfile, AccessRequest, ResourceAccess,
     Resource, UserTraining, TrainingCourse
 )
 
@@ -114,25 +114,6 @@ class Command(BaseCommand):
             )[0],
         ])
 
-        # Training Request Management
-        training_request_ct = ContentType.objects.get_for_model(TrainingRequest)
-        permissions_to_add.extend([
-            Permission.objects.get_or_create(
-                codename='view_trainingrequest',
-                name='Can view training request',
-                content_type=training_request_ct,
-            )[0],
-            Permission.objects.get_or_create(
-                codename='change_trainingrequest',
-                name='Can change training request',
-                content_type=training_request_ct,
-            )[0],
-            Permission.objects.get_or_create(
-                codename='approve_trainingrequest',
-                name='Can approve training requests',
-                content_type=training_request_ct,
-            )[0],
-        ])
 
         # User Training Management
         user_training_ct = ContentType.objects.get_for_model(UserTraining)

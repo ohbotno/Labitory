@@ -63,7 +63,6 @@ from .approvals import (
     ApprovalRule,
     ApprovalStatistics,
     AccessRequest,
-    TrainingRequest,
 )
 
 # Maintenance models
@@ -182,7 +181,6 @@ __all__ = [
     'ApprovalRule',
     'ApprovalStatistics',
     'AccessRequest',
-    'TrainingRequest',
     # Maintenance
     'MaintenanceVendor',
     'Maintenance',

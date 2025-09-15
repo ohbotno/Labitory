@@ -6,7 +6,7 @@ from datetime import timedelta
 from booking.models import (
     UserProfile, Resource, Booking, BookingTemplate, 
     ApprovalRule, Maintenance, BookingHistory,
-    Faculty, College, Department, AccessRequest, ResourceAccess, TrainingRequest
+    Faculty, College, Department, AccessRequest, ResourceAccess
 )
 
 
@@ -203,13 +203,3 @@ class ResourceAccessFactory(factory.django.DjangoModelFactory):
     is_active = True
 
 
-class TrainingRequestFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = TrainingRequest
-    
-    user = factory.SubFactory(UserFactory)
-    resource = factory.SubFactory(ResourceFactory)
-    requested_level = 2
-    current_level = 1
-    status = 'pending'
-    justification = factory.Faker('text', max_nb_chars=200)

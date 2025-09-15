@@ -7,7 +7,7 @@ Licensed under the MIT License - see LICENSE file for details.
 """
 
 from django.db.models import Q
-from .models import Notification, AccessRequest, TrainingRequest, LabSettings
+from .models import Notification, AccessRequest, LabSettings
 
 
 def has_model(model_name):
@@ -52,9 +52,10 @@ def notification_context(request):
         if hasattr(request.user, 'userprofile') and \
            (request.user.userprofile.role in ['technician', 'sysadmin'] or \
             request.user.groups.filter(name='Lab Admin').exists()):
-            if has_model('TrainingRequest'):
-                pending_training_requests = TrainingRequest.objects.filter(
-                    status='pending'
+            if has_model('UserTraining'):
+                from .models.training import UserTraining
+                pending_training_requests = UserTraining.objects.filter(
+                    status='enrolled'
                 ).count()
         
         # Get recent unread notifications for display
@@ -62,7 +63,7 @@ def notification_context(request):
             user=request.user,
             delivery_method='in_app',
             status__in=['pending', 'sent']
-        ).select_related('booking', 'resource', 'access_request', 'training_request', 'maintenance').order_by('-created_at')[:5]
+        ).select_related('booking', 'resource', 'access_request', 'maintenance').order_by('-created_at')[:5]
         
         # Total actionable items
         total_notifications = (

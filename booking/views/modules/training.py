@@ -25,7 +25,7 @@ from datetime import datetime, timedelta
 import json
 
 from ...models import (
-    Resource, Booking, UserProfile, TrainingRequest, UserTraining, TrainingCourse,
+    Resource, Booking, UserProfile, UserTraining, TrainingCourse,
     ResourceTrainingRequirement, ResourceResponsible
 )
 from ...forms import ResourceResponsibleForm
@@ -287,89 +287,16 @@ def resource_training_requirements_view(request, resource_id):
 @user_passes_test(is_lab_admin)
 def lab_admin_training_view(request):
     """Manage training requests and sessions."""
-    from booking.models import TrainingRequest, UserTraining, TrainingCourse
+    from booking.models import UserTraining, TrainingCourse
     
     # Handle training request actions
     if request.method == 'POST':
         action = request.POST.get('action')
         
-        if action == 'complete_training':
-            request_id = request.POST.get('request_id')
-            training_request = get_object_or_404(TrainingRequest, id=request_id)
-            
-            # Mark training as completed
-            training_request.status = 'completed'
-            training_request.completed_date = timezone.now()
-            training_request.reviewed_by = request.user
-            training_request.reviewed_at = timezone.now()
-            training_request.save()
-            
-            # Update user's training level if this training increased it
-            user_profile = training_request.user.userprofile
-            if training_request.requested_level > user_profile.training_level:
-                user_profile.training_level = training_request.requested_level
-                user_profile.save()
-            
-            # Create UserTraining record if there's a specific course involved
-            if hasattr(training_request, 'training_course') and training_request.training_course:
-                user_training, created = UserTraining.objects.get_or_create(
-                    user=training_request.user,
-                    training_course=training_request.training_course,
-                    defaults={
-                        'status': 'completed',
-                        'completed_at': timezone.now(),
-                        'enrolled_at': training_request.created_at
-                    }
-                )
-                if not created and user_training.status != 'completed':
-                    user_training.status = 'completed'
-                    user_training.completed_at = timezone.now()
-                    user_training.save()
-            
-            messages.success(request, f'Training marked as completed for {training_request.user.get_full_name()}. Training level updated to {training_request.requested_level}.')
-            
-        elif action == 'delete_request':
-            request_id = request.POST.get('request_id')
-            training_request = get_object_or_404(TrainingRequest, id=request_id)
-            user_name = training_request.user.get_full_name()
-            
-            training_request.delete()
-            messages.success(request, f'Training request for {user_name} has been deleted', extra_tags='persistent-alert')
-            
-        elif action == 'edit_request':
-            request_id = request.POST.get('request_id')
-            training_request = get_object_or_404(TrainingRequest, id=request_id)
-            
-            # Parse training date and time
-            training_date = request.POST.get('training_date')
-            training_time = request.POST.get('training_time')
-            training_datetime = None
-            
-            if training_date and training_time:
-                try:
-                    from datetime import datetime
-                    training_datetime = datetime.strptime(f"{training_date} {training_time}", "%Y-%m-%d %H:%M")
-                    training_datetime = timezone.make_aware(training_datetime)
-                except ValueError:
-                    messages.error(request, 'Invalid date or time format.')
-                    return redirect('booking:lab_admin_training')
-            elif training_date:
-                try:
-                    from datetime import datetime
-                    training_datetime = datetime.strptime(training_date, "%Y-%m-%d")
-                    training_datetime = timezone.make_aware(training_datetime)
-                except ValueError:
-                    messages.error(request, 'Invalid date format.')
-                    return redirect('booking:lab_admin_training')
-            
-            # Update training request fields
-            training_request.training_date = training_datetime
-            training_request.justification = request.POST.get('training_justification', training_request.justification)
-            training_request.save()
-            
-            messages.success(request, f'Training request updated for {training_request.user.get_full_name()}', extra_tags='persistent-alert')
-            
-        elif action == 'schedule_training':
+        # Legacy training request actions have been removed
+        # All training is now handled through UserTraining model with specific training courses
+
+        if action == 'schedule_training':
             user_training_id = request.POST.get('user_training_id')
             session_date = request.POST.get('session_date')
             
@@ -487,39 +414,7 @@ def lab_admin_training_view(request):
 
             messages.success(request, f'Training marked as completed for {user_training.user.get_full_name()}')
 
-        elif action == 'schedule_legacy_training':
-            request_id = request.POST.get('request_id')
-            training_date = request.POST.get('training_date')
-            training_time = request.POST.get('training_time')
-            training_justification = request.POST.get('training_justification', '')
-
-            training_request = get_object_or_404(TrainingRequest, id=request_id)
-
-            # Build datetime from date and time
-            training_datetime = None
-            if training_date and training_time:
-                try:
-                    from datetime import datetime
-                    training_datetime = datetime.strptime(f"{training_date} {training_time}", "%Y-%m-%d %H:%M")
-                    training_datetime = timezone.make_aware(training_datetime)
-                except ValueError:
-                    messages.error(request, 'Invalid date or time format.')
-                    return redirect('booking:lab_admin_training')
-            elif training_date:
-                try:
-                    from datetime import datetime
-                    training_datetime = datetime.strptime(training_date, "%Y-%m-%d")
-                    training_datetime = timezone.make_aware(training_datetime)
-                except ValueError:
-                    messages.error(request, 'Invalid date format.')
-                    return redirect('booking:lab_admin_training')
-
-            # Update training request fields
-            training_request.training_date = training_datetime
-            training_request.justification = training_justification
-            training_request.save()
-
-            messages.success(request, f'Legacy training request scheduled for {training_request.user.get_full_name()}', extra_tags='persistent-alert')
+        # Legacy training scheduling removed - now handled through UserTraining model
 
         elif action == 'cancel_user_training':
             user_training_id = request.POST.get('user_training_id')
@@ -539,8 +434,8 @@ def lab_admin_training_view(request):
         status='enrolled'
     ).select_related('user', 'training_course')
 
-    # Keep legacy TrainingRequest support for backward compatibility
-    legacy_training_requests = TrainingRequest.objects.filter(status='pending').select_related('user', 'resource', 'reviewed_by')
+    # Legacy training requests removed - now using UserTraining only
+    legacy_training_requests = []
 
     upcoming_sessions = UserTraining.objects.filter(
         session_date__gte=timezone.now().date(),

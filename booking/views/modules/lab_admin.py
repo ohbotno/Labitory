@@ -33,7 +33,7 @@ import csv
 
 from ...models import (
     UserProfile, Resource, Booking, ApprovalRule, Maintenance,
-    AccessRequest, TrainingRequest, Faculty, College, Department,
+    AccessRequest, Faculty, College, Department,
     ResourceAccess, ResourceResponsible, RiskAssessment, UserRiskAssessment,
     TrainingCourse, ResourceTrainingRequirement, UserTraining, ResourceIssue
 )
@@ -57,13 +57,13 @@ def is_lab_admin(user):
 @user_passes_test(is_lab_admin)
 def lab_admin_dashboard_view(request):
     """Lab Admin dashboard with overview of pending tasks."""
-    from booking.models import AccessRequest, TrainingRequest, UserTraining, UserProfile
+    from booking.models import AccessRequest, UserTraining, UserProfile
     from django.utils import timezone
     from datetime import timedelta
 
     # Get pending items
     pending_access_requests = AccessRequest.objects.filter(status='pending').count()
-    pending_training_requests = TrainingRequest.objects.filter(status='pending').count()
+    pending_training_requests = UserTraining.objects.filter(status='enrolled').count()
 
     # Get upcoming training sessions
     upcoming_training = UserTraining.objects.filter(
@@ -105,7 +105,7 @@ def lab_admin_dashboard_view(request):
 @user_passes_test(is_lab_admin)
 def lab_admin_access_requests_view(request):
     """Manage access requests."""
-    from booking.models import AccessRequest, TrainingRequest
+    from booking.models import AccessRequest
 
     # Handle status updates
     if request.method == 'POST':
@@ -224,35 +224,50 @@ def lab_admin_access_requests_view(request):
                     full_justification += f"\n\nTrainer Notes: {trainer_notes}"
 
                 try:
-                    # Check if training request already exists for this user and resource with active status
-                    existing_request = TrainingRequest.objects.filter(
-                        user=access_request.user,
+                    # Find required training courses for this resource
+                    from booking.models import ResourceTrainingRequirement
+                    required_courses = ResourceTrainingRequirement.objects.filter(
                         resource=access_request.resource,
-                        status__in=['pending', 'scheduled']
-                    ).first()
+                        is_mandatory=True
+                    ).select_related('training_course')
 
-                    if existing_request:
-                        # Update existing request with new details
-                        existing_request.justification = full_justification
-                        if training_datetime:
-                            existing_request.training_date = training_datetime
-                            existing_request.status = 'scheduled'
-                        existing_request.save()
-                        training_request = existing_request
-                        created = False
-                    else:
-                        # Create new training request with appropriate status
-                        initial_status = 'scheduled' if training_datetime else 'pending'
-                        training_request = TrainingRequest.objects.create(
+                    if required_courses.exists():
+                        # Use the first required course for training
+                        training_course = required_courses.first().training_course
+
+                        # Check if user already has training for this course
+                        existing_training = UserTraining.objects.filter(
                             user=access_request.user,
-                            resource=access_request.resource,
-                            status=initial_status,
-                            requested_level=access_request.resource.required_training_level or 1,
-                            current_level=access_request.user.userprofile.training_level,
-                            justification=full_justification,
-                            training_date=training_datetime
-                        )
-                        created = True
+                            training_course=training_course,
+                            status__in=['enrolled', 'scheduled']
+                        ).first()
+
+                        if existing_training:
+                            # Update existing training
+                            if training_datetime:
+                                existing_training.session_date = training_datetime.date()
+                                existing_training.session_time = training_datetime.time()
+                                existing_training.status = 'scheduled'
+                                existing_training.instructor = request.user
+                            existing_training.save()
+                            training_request = existing_training
+                            created = False
+                        else:
+                            # Create new training enrollment
+                            training_request = UserTraining.objects.create(
+                                user=access_request.user,
+                                training_course=training_course,
+                                status='scheduled' if training_datetime else 'enrolled',
+                                session_date=training_datetime.date() if training_datetime else None,
+                                session_time=training_datetime.time() if training_datetime else None,
+                                instructor=request.user if training_datetime else None,
+                                enrolled_at=timezone.now()
+                            )
+                            created = True
+                    else:
+                        # No specific training course - skip training creation
+                        messages.warning(request, f'No training courses configured for {access_request.resource.name}')
+                        return redirect('booking:lab_admin_access_requests')
 
                     # Handle booking creation and notifications when training is scheduled
                     if training_datetime:
@@ -385,7 +400,7 @@ def lab_admin_access_requests_view(request):
 @user_passes_test(is_lab_admin)
 def lab_admin_training_view(request):
     """Manage training requests and sessions."""
-    from booking.models import TrainingRequest, UserTraining, TrainingCourse
+    from booking.models import UserTraining, TrainingCourse
 
     # Handle training request actions
     if request.method == 'POST':
@@ -393,50 +408,27 @@ def lab_admin_training_view(request):
 
         if action == 'complete_training':
             request_id = request.POST.get('request_id')
-            training_request = get_object_or_404(TrainingRequest, id=request_id)
+            user_training = get_object_or_404(UserTraining, id=request_id)
 
             # Mark training as completed
-            training_request.status = 'completed'
-            training_request.completed_date = timezone.now()
-            training_request.reviewed_by = request.user
-            training_request.reviewed_at = timezone.now()
-            training_request.save()
+            user_training.mark_as_completed_by_admin(
+                instructor=request.user,
+                notes=f"Training marked as completed by {request.user.get_full_name()}"
+            )
 
-            # Update user's training level if this training increased it
-            user_profile = training_request.user.userprofile
-            if training_request.requested_level > user_profile.training_level:
-                user_profile.training_level = training_request.requested_level
-                user_profile.save()
-
-            # Create UserTraining record if there's a specific course involved
-            if hasattr(training_request, 'training_course') and training_request.training_course:
-                user_training, created = UserTraining.objects.get_or_create(
-                    user=training_request.user,
-                    training_course=training_request.training_course,
-                    defaults={
-                        'status': 'completed',
-                        'completed_at': timezone.now(),
-                        'enrolled_at': training_request.created_at
-                    }
-                )
-                if not created and user_training.status != 'completed':
-                    user_training.status = 'completed'
-                    user_training.completed_at = timezone.now()
-                    user_training.save()
-
-            messages.success(request, f'Training marked as completed for {training_request.user.get_full_name()}. Training level updated to {training_request.requested_level}.')
+            messages.success(request, f'Training marked as completed for {user_training.user.get_full_name()}.')
 
         elif action == 'delete_request':
             request_id = request.POST.get('request_id')
-            training_request = get_object_or_404(TrainingRequest, id=request_id)
-            user_name = training_request.user.get_full_name()
+            user_training = get_object_or_404(UserTraining, id=request_id)
+            user_name = user_training.user.get_full_name()
 
-            training_request.delete()
-            messages.success(request, f'Training request for {user_name} has been deleted', extra_tags='persistent-alert')
+            user_training.delete()
+            messages.success(request, f'Training enrollment for {user_name} has been deleted', extra_tags='persistent-alert')
 
         elif action == 'edit_request':
             request_id = request.POST.get('request_id')
-            training_request = get_object_or_404(TrainingRequest, id=request_id)
+            user_training = get_object_or_404(UserTraining, id=request_id)
 
             # Parse training date and time
             training_date = request.POST.get('training_date')
@@ -460,12 +452,14 @@ def lab_admin_training_view(request):
                     messages.error(request, 'Invalid date format.')
                     return redirect('booking:lab_admin_training')
 
-            # Update training request fields
-            training_request.training_date = training_datetime
-            training_request.justification = request.POST.get('training_justification', training_request.justification)
-            training_request.save()
+            # Update training fields
+            if training_datetime:
+                user_training.session_date = training_datetime.date()
+                user_training.session_time = training_datetime.time()
+                user_training.status = 'scheduled'
+            user_training.save()
 
-            messages.success(request, f'Training request updated for {training_request.user.get_full_name()}', extra_tags='persistent-alert')
+            messages.success(request, f'Training updated for {user_training.user.get_full_name()}', extra_tags='persistent-alert')
 
         elif action == 'schedule_training':
             user_training_id = request.POST.get('user_training_id')
@@ -575,8 +569,8 @@ def lab_admin_training_view(request):
 
         return redirect('booking:lab_admin_training')
 
-    # Get training data
-    pending_requests = TrainingRequest.objects.filter(status='pending').select_related('user', 'resource', 'reviewed_by')
+    # Get training data - using UserTraining instead of TrainingRequest
+    pending_requests = UserTraining.objects.filter(status='enrolled').select_related('user', 'training_course')
     upcoming_sessions = UserTraining.objects.filter(
         session_date__gte=timezone.now().date(),
         status='scheduled'
@@ -960,7 +954,7 @@ def lab_admin_user_delete_view(request, user_id):
 
     try:
         from django.db import transaction
-        from booking.models import Booking, ResourceAccess, TrainingRequest, RiskAssessment
+        from booking.models import Booking, ResourceAccess, RiskAssessment
 
         user = User.objects.get(id=user_id)
 
@@ -985,10 +979,11 @@ def lab_admin_user_delete_view(request, user_id):
         if resource_access > 0:
             related_data.append(f'{resource_access} resource access permission(s)')
 
-        # Check for training requests
-        training_requests = TrainingRequest.objects.filter(user=user).count()
-        if training_requests > 0:
-            related_data.append(f'{training_requests} training request(s)')
+        # Check for training enrollments
+        from booking.models import UserTraining
+        training_enrollments = UserTraining.objects.filter(user=user).count()
+        if training_enrollments > 0:
+            related_data.append(f'{training_enrollments} training enrollment(s)')
 
         # Check for risk assessments
         try:
@@ -1374,7 +1369,7 @@ def lab_admin_users_bulk_action_view(request):
 
                     elif action == 'delete':
                         # Check for dependencies like we do in single delete
-                        from booking.models import Booking, ResourceAccess, TrainingRequest, AccessRequest, WaitingListEntry
+                        from booking.models import Booking, ResourceAccess, AccessRequest, WaitingListEntry, UserTraining
 
                         # Check for blocking relationships
                         active_bookings = Booking.objects.filter(user=user, status__in=['pending', 'approved']).count()
@@ -1387,9 +1382,9 @@ def lab_admin_users_bulk_action_view(request):
                             errors.append(f'{user.username}: Has {resource_access} resource access permission(s)')
                             continue
 
-                        training_requests = TrainingRequest.objects.filter(user=user).count()
-                        if training_requests > 0:
-                            errors.append(f'{user.username}: Has {training_requests} training request(s)')
+                        training_enrollments = UserTraining.objects.filter(user=user).count()
+                        if training_enrollments > 0:
+                            errors.append(f'{user.username}: Has {training_enrollments} training enrollment(s)')
                             continue
 
                         access_requests = AccessRequest.objects.filter(user=user).count()
