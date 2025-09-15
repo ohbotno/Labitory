@@ -28,6 +28,7 @@ urlpatterns = [
     path('resources/', views.resources_list_view, name='resources_list'),
     path('resources/<int:resource_id>/', views.resource_detail_view, name='resource_detail'),
     path('resources/<int:resource_id>/request-access/', views.request_resource_access_view, name='request_resource_access'),
+    path('resources/<int:resource_id>/upload-risk-assessment/', views.upload_risk_assessment_view, name='upload_risk_assessment'),
     path('verify-email/<uuid:token>/', views.verify_email_view, name='verify_email'),
     path('resend-verification/', views.resend_verification_view, name='resend_verification'),
     
@@ -99,10 +100,7 @@ urlpatterns = [
     
     # Approval Workflow URLs
     path('approval/', approvals.approval_dashboard_view, name='approval_dashboard'),
-    path('approval/access-requests/', approvals.access_requests_view, name='access_requests'),
-    path('approval/access-requests/<int:request_id>/', approvals.access_request_detail_view, name='access_request_detail'),
-    path('approval/access-requests/<int:request_id>/approve/', approvals.approve_access_request_view, name='approve_access_request'),
-    path('approval/access-requests/<int:request_id>/reject/', approvals.reject_access_request_view, name='reject_access_request'),
+    path('approval/access-requests/<int:request_id>/download-risk-assessment/<int:assessment_id>/', approvals.download_risk_assessment_view, name='download_risk_assessment'),
     
     # Risk Assessment URLs
     path('risk-assessments/', views.risk_assessments_view, name='risk_assessments'),

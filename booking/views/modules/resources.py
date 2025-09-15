@@ -27,13 +27,13 @@ from django.utils import timezone
 from datetime import timedelta
 
 from ...models import (
-    Resource, ResourceAccess, AccessRequest, UserProfile, 
-    WaitingListEntry, Booking, ResourceIssue
+    Resource, ResourceAccess, AccessRequest, UserProfile,
+    WaitingListEntry, Booking, ResourceIssue, RiskAssessment, UserRiskAssessment
 )
 from ...forms import (
-    AccessRequestForm, ResourceForm, ResourceResponsibleForm, 
+    AccessRequestForm, ResourceForm, ResourceResponsibleForm,
     ResourceIssueReportForm, ResourceIssueUpdateForm, IssueFilterForm,
-    ChecklistItemForm
+    ChecklistItemForm, ResourceRiskAssessmentUploadForm
 )
 
 
@@ -135,7 +135,7 @@ def resource_detail_view(request, resource_id):
     
     # Check if user has pending training (only if resource requires training)
     has_pending_training = False
-    if resource.required_training_level > 0:
+    if resource.training_requirements.filter(is_mandatory=True).exists():
         # Check for pending UserTraining records for this resource's required courses
         from ...models.training import UserTraining
         from ...models import ResourceTrainingRequirement
@@ -252,7 +252,7 @@ def request_resource_access_view(request, resource_id):
         return redirect('booking:resource_detail', resource_id=resource.id)
     
     # Check if user has pending training enrollment (only if resource requires training)
-    if resource.required_training_level > 0:
+    if resource.training_requirements.filter(is_mandatory=True).exists():
         from ...models.training import UserTraining
         from ...models import ResourceTrainingRequirement
         required_courses = ResourceTrainingRequirement.objects.filter(
@@ -523,3 +523,72 @@ def ajax_create_checklist_item(request):
                 'form': form,
             }, request=request)
             return JsonResponse({'html': html, 'errors': form.errors})
+
+
+@login_required
+def upload_risk_assessment_view(request, resource_id):
+    """Allow users to upload risk assessment documents for a specific resource."""
+    resource = get_object_or_404(Resource, id=resource_id, is_active=True)
+
+    # Check if resource requires risk assessment
+    if not resource.requires_risk_assessment:
+        messages.error(request, 'This resource does not require risk assessment.')
+        return redirect('booking:resource_detail', resource_id=resource.id)
+
+    if request.method == 'POST':
+        form = ResourceRiskAssessmentUploadForm(request.POST, request.FILES)
+        if form.is_valid():
+            # Create a RiskAssessment template if one doesn't exist for generic uploads
+            risk_assessment, created = RiskAssessment.objects.get_or_create(
+                resource=resource,
+                title=f"Generic Risk Assessment - {resource.name}",
+                defaults={
+                    'assessment_type': 'general',
+                    'description': 'Generic risk assessment for resource access',
+                    'risk_level': 'medium',
+                    'created_by': request.user,
+                    'valid_until': timezone.now().date() + timedelta(days=365),
+                    'is_mandatory': True,
+                    'is_active': True,
+                }
+            )
+
+            # Create or update the UserRiskAssessment
+            user_assessment, created = UserRiskAssessment.objects.get_or_create(
+                user=request.user,
+                risk_assessment=risk_assessment,
+                defaults={
+                    'status': 'submitted',
+                    'started_at': timezone.now(),
+                    'submitted_at': timezone.now(),
+                }
+            )
+
+            # Update the assessment with form data
+            user_assessment.assessment_file = form.cleaned_data['assessment_file']
+            user_assessment.user_declaration = "User confirmed understanding and agreement to follow risk controls" if form.cleaned_data.get('user_declaration', False) else ""
+            user_assessment.responses = {
+                'title': form.cleaned_data['title'],
+                'description': form.cleaned_data.get('description', ''),
+                'declaration_confirmed': form.cleaned_data.get('user_declaration', False),
+                'uploaded_at': timezone.now().isoformat(),
+            }
+            user_assessment.status = 'submitted'
+            user_assessment.submitted_at = timezone.now()
+            user_assessment.save()
+
+            messages.success(
+                request,
+                f'Risk assessment "{form.cleaned_data["title"]}" uploaded successfully. '
+                'It will be reviewed by the lab administrator.'
+            )
+            return redirect('booking:resource_detail', resource_id=resource.id)
+    else:
+        form = ResourceRiskAssessmentUploadForm()
+
+    context = {
+        'resource': resource,
+        'form': form,
+    }
+
+    return render(request, 'booking/upload_risk_assessment.html', context)

@@ -65,6 +65,7 @@ __all__ = [
     'resources_list_view',
     'resource_detail_view',
     'request_resource_access_view',
+    'upload_risk_assessment_view',
     'access_requests_view',
     'access_request_detail_view',
     'ajax_create_checklist_item',
@@ -123,12 +124,13 @@ __all__ = [
     # Analytics views
     'usage_analytics_view',
     
-    # Risk Assessment views  
+    # Risk Assessment views
     'risk_assessments_view',
     'risk_assessment_detail_view',
     'start_risk_assessment_view',
     'submit_risk_assessment_view',
     'create_risk_assessment_view',
+    'download_risk_assessment_view',
     
     # Billing views
     'billing_dashboard',

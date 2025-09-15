@@ -24,7 +24,7 @@ class ResourceViewSet(viewsets.ModelViewSet):
     )
     serializer_class = ResourceSerializer
     permission_classes = [permissions.IsAuthenticated]
-    filterset_fields = ['resource_type', 'requires_induction', 'required_training_level']
+    filterset_fields = ['resource_type', 'requires_induction']
     
     def get_permissions(self):
         """Different permissions for different actions."""

@@ -825,3 +825,184 @@ class AccessRequest(models.Model):
                 existing_assessment.notes = f'Reset for resource access: {self.resource.name}'
                 existing_assessment.save(update_fields=['status', 'notes'])
 
+    def can_be_approved_by(self, user):
+        """Check if the given user can approve this access request."""
+        # Lab admins, technicians, and sysadmins can approve requests
+        if user.groups.filter(name='Lab Admin').exists():
+            return True
+        if user.is_staff:
+            return True
+        try:
+            if user.userprofile.role in ['technician', 'sysadmin']:
+                return True
+        except AttributeError:
+            pass
+
+        # Check if user is a responsible person for this resource
+        try:
+            if hasattr(self.resource, 'responsible_persons'):
+                if self.resource.responsible_persons.filter(user=user).exists():
+                    return True
+        except AttributeError:
+            pass
+
+        return False
+
+    def get_potential_approvers(self):
+        """Get list of potential approvers for this access request."""
+        approvers = []
+
+        # Add lab admins
+        from django.contrib.auth.models import Group
+        try:
+            lab_admin_group = Group.objects.get(name='Lab Admin')
+            for user in lab_admin_group.user_set.all():
+                approvers.append({
+                    'user': user,
+                    'user_name': user.get_full_name() or user.username,
+                    'role': 'Lab Admin',
+                    'reason': 'Lab Administration Rights'
+                })
+        except Group.DoesNotExist:
+            pass
+
+        # Add staff users
+        from django.contrib.auth.models import User
+        staff_users = User.objects.filter(is_staff=True)
+        for user in staff_users:
+            if not any(a['user'].id == user.id for a in approvers):
+                approvers.append({
+                    'user': user,
+                    'user_name': user.get_full_name() or user.username,
+                    'role': 'Staff',
+                    'reason': 'Staff Privileges'
+                })
+
+        # Add users with technician or sysadmin roles
+        from django.contrib.auth.models import User
+        tech_users = User.objects.filter(userprofile__role__in=['technician', 'sysadmin'])
+        for user in tech_users:
+            if not any(a['user'].id == user.id for a in approvers):
+                role_display = user.userprofile.get_role_display() if hasattr(user, 'userprofile') else 'Technician'
+                approvers.append({
+                    'user': user,
+                    'user_name': user.get_full_name() or user.username,
+                    'role': role_display,
+                    'reason': 'Technical Role'
+                })
+
+        # Add resource responsible persons
+        if hasattr(self.resource, 'responsible_persons'):
+            for responsible_person in self.resource.responsible_persons.all():
+                if not any(a['user'].id == responsible_person.user.id for a in approvers):
+                    approvers.append({
+                        'user': responsible_person.user,
+                        'user_name': responsible_person.user.get_full_name() or responsible_person.user.username,
+                        'role': 'Resource Manager',
+                        'reason': f'Responsible for {self.resource.name}'
+                    })
+
+        return approvers
+
+    def get_required_actions(self):
+        """Get list of required actions for this access request."""
+        actions = []
+
+        if self.status == 'pending':
+            # Check prerequisites
+            if not self.safety_induction_confirmed:
+                actions.append({
+                    'title': 'Safety Induction Required',
+                    'description': 'User must complete safety induction before access can be granted.',
+                    'url': None,
+                    'action_text': 'Complete Induction'
+                })
+
+            if self.resource.training_requirements.filter(is_mandatory=True).exists() and not self.lab_training_confirmed:
+                actions.append({
+                    'title': 'Lab Training Required',
+                    'description': 'User must complete required training for this resource.',
+                    'url': None,
+                    'action_text': 'Complete Training'
+                })
+
+            if self.resource.requires_risk_assessment and not self.risk_assessment_confirmed:
+                actions.append({
+                    'title': 'Risk Assessment Required',
+                    'description': 'User must submit required risk assessment for this resource.',
+                    'url': None,
+                    'action_text': 'Submit Assessment'
+                })
+
+            # If all prerequisites are met, action is to approve
+            if self.prerequisites_met():
+                actions.append({
+                    'title': 'Ready for Approval',
+                    'description': 'All prerequisites have been met. This request can now be approved.',
+                    'url': None,
+                    'action_text': 'Approve Request'
+                })
+
+        return actions
+
+    def check_user_compliance(self):
+        """Check user's compliance with training and risk assessment requirements."""
+        from django.apps import apps
+
+        compliance = {
+            'training_complete': True,
+            'missing_training': [],
+            'risk_assessments_complete': True,
+            'missing_assessments': []
+        }
+
+        # Check training requirements
+        try:
+            UserTraining = apps.get_model('booking', 'UserTraining')
+            required_training = self.resource.training_requirements.filter(is_mandatory=True)
+
+            for req in required_training:
+                # Check if access type requires this training
+                if req.required_for_access_types and self.access_type not in req.required_for_access_types:
+                    continue
+
+                # Check if user has completed this training
+                user_training = UserTraining.objects.filter(
+                    user=self.user,
+                    training_course=req.training_course,
+                    status='completed',
+                    passed=True
+                ).first()
+
+                if not user_training or (hasattr(user_training, 'is_expired') and user_training.is_expired):
+                    compliance['training_complete'] = False
+                    compliance['missing_training'].append(req.training_course)
+        except Exception:
+            # If there's an error checking training, assume incomplete
+            compliance['training_complete'] = False
+
+        # Check risk assessment requirements
+        if self.resource.requires_risk_assessment:
+            try:
+                UserRiskAssessment = apps.get_model('booking', 'UserRiskAssessment')
+                required_assessments = self.resource.risk_assessments.filter(
+                    is_mandatory=True,
+                    is_active=True
+                )
+
+                for assessment in required_assessments:
+                    user_assessment = UserRiskAssessment.objects.filter(
+                        user=self.user,
+                        risk_assessment=assessment,
+                        status='approved'
+                    ).first()
+
+                    if not user_assessment:
+                        compliance['risk_assessments_complete'] = False
+                        compliance['missing_assessments'].append(assessment)
+            except Exception:
+                # If there's an error checking assessments, assume incomplete
+                compliance['risk_assessments_complete'] = False
+
+        return compliance
+

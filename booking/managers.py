@@ -137,9 +137,8 @@ class ResourceManager(models.Manager):
         if not user_profile.is_inducted:
             queryset = queryset.filter(requires_induction=False)
         
-        queryset = queryset.filter(
-            required_training_level__lte=user_profile.training_level
-        )
+        # Remove training level filtering - now handled by specific training requirements
+        # Users can see all resources regardless of training requirements
         
         return queryset
     

@@ -18,13 +18,13 @@ from ..models import (
 
 class AccessRequestForm(forms.ModelForm):
     """Form for requesting access to a resource."""
-    
+
     class Meta:
         model = AccessRequest
         fields = ['justification']
         widgets = {
             'justification': forms.Textarea(attrs={
-                'class': 'form-control', 
+                'class': 'form-control',
                 'rows': 4,
                 'placeholder': 'Please explain why you need access to this resource...'
             }),
@@ -37,30 +37,74 @@ class AccessRequestForm(forms.ModelForm):
         return justification.strip()
 
 
+class ResourceRiskAssessmentUploadForm(forms.Form):
+    """Form for uploading risk assessment documents for a resource."""
+
+    assessment_file = forms.FileField(
+        label="Risk Assessment Document",
+        help_text="Upload your risk assessment document (PDF, Word, Excel, etc.) - Max 20MB",
+        widget=forms.FileInput(attrs={
+            'class': 'form-control',
+            'accept': '.pdf,.doc,.docx,.xls,.xlsx,.txt'
+        })
+    )
+
+    title = forms.CharField(
+        max_length=200,
+        label="Assessment Title",
+        help_text="Brief title describing this risk assessment",
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'e.g., Chemical Safety Risk Assessment'
+        })
+    )
+
+    description = forms.CharField(
+        label="Description",
+        help_text="Brief description of what this assessment covers",
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': 'Describe the hazards and risks addressed in this assessment...'
+        }),
+        required=False
+    )
+
+    user_declaration = forms.BooleanField(
+        label="I confirm that I have read and understand the risk assessment and will follow all control measures outlined in this document",
+        help_text="Please tick this box to confirm your understanding and agreement",
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input'
+        }),
+        required=True
+    )
+
+    def clean_assessment_file(self):
+        file = self.cleaned_data['assessment_file']
+        if file:
+            # Check file size (20MB limit)
+            if file.size > 20 * 1024 * 1024:
+                raise forms.ValidationError("File size cannot exceed 20MB.")
+
+            # Check file extension
+            allowed_extensions = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.txt']
+            file_extension = '.' + file.name.split('.')[-1].lower()
+            if file_extension not in allowed_extensions:
+                raise forms.ValidationError("Please upload a PDF, Word, Excel, or text file.")
+
+        return file
+
+
 class ResourceForm(forms.ModelForm):
     """Form for creating and editing resources."""
     
-    TRAINING_LEVEL_CHOICES = [
-        (1, 'Level 1 - Basic'),
-        (2, 'Level 2 - Intermediate'),
-        (3, 'Level 3 - Advanced'),
-        (4, 'Level 4 - Expert'),
-        (5, 'Level 5 - Specialist'),
-    ]
-    
-    required_training_level = forms.ChoiceField(
-        choices=TRAINING_LEVEL_CHOICES,
-        initial=1,
-        widget=forms.Select(attrs={'class': 'form-control'}),
-        help_text="Minimum training level required to use this resource"
-    )
     
     class Meta:
         model = Resource
         fields = [
             'name', 'resource_type', 'description', 'url', 'location',
-            'image', 'capacity', 'max_booking_hours', 'required_training_level',
-            'requires_induction', 'requires_risk_assessment', 'requires_checkout_checklist', 
+            'image', 'capacity', 'max_booking_hours',
+            'requires_induction', 'requires_risk_assessment', 'requires_checkout_checklist',
             'checkout_checklist_title', 'checkout_checklist_description',
             'is_active'
         ]
@@ -81,10 +125,6 @@ class ResourceForm(forms.ModelForm):
             'is_active': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
 
-    def clean_required_training_level(self):
-        """Convert the training level choice to integer."""
-        level = self.cleaned_data['required_training_level']
-        return int(level)
 
 
 class ResourceResponsibleForm(forms.ModelForm):

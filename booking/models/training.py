@@ -363,16 +363,9 @@ class UserTraining(models.Model):
 
         # Send notifications
         if send_notification:
-            try:
-                from ..notifications import training_notifications
-                if self.passed:
-                    training_notifications.training_completed(self)
-                else:
-                    training_notifications.training_failed(self)
-            except Exception as e:
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"Failed to send training completion notification: {e}")
+            # Training notifications removed during system simplification
+            # TODO: Re-implement with simplified notification system if needed
+            pass
 
     def reset_for_retry(self):
         """Reset training status to allow for retry after failure or cancellation."""
@@ -420,11 +413,55 @@ class UserTraining(models.Model):
 
         self.save()
 
+        # Update related access requests
+        self._update_access_requests_on_completion(instructor)
+
         # Send completion notification
-        try:
-            from ..notifications import training_notifications
-            training_notifications.training_completed(self)
-        except Exception as e:
-            import logging
-            logger = logging.getLogger(__name__)
-            logger.error(f"Failed to send training completion notification: {e}")
+        # Training notifications removed during system simplification
+        # TODO: Re-implement with simplified notification system if needed
+        pass
+
+    def _update_access_requests_on_completion(self, instructor=None):
+        """Update related access requests when training is completed."""
+        from booking.models import AccessRequest, ResourceTrainingRequirement
+
+        training_course = self.training_course
+
+        # Get resources that require this training
+        required_resources = ResourceTrainingRequirement.objects.filter(
+            training_course=training_course,
+            is_mandatory=True
+        ).values_list('resource_id', flat=True)
+
+        # Find pending access requests for these resources
+        pending_requests = AccessRequest.objects.filter(
+            user=self.user,
+            resource_id__in=required_resources,
+            status='pending',
+            lab_training_confirmed=False
+        )
+
+        for request in pending_requests:
+            # Check if all training requirements for this resource are now met
+            all_training_met = True
+            resource_training_reqs = ResourceTrainingRequirement.objects.filter(
+                resource=request.resource,
+                is_mandatory=True
+            )
+
+            for req in resource_training_reqs:
+                # Check if user has completed this training
+                if not UserTraining.objects.filter(
+                    user=self.user,
+                    training_course=req.training_course,
+                    status='completed'
+                ).exists():
+                    all_training_met = False
+                    break
+
+            # If all training is met, confirm lab training
+            if all_training_met:
+                request.confirm_lab_training(
+                    confirmed_by=instructor or self.user,
+                    notes=f'Auto-confirmed: All required training completed including {training_course.title}'
+                )

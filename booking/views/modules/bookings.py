@@ -205,8 +205,7 @@ def my_bookings_view(request):
             else:
                 # Database-level filtering based on user access rules
                 resources_queryset = Resource.objects.filter(
-                    is_active=True,
-                    required_training_level__lte=user_profile.training_level
+                    is_active=True
                 ).order_by('name')
                 
                 # Additional filtering for induction requirements

@@ -112,7 +112,7 @@ class ResourceViewSet(APIRateLimitMixin, viewsets.ModelViewSet):
     queryset = Resource.objects.filter(is_active=True)
     serializer_class = ResourceSerializer
     permission_classes = [permissions.IsAuthenticated]
-    filterset_fields = ['resource_type', 'requires_induction', 'required_training_level']
+    filterset_fields = ['resource_type', 'requires_induction']
     
     # Rate limiting configuration
     api_ratelimit_group = 'resources'

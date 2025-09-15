@@ -325,8 +325,54 @@ def create_risk_assessment_view(request):
     context = {
         'form': form,
     }
-    
+
     return render(request, 'booking/create_risk_assessment.html', context)
+
+
+@login_required
+@user_passes_test(is_lab_admin)
+def download_risk_assessment_view(request, request_id, assessment_id):
+    """Download a risk assessment file for lab admin review."""
+    from django.http import HttpResponse, Http404
+    from django.utils.encoding import smart_str
+    import os
+    import mimetypes
+
+    # Get the access request to ensure it exists and validate permissions
+    access_request = get_object_or_404(AccessRequest, id=request_id)
+
+    # Get the user risk assessment
+    user_assessment = get_object_or_404(
+        UserRiskAssessment,
+        id=assessment_id,
+        user=access_request.user  # Ensure assessment belongs to the access request user
+    )
+
+    # Check if file exists
+    if not user_assessment.assessment_file:
+        raise Http404("No assessment file found")
+
+    if not user_assessment.assessment_file.storage.exists(user_assessment.assessment_file.name):
+        raise Http404("Assessment file not found")
+
+    # Get the file
+    file_path = user_assessment.assessment_file.path
+    file_name = os.path.basename(file_path)
+
+    # Determine content type
+    content_type, _ = mimetypes.guess_type(file_path)
+    if content_type is None:
+        content_type = 'application/octet-stream'
+
+    # Create response with file content
+    with open(file_path, 'rb') as f:
+        response = HttpResponse(f.read(), content_type=content_type)
+
+    # Set headers for download
+    response['Content-Disposition'] = f'attachment; filename="{smart_str(file_name)}"'
+    response['Content-Length'] = os.path.getsize(file_path)
+
+    return response
 
 
 @login_required
@@ -735,26 +781,63 @@ def access_requests_view(request):
     return render(request, 'booking/access_requests.html', context)
 
 
-@login_required
-def access_request_detail_view(request, request_id):
-    """Detail view for a single access request."""
-    access_request = get_object_or_404(AccessRequest, id=request_id)
-    
-    # Check if current user can approve
-    can_approve = access_request.can_be_approved_by(request.user)
-    
-    context = {
-        'access_request': access_request,
-        'can_approve': can_approve,
-    }
-    
-    return render(request, 'booking/access_request_detail.html', context)
+
+def _update_access_requests_after_risk_assessment_approval(assessment, reviewed_by):
+    """
+    Update related access requests when a risk assessment is approved.
+
+    This function finds all pending access requests for the user and checks if
+    approving this risk assessment completes their risk assessment requirements.
+    If so, it confirms the risk assessment prerequisite for the access request.
+    """
+    user = assessment.user
+
+    # Find all pending access requests for this user that require risk assessments
+    pending_requests = AccessRequest.objects.filter(
+        user=user,
+        status='pending',
+        risk_assessment_confirmed=False,
+        resource__requires_risk_assessment=True
+    )
+
+    for access_request in pending_requests:
+        # Check if this access request now has all required risk assessments approved
+        resource = access_request.resource
+
+        # Get all mandatory risk assessments for this resource
+        required_assessments = RiskAssessment.objects.filter(
+            resource=resource,
+            is_mandatory=True,
+            is_active=True
+        )
+
+        # Check if user has approved assessments for all required ones
+        all_assessments_approved = True
+        for req_assessment in required_assessments:
+            has_approved = UserRiskAssessment.objects.filter(
+                user=user,
+                risk_assessment=req_assessment,
+                status='approved'
+            ).exists()
+
+            if not has_approved:
+                all_assessments_approved = False
+                break
+
+        # If all required assessments are approved, confirm the risk assessment prerequisite
+        if all_assessments_approved:
+            access_request.confirm_risk_assessment(
+                confirmed_by=reviewed_by,
+                notes=f'Auto-confirmed: All required risk assessments approved including {assessment.risk_assessment.title}'
+            )
+            print(f"DEBUG: Auto-confirmed risk assessment prerequisite for access request {access_request.id}")
 
 
 @login_required
 @user_passes_test(is_lab_admin)
 def lab_admin_access_requests_view(request):
     """Manage access requests."""
+    print("DEBUG: lab_admin_access_requests_view function called!")
     from booking.models import AccessRequest
     
     # Handle status updates
@@ -967,7 +1050,39 @@ def lab_admin_access_requests_view(request):
                         
                 except Exception as e:
                     messages.error(request, f'Error creating training request: {str(e)}')
-        
+
+        # Handle risk assessment approval/rejection
+        assessment_id = request.POST.get('assessment_id')
+        action = request.POST.get('action')
+
+        if assessment_id and action in ['approve_assessment', 'reject_assessment']:
+            try:
+                assessment = get_object_or_404(UserRiskAssessment, id=assessment_id)
+
+                if action == 'approve_assessment':
+                    assessment.status = 'approved'
+                    assessment.reviewed_by = request.user
+                    assessment.reviewed_at = timezone.now()
+                    assessment.save()
+
+                    # Check and update related access requests
+                    _update_access_requests_after_risk_assessment_approval(assessment, request.user)
+
+                    messages.success(request, f'Risk assessment approved for {assessment.user.get_full_name()}', extra_tags='persistent-alert')
+
+                elif action == 'reject_assessment':
+                    rejection_reason = request.POST.get('rejection_reason', '').strip()
+                    assessment.status = 'rejected'
+                    assessment.reviewed_by = request.user
+                    assessment.reviewed_at = timezone.now()
+                    assessment.rejection_reason = rejection_reason
+                    assessment.save()
+
+                    messages.success(request, f'Risk assessment rejected for {assessment.user.get_full_name()}', extra_tags='persistent-alert')
+
+            except Exception as e:
+                messages.error(request, f'Error processing risk assessment: {str(e)}')
+
         return redirect('booking:lab_admin_access_requests')
     
     # Get access requests
@@ -985,9 +1100,28 @@ def lab_admin_access_requests_view(request):
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
     
-    # Add prerequisite status to each request
+    # Add prerequisite status and user submitted assessments to each request
+    print(f"DEBUG: Lab admin viewing {len(page_obj)} access requests")
     for request_obj in page_obj:
+        print(f"DEBUG: Request from {request_obj.user.username} ({request_obj.user.get_full_name()}) for {request_obj.resource.name}")
         request_obj.prerequisite_status = request_obj.get_prerequisite_status()
+
+        # Get user's submitted risk assessments that have files uploaded
+        request_obj.user_submitted_assessments = UserRiskAssessment.objects.filter(
+            user=request_obj.user,
+            assessment_file__isnull=False  # Only include assessments with files
+        ).select_related('risk_assessment').order_by('-submitted_at')
+
+        print(f"  - Found {request_obj.user_submitted_assessments.count()} risk assessments with files")
+        for assessment in request_obj.user_submitted_assessments:
+            print(f"    * Assessment ID: {assessment.id}, File: {assessment.assessment_file}, Status: {assessment.status}")
+
+        # If no assessments with files, check if they have any assessments at all
+        if request_obj.user_submitted_assessments.count() == 0:
+            all_assessments = UserRiskAssessment.objects.filter(user=request_obj.user)
+            print(f"  - User has {all_assessments.count()} total assessments (but no files)")
+            for assessment in all_assessments:
+                print(f"    * ID: {assessment.id}, File: {assessment.assessment_file or 'None'}, Status: {assessment.status}")
     
     # Add today's date for date picker minimum value
     from datetime import date
@@ -1093,5 +1227,51 @@ def create_risk_assessment_view(request):
     context = {
         'form': form,
     }
-    
+
     return render(request, 'booking/create_risk_assessment.html', context)
+
+
+@login_required
+@user_passes_test(is_lab_admin)
+def download_risk_assessment_view(request, request_id, assessment_id):
+    """Download a risk assessment file for lab admin review."""
+    from django.http import HttpResponse, Http404
+    from django.utils.encoding import smart_str
+    import os
+    import mimetypes
+
+    # Get the access request to ensure it exists and validate permissions
+    access_request = get_object_or_404(AccessRequest, id=request_id)
+
+    # Get the user risk assessment
+    user_assessment = get_object_or_404(
+        UserRiskAssessment,
+        id=assessment_id,
+        user=access_request.user  # Ensure assessment belongs to the access request user
+    )
+
+    # Check if file exists
+    if not user_assessment.assessment_file:
+        raise Http404("No assessment file found")
+
+    if not user_assessment.assessment_file.storage.exists(user_assessment.assessment_file.name):
+        raise Http404("Assessment file not found")
+
+    # Get the file
+    file_path = user_assessment.assessment_file.path
+    file_name = os.path.basename(file_path)
+
+    # Determine content type
+    content_type, _ = mimetypes.guess_type(file_path)
+    if content_type is None:
+        content_type = 'application/octet-stream'
+
+    # Create response with file content
+    with open(file_path, 'rb') as f:
+        response = HttpResponse(f.read(), content_type=content_type)
+
+    # Set headers for download
+    response['Content-Disposition'] = f'attachment; filename="{smart_str(file_name)}"'
+    response['Content-Length'] = os.path.getsize(file_path)
+
+    return response

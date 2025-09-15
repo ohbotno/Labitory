@@ -44,7 +44,7 @@ class ResourceSerializer(serializers.ModelSerializer):
         model = Resource
         fields = [
             'id', 'name', 'resource_type', 'description', 'location',
-            'capacity', 'required_training_level', 'requires_induction',
+            'capacity', 'requires_induction',
             'max_booking_hours', 'is_active', 'available_for_user',
             'created_at', 'updated_at'
         ]
