@@ -827,13 +827,17 @@ def approval_rules_view(request):
             conditional_logic_json = request.POST.get('conditional_logic')
             
             # Validate required fields
-            if not all([name, approval_type]):
-                messages.error(request, "Please fill in all required fields.")
+            if not name or not name.strip():
+                messages.error(request, "Please provide a name for the approval rule.")
                 return redirect('booking:approval_rules')
-            
+
+            if not approval_type or not approval_type.strip():
+                messages.error(request, "Please select an approval type.")
+                return redirect('booking:approval_rules')
+
             # Get related objects
             resource = None
-            if resource_id:
+            if resource_id and resource_id.strip():
                 resource = get_object_or_404(Resource, id=resource_id)
             
             fallback_rule = None
@@ -854,13 +858,12 @@ def approval_rules_view(request):
                 approval_type=approval_type,
                 description=description,
                 resource=resource,
-                user_role=user_role if user_role else None,
+                user_roles=[user_role] if user_role else [],
                 priority=priority,
                 fallback_rule=fallback_rule,
                 condition_type=condition_type if approval_type == 'conditional' else 'role_based',
                 conditional_logic=conditional_logic,
-                is_active=True,
-                created_by=request.user
+                is_active=True
             )
             
             messages.success(request, f"Approval rule '{name}' created successfully.")

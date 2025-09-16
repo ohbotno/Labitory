@@ -399,15 +399,58 @@ class BookingService:
     
     def _process_approval_rules(self, booking: Booking):
         """Process approval rules for a booking."""
+        from django.db.models import Q
+
+        logger.info(f"Processing approval rules for booking {booking.id}")
+        logger.info(f"Booking details: resource={booking.resource}, user={booking.user}, current_status={booking.status}")
+
+        # Get approval rules for this resource OR rules that apply to all resources
         approval_rules = ApprovalRule.objects.filter(
-            resource=booking.resource,
+            Q(resource=booking.resource) | Q(resource__isnull=True),
             is_active=True
         ).order_by('priority')
-        
-        # Simple auto-approval logic - can be extended
+
+        logger.info(f"Found {approval_rules.count()} approval rules")
+        for rule in approval_rules:
+            logger.info(f"Rule: {rule.name}, type: {rule.approval_type}, resource: {rule.resource}, user_roles: {rule.user_roles}")
+
+        # If no approval rules exist, leave as pending (require manual approval)
         if not approval_rules.exists():
-            booking.status = 'approved'
-            booking.save()
+            logger.info("No approval rules found - booking remains pending for manual approval")
+            return
+
+        # Check for auto-approval rules
+        try:
+            user_profile = booking.user.userprofile
+            user_role = user_profile.role
+            logger.info(f"User {booking.user} has role: {user_role}")
+
+            for rule in approval_rules:
+                logger.info(f"Checking rule: {rule.name}")
+                logger.info(f"Rule user_roles: {rule.user_roles}, user_role: {user_role}")
+                logger.info(f"Rule applies to user: {user_role in rule.user_roles or not rule.user_roles}")
+
+                # Check if this rule applies to the user's role
+                if user_role in rule.user_roles or not rule.user_roles:
+                    logger.info(f"Rule {rule.name} applies to user {booking.user}")
+                    if rule.approval_type == 'auto':
+                        logger.info(f"Auto-approval rule {rule.name} matched - approving booking")
+                        booking.status = 'approved'
+                        booking.save()
+                        logger.info(f"Booking {booking.id} status updated to: {booking.status}")
+                        return
+                    else:
+                        logger.info(f"Rule {rule.name} is not auto-approval type ({rule.approval_type})")
+                else:
+                    logger.info(f"Rule {rule.name} does not apply to user role {user_role}")
+
+            logger.info("No auto-approval rules matched - booking remains pending")
+        except Exception as e:
+            logger.error(f"Error processing approval rules: {str(e)}")
+            import traceback
+            logger.error(f"Approval error traceback: {traceback.format_exc()}")
+            # If there's any error getting user profile, leave as pending
+            pass
     
     def _can_user_modify_booking(self, user: User, booking: Booking) -> bool:
         """Check if user can modify a booking."""

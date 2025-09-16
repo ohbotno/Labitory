@@ -88,7 +88,7 @@ class ApprovalRule(models.Model):
     ]
     
     name = models.CharField(max_length=200)
-    resource = models.ForeignKey('Resource', on_delete=models.CASCADE, related_name='approval_rules')
+    resource = models.ForeignKey('Resource', on_delete=models.CASCADE, related_name='approval_rules', null=True, blank=True)
     approval_type = models.CharField(max_length=20, choices=APPROVAL_TYPES)
     user_roles = models.JSONField(default=list)  # Roles that this rule applies to
     approvers = models.ManyToManyField(User, related_name='approval_rules', blank=True)
@@ -111,7 +111,8 @@ class ApprovalRule(models.Model):
         ordering = ['priority', 'name']
 
     def __str__(self):
-        return f"{self.name} - {self.resource.name}"
+        resource_name = self.resource.name if self.resource else "All Resources"
+        return f"{self.name} - {resource_name}"
 
     def applies_to_user(self, user_profile):
         """Check if this approval rule applies to a specific user."""

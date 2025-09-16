@@ -213,9 +213,27 @@
                 {% endif %}
                 
                 <div class="d-grid gap-2 mt-3">
-                    <a href="{% url 'booking:manage_bookings' %}" class="btn btn-outline-secondary">
-                        <i class="bi bi-list-ul"></i> Back to Bookings
-                    </a>
+                    {% if user.is_staff %}
+                        <a href="{% url 'booking:manage_bookings' %}" class="btn btn-outline-secondary">
+                            <i class="bi bi-list-ul"></i> Back to Manage Bookings
+                        </a>
+                    {% else %}
+                        {% if user.userprofile %}
+                            {% if user.userprofile.role == 'technician' or user.userprofile.role == 'sysadmin' %}
+                                <a href="{% url 'booking:manage_bookings' %}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-list-ul"></i> Back to Manage Bookings
+                                </a>
+                            {% else %}
+                                <a href="{% url 'booking:my_bookings' %}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-list-ul"></i> Back to My Bookings
+                                </a>
+                            {% endif %}
+                        {% else %}
+                            <a href="{% url 'booking:my_bookings' %}" class="btn btn-outline-secondary">
+                                <i class="bi bi-list-ul"></i> Back to My Bookings
+                            </a>
+                        {% endif %}
+                    {% endif %}
                 </div>
             </div>
         </div>

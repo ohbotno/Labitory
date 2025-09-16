@@ -80,6 +80,7 @@ class NotificationService:
         resource: Optional[Resource] = None,
         maintenance: Optional[Maintenance] = None,
         access_request: Optional[AccessRequest] = None,
+        training_request = None,
         metadata: Optional[Dict[str, Any]] = None
     ) -> List[Notification]:
         """Create notifications based on user preferences."""
@@ -101,7 +102,6 @@ class NotificationService:
                     resource=resource,
                     maintenance=maintenance,
                     access_request=access_request,
-                    training_request=training_request,
                     metadata=metadata or {}
                 )
                 notifications.append(notification)

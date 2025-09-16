@@ -242,16 +242,46 @@ class BookingViewSet(APIRateLimitMixin, viewsets.ModelViewSet):
         return Response(events)
 
     def create(self, request, *args, **kwargs):
-        """Create booking with security logging."""
+        """Create booking with security logging and approval processing."""
         response = super().create(request, *args, **kwargs)
-        
+
         if response.status_code == 201:
+            booking_id = response.data.get('id')
             log_security_event(
                 request.user, 'booking_created',
                 f'Booking created via API',
-                request, {'booking_id': response.data.get('id')}
+                request, {'booking_id': booking_id}
             )
-        
+
+            # Process approval rules for the created booking
+            try:
+                from booking.models import Booking
+                from booking.services.booking_service import BookingService
+                import logging
+
+                logger = logging.getLogger('booking.api.viewsets')
+                booking = Booking.objects.get(id=booking_id)
+
+                logger.info(f"API: Processing approval rules for booking {booking_id}")
+                booking_service = BookingService()
+                booking_service._process_approval_rules(booking)
+
+                # Refresh booking data in response if status changed
+                booking.refresh_from_db()
+                if booking.status != 'pending':
+                    # Update the response data with the new status
+                    serializer = BookingSerializer(booking)
+                    response.data = serializer.data
+                    logger.info(f"API: Booking {booking_id} auto-approved, status updated to {booking.status}")
+                else:
+                    logger.info(f"API: Booking {booking_id} remains pending approval")
+
+            except Exception as approval_error:
+                import logging
+                logger = logging.getLogger('booking.api.viewsets')
+                logger.error(f"API: Error processing approval rules for booking {booking_id}: {str(approval_error)}")
+                # Don't fail the booking creation due to approval processing errors
+
         return response
     
     def destroy(self, request, *args, **kwargs):

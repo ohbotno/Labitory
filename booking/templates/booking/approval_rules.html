@@ -206,11 +206,13 @@
                                 {% if rule.resource %}
                                 <span class="badge bg-light text-dark">{{ rule.resource.name }}</span>
                                 {% else %}
-                                <span class="badge bg-light text-dark">All Resources</span>
+                                <span class="badge bg-primary text-white">All Resources</span>
                                 {% endif %}
-                                
-                                {% if rule.user_role %}
-                                <span class="badge bg-info">{{ rule.get_user_role_display }}</span>
+
+                                {% if rule.user_roles %}
+                                {% for role in rule.user_roles %}
+                                <span class="badge bg-info">{{ role|title }}</span>
+                                {% endfor %}
                                 {% endif %}
                             </div>
                             

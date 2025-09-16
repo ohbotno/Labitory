@@ -75,11 +75,44 @@ def create_booking_view(request):
                         )
                 
                 booking.save()
+
+                # Log successful booking creation
+                logger.info(f"Booking {booking.id} created successfully. Initial status: {booking.status}")
+                logger.info(f"Processing approval rules for booking {booking.id}...")
+
                 messages.success(request, f'Booking "{booking.title}" created successfully.')
+
+                # Process approval rules after successful booking creation
+                try:
+                    from booking.services.booking_service import BookingService
+                    booking_service = BookingService()
+
+                    # Log booking state before approval processing
+                    logger.info(f"Before approval processing - Booking {booking.id} status: {booking.status}")
+
+                    booking_service._process_approval_rules(booking)
+
+                    # Refresh booking from database to get updated status
+                    booking.refresh_from_db()
+                    logger.info(f"After approval processing - Booking {booking.id} status: {booking.status}")
+
+                    if booking.status == 'approved':
+                        logger.info(f"Booking {booking.id} was auto-approved successfully")
+                    else:
+                        logger.info(f"Booking {booking.id} remains in status: {booking.status}")
+
+                except Exception as approval_error:
+                    logger.error(f"Error processing approval rules for booking {booking.id}: {str(approval_error)}")
+                    import traceback
+                    logger.error(f"Approval processing traceback: {traceback.format_exc()}")
+                    # Don't fail the booking creation due to approval processing errors
+
                 return redirect('booking:booking_detail', pk=booking.pk)
-                
+
             except Exception as e:
+                logger.error(f"Error creating booking: {str(e)}")
                 messages.error(request, f'Error creating booking: {str(e)}')
+                return redirect('booking:create_booking')
         else:
             # Check if form validation failed due to conflicts
             if hasattr(form, '_conflicts'):
@@ -93,7 +126,62 @@ def create_booking_view(request):
                     if not (conflicts_detected and form._can_override_conflicts() and 'conflict detected' in error.lower()):
                         messages.error(request, f'{field.replace("_", " ").title()}: {error}')
     else:
-        form = BookingForm(user=request.user)
+        # Check for parameters in query string to pre-populate the form
+        initial_data = {}
+
+        # Handle resource parameter
+        resource_id = request.GET.get('resource')
+        if resource_id:
+            try:
+                # Validate that the resource exists and is accessible to the user
+                resource = Resource.objects.get(id=resource_id, is_active=True)
+                # Check if user has access to this resource
+                try:
+                    user_profile = request.user.userprofile
+                    if resource.is_available_for_user(user_profile):
+                        initial_data['resource'] = resource
+                except UserProfile.DoesNotExist:
+                    pass  # No user profile, don't pre-populate
+            except (Resource.DoesNotExist, ValueError):
+                pass  # Invalid resource ID, don't pre-populate
+
+        # Handle start and end time parameters from calendar selection
+        start_time_param = request.GET.get('start')
+        end_time_param = request.GET.get('end')
+
+        if start_time_param:
+            try:
+                # Parse ISO format datetime string (from FullCalendar)
+                # Remove 'Z' suffix and parse as UTC, then convert to local time
+                if start_time_param.endswith('Z'):
+                    start_time_param = start_time_param[:-1] + '+00:00'
+                start_time = datetime.fromisoformat(start_time_param)
+                # If timezone naive, assume UTC
+                if start_time.tzinfo is None:
+                    start_time = start_time.replace(tzinfo=timezone.utc)
+                # Convert to local timezone and format for datetime-local input
+                local_start = timezone.localtime(start_time)
+                initial_data['start_time'] = local_start.strftime('%Y-%m-%dT%H:%M')
+            except (ValueError, TypeError):
+                pass  # Invalid date format, don't pre-populate
+
+        if end_time_param:
+            try:
+                # Parse ISO format datetime string (from FullCalendar)
+                # Remove 'Z' suffix and parse as UTC, then convert to local time
+                if end_time_param.endswith('Z'):
+                    end_time_param = end_time_param[:-1] + '+00:00'
+                end_time = datetime.fromisoformat(end_time_param)
+                # If timezone naive, assume UTC
+                if end_time.tzinfo is None:
+                    end_time = end_time.replace(tzinfo=timezone.utc)
+                # Convert to local timezone and format for datetime-local input
+                local_end = timezone.localtime(end_time)
+                initial_data['end_time'] = local_end.strftime('%Y-%m-%dT%H:%M')
+            except (ValueError, TypeError):
+                pass  # Invalid date format, don't pre-populate
+
+        form = BookingForm(user=request.user, initial=initial_data)
     
     context = {
         'form': form,
@@ -625,14 +713,19 @@ def bulk_booking_operations_view(request):
 @login_required
 def booking_management_view(request):
     """Management interface for bookings with bulk operations."""
-    try:
-        user_profile = request.user.userprofile
-        if user_profile.role not in ['technician', 'sysadmin']:
+    # Check if user has staff privileges or appropriate role
+    if request.user.is_staff:
+        # Staff users always have access
+        pass
+    else:
+        try:
+            user_profile = request.user.userprofile
+            if user_profile.role not in ['technician', 'sysadmin']:
+                messages.error(request, 'You do not have permission to access booking management.')
+                return redirect('booking:dashboard')
+        except UserProfile.DoesNotExist:
             messages.error(request, 'You do not have permission to access booking management.')
             return redirect('booking:dashboard')
-    except UserProfile.DoesNotExist:
-        messages.error(request, 'You do not have permission to access booking management.')
-        return redirect('booking:dashboard')
     
     # Get filter parameters
     status_filter = request.GET.get('status', '')
