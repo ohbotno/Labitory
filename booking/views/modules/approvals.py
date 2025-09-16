@@ -380,56 +380,119 @@ def download_risk_assessment_view(request, request_id, assessment_id):
 # License feature removed - all features now available
 def approval_statistics_view(request):
     """User-friendly approval statistics dashboard."""
-    from booking.models import ApprovalStatistics, AccessRequest
-    from django.db.models import Avg, Sum, Count
+    from booking.models import AccessRequest, UserTraining, UserRiskAssessment, Resource
+    from django.db.models import Avg, Sum, Count, Q, Case, When, F, DurationField
+    from django.db import models
     from datetime import datetime, timedelta
     import json
-    
+
     # Get filter parameters
     period_type = request.GET.get('period', 'monthly')
     resource_filter = request.GET.get('resource')
     start_date = request.GET.get('start_date')
     end_date = request.GET.get('end_date')
-    
+
     # Set default date range (last 30 days)
     today = timezone.now().date()
     if not start_date:
         start_date = today - timedelta(days=30)
     else:
         start_date = datetime.strptime(start_date, '%Y-%m-%d').date()
-    
+
     if not end_date:
         end_date = today
     else:
         end_date = datetime.strptime(end_date, '%Y-%m-%d').date()
-    
-    # Base queryset for statistics
-    stats_qs = ApprovalStatistics.objects.filter(
-        period_start__gte=start_date,
-        period_end__lte=end_date,
-        period_type=period_type
+
+    # Base queryset for access requests in the date range
+    access_requests = AccessRequest.objects.filter(
+        created_at__date__gte=start_date,
+        created_at__date__lte=end_date
     )
-    
+
     # Filter by resource if specified
     if resource_filter:
-        stats_qs = stats_qs.filter(resource_id=resource_filter)
-    
+        access_requests = access_requests.filter(resource_id=resource_filter)
+
     # Only show statistics for resources the user has responsibility for (unless admin)
+    user_resources = None
     if not request.user.userprofile.role in ['technician', 'sysadmin']:
-        stats_qs = stats_qs.filter(resource__responsible_persons__user=request.user)
-    
-    # Calculate summary statistics
-    summary_data = stats_qs.aggregate(
-        total_requests=Sum('access_requests_received'),
-        total_approved=Sum('access_requests_approved'),
-        total_rejected=Sum('access_requests_rejected'),
-        total_pending=Sum('access_requests_pending'),
-        avg_response_time=Avg('avg_response_time_hours'),
-        total_overdue=Sum('overdue_items'),
-        total_training_requests=Sum('training_requests_received'),
-        total_training_completions=Sum('training_completions'),
-        total_assessments=Sum('assessments_created'),
+        # Get resources the user is responsible for
+        user_resources = Resource.objects.filter(
+            Q(responsible_persons__user=request.user) |
+            Q(lab_admins__user=request.user)
+        ).values_list('id', flat=True)
+        access_requests = access_requests.filter(resource_id__in=user_resources)
+
+    # Calculate summary statistics from real data
+    summary_data = access_requests.aggregate(
+        total_requests=Count('id'),
+        total_approved=Count('id', filter=Q(status='approved')),
+        total_rejected=Count('id', filter=Q(status='rejected')),
+        total_pending=Count('id', filter=Q(status='pending')),
     )
+
+    # Calculate average response time for approved/rejected requests
+    processed_requests = access_requests.filter(
+        status__in=['approved', 'rejected'],
+        reviewed_at__isnull=False
+    ).annotate(
+        response_time_hours=Case(
+            When(reviewed_at__isnull=False,
+                 then=(F('reviewed_at') - F('created_at')) / timedelta(hours=1)),
+            default=0,
+            output_field=models.FloatField()
+        )
+    )
+
+    avg_response_time = processed_requests.aggregate(
+        avg_time=Avg('response_time_hours')
+    )['avg_time'] or 0
+
+    # Add response time to summary
+    summary_data['avg_response_time'] = avg_response_time
+
+    # Calculate training statistics
+    training_requests = UserTraining.objects.filter(
+        enrolled_at__date__gte=start_date,
+        enrolled_at__date__lte=end_date
+    )
+
+    if resource_filter:
+        training_requests = training_requests.filter(
+            training_course__resourcetrainingrequirement__resource_id=resource_filter
+        )
+
+    training_stats = training_requests.aggregate(
+        total_training_requests=Count('id'),
+        total_training_completions=Count('id', filter=Q(status='completed')),
+    )
+
+    # Calculate risk assessment statistics
+    risk_assessments = UserRiskAssessment.objects.filter(
+        created_at__date__gte=start_date,
+        created_at__date__lte=end_date
+    )
+
+    if resource_filter:
+        risk_assessments = risk_assessments.filter(
+            risk_assessment__resource_id=resource_filter
+        )
+
+    assessment_stats = risk_assessments.aggregate(
+        total_assessments=Count('id'),
+    )
+
+    # Combine all statistics
+    summary_data.update(training_stats)
+    summary_data.update(assessment_stats)
+
+    # Calculate overdue items (requests older than 7 days without response)
+    overdue_cutoff = timezone.now() - timedelta(days=7)
+    summary_data['total_overdue'] = access_requests.filter(
+        status='pending',
+        created_at__lt=overdue_cutoff
+    ).count()
     
     # Calculate approval rate
     total_processed = (summary_data['total_approved'] or 0) + (summary_data['total_rejected'] or 0)
@@ -438,26 +501,53 @@ def approval_statistics_view(request):
     # Calculate trends (comparing to previous period)
     previous_start = start_date - (end_date - start_date)
     previous_end = start_date - timedelta(days=1)
-    
-    previous_stats = ApprovalStatistics.objects.filter(
-        period_start__gte=previous_start,
-        period_end__lte=previous_end,
-        period_type=period_type
+
+    # Get previous period data from AccessRequest model
+    previous_access_requests = AccessRequest.objects.filter(
+        created_at__date__gte=previous_start,
+        created_at__date__lte=previous_end
     )
-    
+
     if resource_filter:
-        previous_stats = previous_stats.filter(resource_id=resource_filter)
-    
-    if not request.user.userprofile.role in ['technician', 'sysadmin']:
-        previous_stats = previous_stats.filter(resource__responsible_persons__user=request.user)
-    
-    previous_data = previous_stats.aggregate(
-        prev_total_requests=Sum('access_requests_received'),
-        prev_total_approved=Sum('access_requests_approved'),
-        prev_total_rejected=Sum('access_requests_rejected'),
-        prev_avg_response_time=Avg('avg_response_time_hours'),
-        prev_total_overdue=Sum('overdue_items'),
+        previous_access_requests = previous_access_requests.filter(resource_id=resource_filter)
+
+    if not request.user.userprofile.role in ['technician', 'sysadmin'] and user_resources:
+        previous_access_requests = previous_access_requests.filter(resource_id__in=user_resources)
+
+    previous_data = previous_access_requests.aggregate(
+        prev_total_requests=Count('id'),
+        prev_total_approved=Count('id', filter=Q(status='approved')),
+        prev_total_rejected=Count('id', filter=Q(status='rejected')),
     )
+
+    # Calculate previous period response time
+    prev_processed = previous_access_requests.filter(
+        status__in=['approved', 'rejected'],
+        reviewed_at__isnull=False
+    ).annotate(
+        response_time_hours=Case(
+            When(reviewed_at__isnull=False,
+                 then=(F('reviewed_at') - F('created_at')) / timedelta(hours=1)),
+            default=0,
+            output_field=models.FloatField()
+        )
+    )
+
+    prev_avg_response_time = prev_processed.aggregate(
+        avg_time=Avg('response_time_hours')
+    )['avg_time'] or 0
+
+    # Calculate previous overdue items
+    prev_overdue_cutoff = timezone.now() - timedelta(days=7)
+    prev_total_overdue = previous_access_requests.filter(
+        status='pending',
+        created_at__lt=prev_overdue_cutoff
+    ).count()
+
+    previous_data.update({
+        'prev_avg_response_time': prev_avg_response_time,
+        'prev_total_overdue': prev_total_overdue,
+    })
     
     # Calculate trend indicators
     prev_processed = (previous_data['prev_total_approved'] or 0) + (previous_data['prev_total_rejected'] or 0)
@@ -482,21 +572,68 @@ def approval_statistics_view(request):
     
     # Resource-level statistics
     resource_stats = []
-    for stat in stats_qs.select_related('resource', 'approver'):
-        total_requests = stat.access_requests_received
-        approved = stat.access_requests_approved
-        rejected = stat.access_requests_rejected
-        processed = approved + rejected
-        
+
+    # Get all resources that have access requests in the period
+    resources_with_requests = access_requests.values('resource_id', 'resource__name').distinct()
+
+    for resource_info in resources_with_requests:
+        resource_id = resource_info['resource_id']
+        resource_name = resource_info['resource__name']
+
+        # Get requests for this specific resource
+        resource_requests = access_requests.filter(resource_id=resource_id)
+
+        # Calculate statistics for this resource
+        resource_summary = resource_requests.aggregate(
+            total_requests=Count('id'),
+            approved=Count('id', filter=Q(status='approved')),
+            rejected=Count('id', filter=Q(status='rejected')),
+            pending=Count('id', filter=Q(status='pending')),
+        )
+
+        # Calculate response time for this resource
+        resource_processed = resource_requests.filter(
+            status__in=['approved', 'rejected'],
+            reviewed_at__isnull=False
+        ).annotate(
+            response_time_hours=Case(
+                When(reviewed_at__isnull=False,
+                     then=(F('reviewed_at') - F('created_at')) / timedelta(hours=1)),
+                default=0,
+                output_field=models.FloatField()
+            )
+        )
+
+        resource_avg_response_time = resource_processed.aggregate(
+            avg_time=Avg('response_time_hours')
+        )['avg_time'] or 0
+
+        # Calculate overdue for this resource
+        resource_overdue = resource_requests.filter(
+            status='pending',
+            created_at__lt=overdue_cutoff
+        ).count()
+
+        # Get the most recent approver for this resource
+        latest_approver = resource_requests.filter(
+            reviewed_by__isnull=False
+        ).order_by('-reviewed_at').first()
+
+        approver_name = 'N/A'
+        if latest_approver and latest_approver.reviewed_by:
+            approver_name = latest_approver.reviewed_by.get_full_name() or latest_approver.reviewed_by.username
+
+        processed = resource_summary['approved'] + resource_summary['rejected']
+
         resource_stats.append({
-            'resource_name': stat.resource.name,
-            'approver_name': stat.approver.get_full_name() or stat.approver.username,
-            'total_requests': total_requests,
-            'approved': approved,
-            'rejected': rejected,
-            'approval_rate': (approved / processed * 100) if processed > 0 else 0,
-            'avg_response_time': stat.avg_response_time_hours,
-            'overdue': stat.overdue_items,
+            'resource_name': resource_name,
+            'approver_name': approver_name,
+            'total_requests': resource_summary['total_requests'],
+            'approved': resource_summary['approved'],
+            'rejected': resource_summary['rejected'],
+            'approval_rate': (resource_summary['approved'] / processed * 100) if processed > 0 else 0,
+            'avg_response_time': resource_avg_response_time,
+            'overdue': resource_overdue,
         })
     
     # Sort by total requests descending
@@ -514,9 +651,43 @@ def approval_statistics_view(request):
     ]
     
     # Timeline data for response time trend
-    timeline_stats = stats_qs.order_by('period_start').values('period_start', 'avg_response_time_hours')
-    timeline_labels = [stat['period_start'].strftime('%m/%d') for stat in timeline_stats]
-    timeline_data = [stat['avg_response_time_hours'] for stat in timeline_stats]
+    # Generate weekly buckets for the timeline
+    timeline_stats = []
+    timeline_labels = []
+    timeline_data = []
+
+    # Create weekly buckets for the date range
+    current_date = start_date
+    while current_date <= end_date:
+        week_end = min(current_date + timedelta(days=6), end_date)
+
+        # Get access requests for this week
+        week_requests = access_requests.filter(
+            created_at__date__gte=current_date,
+            created_at__date__lte=week_end
+        )
+
+        # Calculate average response time for this week
+        week_processed = week_requests.filter(
+            status__in=['approved', 'rejected'],
+            reviewed_at__isnull=False
+        ).annotate(
+            response_time_hours=Case(
+                When(reviewed_at__isnull=False,
+                     then=(F('reviewed_at') - F('created_at')) / timedelta(hours=1)),
+                default=0,
+                output_field=models.FloatField()
+            )
+        )
+
+        week_avg_response = week_processed.aggregate(
+            avg_time=Avg('response_time_hours')
+        )['avg_time'] or 0
+
+        timeline_labels.append(current_date.strftime('%m/%d'))
+        timeline_data.append(week_avg_response)
+
+        current_date = week_end + timedelta(days=1)
     
     # Recent activity (mock data - in real implementation, this would come from audit logs)
     recent_activity = [
