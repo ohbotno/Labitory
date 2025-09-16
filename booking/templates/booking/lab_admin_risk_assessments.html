@@ -1,7 +1,7 @@
 {% extends 'booking/base.html' %}
 {% load static %}
 
-{% block title %}Lab Admin - Risk Assessments - {{ lab_name }}{% endblock %}
+{% block title %}Lab Admin - Risk Assessment Review - {{ lab_name }}{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -9,442 +9,401 @@
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center mb-4">
                 <div>
-                    <h1><i class="fas fa-shield-alt me-2"></i>Risk Assessments</h1>
+                    <h1><i class="fas fa-shield-alt me-2"></i>Risk Assessment Review & Management</h1>
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb">
                             <li class="breadcrumb-item"><a href="{% url 'booking:dashboard' %}">Dashboard</a></li>
                             <li class="breadcrumb-item"><a href="{% url 'booking:lab_admin_dashboard' %}">Lab Admin</a></li>
-                            <li class="breadcrumb-item active">Risk Assessments</li>
+                            <li class="breadcrumb-item active">Risk Assessment Review</li>
                         </ol>
                     </nav>
                 </div>
             </div>
 
-            <div class="row">
-                <!-- Submitted Risk Assessments (Pending Review) -->
-                <div class="col-12">
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h5 class="mb-0">
-                                <i class="fas fa-clock me-2"></i>Pending Review
-                                <span class="badge bg-warning text-dark ms-2">{{ submitted_assessments.count }}</span>
-                            </h5>
+            <!-- Filters & Search Section -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Search & Filter Assessments</h5>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <div class="col-md-2">
+                            <label class="form-label">Resource</label>
+                            <select name="resource" class="form-select">
+                                <option value="">All Resources</option>
+                                {% for resource in resources %}
+                                <option value="{{ resource.id }}" {% if resource_filter == resource.id|stringformat:"s" %}selected{% endif %}>
+                                    {{ resource.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
                         </div>
-                        <div class="card-body">
-                            {% if submitted_assessments %}
-                                {% for assessment in submitted_assessments %}
-                                <div class="border rounded p-3 mb-3">
-                                    <div class="d-flex justify-content-between align-items-start">
-                                        <div class="flex-grow-1">
-                                            <h6 class="mb-1">{{ assessment.user.get_full_name }}</h6>
-                                            <p class="mb-1 text-muted">{{ assessment.risk_assessment.title }}</p>
-                                            <small class="text-muted">
-                                                <i class="fas fa-calendar"></i> Submitted {{ assessment.submitted_at|date:"M j, Y g:i A" }}
-                                            </small>
-                                            {% if assessment.user_declaration %}
-                                            <br><small class="text-info">
-                                                <i class="fas fa-file-text"></i> Declaration: {{ assessment.user_declaration|truncatechars:100 }}
-                                            </small>
-                                            {% endif %}
+                        <div class="col-md-2">
+                            <label class="form-label">Assessment Type</label>
+                            <select name="type" class="form-select">
+                                <option value="">All Types</option>
+                                {% for type_code, type_name in assessment_types %}
+                                <option value="{{ type_code }}" {% if type_filter == type_code %}selected{% endif %}>
+                                    {{ type_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Risk Level</label>
+                            <select name="risk_level" class="form-select">
+                                <option value="">All Levels</option>
+                                {% for level_code, level_name in risk_levels %}
+                                <option value="{{ level_code }}" {% if risk_level_filter == level_code %}selected{% endif %}>
+                                    {{ level_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Status</label>
+                            <select name="status" class="form-select">
+                                <option value="">All Status</option>
+                                {% for status_code, status_name in status_choices %}
+                                <option value="{{ status_code }}" {% if status_filter == status_code %}selected{% endif %}>
+                                    {{ status_name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Search</label>
+                            <input type="text" name="search" class="form-control" placeholder="Search title, description, user..." value="{{ search_query }}">
+                        </div>
+                        <div class="col-md-1 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                    </form>
+                    <div class="mt-3">
+                        <a href="{% url 'booking:lab_admin_risk_assessments' %}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i> Clear Filters
+                        </a>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Statistics -->
+            <div class="row mb-4">
+                <div class="col-lg-2 col-md-4 mb-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body text-center">
+                            <h4 class="mb-1">{{ stats.total_count }}</h4>
+                            <small>Total Assessments</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 mb-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body text-center">
+                            <h4 class="mb-1">{{ stats.active_count }}</h4>
+                            <small>Active</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 mb-3">
+                    <div class="card bg-warning text-white">
+                        <div class="card-body text-center">
+                            <h4 class="mb-1">{{ stats.pending_count }}</h4>
+                            <small>Under Review</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 mb-3">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body text-center">
+                            <h4 class="mb-1">{{ stats.expired_count }}</h4>
+                            <small>Expired</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 mb-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body text-center">
+                            <h4 class="mb-1">{{ stats.high_risk_count }}</h4>
+                            <small>High Risk</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-4 mb-3">
+                    <div class="card bg-secondary text-white">
+                        <div class="card-body text-center">
+                            <h4 class="mb-1">{{ assessments.paginator.count }}</h4>
+                            <small>Filtered Results</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assessment Results -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-list me-2"></i>Risk Assessments
+                        {% if assessments.paginator.count > 0 %}
+                        <span class="badge bg-secondary ms-2">{{ assessments.paginator.count }} found</span>
+                        {% endif %}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if assessments %}
+                        {% for assessment in assessments %}
+                        <div class="card mb-3 border-start border-4
+                            {% if assessment.status == 'approved' %}border-success
+                            {% elif assessment.status == 'submitted' %}border-warning
+                            {% elif assessment.status == 'rejected' %}border-danger
+                            {% elif assessment.status == 'expired' %}border-secondary
+                            {% else %}border-primary{% endif %}">
+                            <div class="card-body">
+                                <div class="row align-items-center">
+                                    <div class="col-md-8">
+                                        <div class="d-flex align-items-start justify-content-between">
+                                            <div class="flex-grow-1">
+                                                <h6 class="card-title mb-1">
+                                                    {{ assessment.risk_assessment.title }}
+                                                    {% if assessment.risk_assessment.resource %}
+                                                    <small class="text-muted">- {{ assessment.risk_assessment.resource.name }}</small>
+                                                    {% endif %}
+                                                </h6>
+                                                <p class="card-text mb-2">
+                                                    <strong>User:</strong> {{ assessment.user.get_full_name }} ({{ assessment.user.username }})
+                                                </p>
+                                                <div class="row">
+                                                    <div class="col-sm-6">
+                                                        <small class="text-muted">
+                                                            <strong>Type:</strong> {{ assessment.risk_assessment.get_assessment_type_display }}<br>
+                                                            <strong>Risk Level:</strong>
+                                                            <span class="badge
+                                                                {% if assessment.risk_assessment.risk_level == 'critical' %}bg-danger
+                                                                {% elif assessment.risk_assessment.risk_level == 'high' %}bg-warning
+                                                                {% elif assessment.risk_assessment.risk_level == 'medium' %}bg-info
+                                                                {% else %}bg-success{% endif %}">
+                                                                {{ assessment.risk_assessment.get_risk_level_display }}
+                                                            </span>
+                                                        </small>
+                                                    </div>
+                                                    <div class="col-sm-6">
+                                                        <small class="text-muted">
+                                                            {% if assessment.submitted_at %}
+                                                            <strong>Submitted:</strong> {{ assessment.submitted_at|date:"M j, Y" }}<br>
+                                                            {% endif %}
+                                                            {% if assessment.expires_at %}
+                                                            <strong>Expires:</strong> {{ assessment.expires_at|date:"M j, Y" }}
+                                                            {% endif %}
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="ms-3">
+                                                <span class="badge fs-6
+                                                    {% if assessment.status == 'approved' %}bg-success
+                                                    {% elif assessment.status == 'submitted' %}bg-warning text-dark
+                                                    {% elif assessment.status == 'rejected' %}bg-danger
+                                                    {% elif assessment.status == 'expired' %}bg-secondary
+                                                    {% else %}bg-primary{% endif %}">
+                                                    {{ assessment.get_status_display }}
+                                                </span>
+                                            </div>
                                         </div>
+                                    </div>
+                                    <div class="col-md-4 text-end">
                                         <div class="btn-group" role="group">
+                                            <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#viewModal{{ assessment.id }}" title="View Details">
+                                                <i class="fas fa-eye"></i> View
+                                            </button>
                                             {% if assessment.assessment_file %}
-                                                {% if assessment.assessment_file.name|lower|slice:"-4:" == ".pdf" %}
-                                                    <button type="button" class="btn btn-outline-info btn-sm" onclick="viewPdfInModal('{{ assessment.assessment_file.url }}', '{{ assessment.assessment_file.name }}')" title="View PDF">
-                                                        <i class="fas fa-eye"></i>
-                                                    </button>
-                                                {% elif assessment.assessment_file.name|lower|slice:"-5:" == ".xlsx" or assessment.assessment_file.name|lower|slice:"-4:" == ".xls" %}
-                                                    <button type="button" class="btn btn-outline-info btn-sm" onclick="viewExcelInModal('{{ assessment.assessment_file.url }}', '{{ assessment.assessment_file.name }}')" title="View Excel">
-                                                        <i class="fas fa-eye"></i>
-                                                    </button>
-                                                {% elif assessment.assessment_file.name|lower|slice:"-5:" == ".docx" or assessment.assessment_file.name|lower|slice:"-4:" == ".doc" %}
-                                                    <button type="button" class="btn btn-outline-info btn-sm" onclick="viewWordInModal('{{ assessment.assessment_file.url }}', '{{ assessment.assessment_file.name }}')" title="View Document">
-                                                        <i class="fas fa-eye"></i>
-                                                    </button>
-                                                {% else %}
-                                                    <a href="{{ assessment.assessment_file.url }}" target="_blank" class="btn btn-outline-info btn-sm" title="View File">
-                                                        <i class="fas fa-eye"></i>
-                                                    </a>
-                                                {% endif %}
-                                            {% else %}
-                                                <button type="button" class="btn btn-outline-info btn-sm" data-bs-toggle="modal" data-bs-target="#viewModal{{ assessment.id }}" title="View Details">
-                                                    <i class="fas fa-eye"></i>
-                                                </button>
-                                            {% endif %}
-                                            {% if assessment.assessment_file %}
-                                            <a href="{{ assessment.assessment_file.url }}" download class="btn btn-outline-secondary btn-sm" title="Download File">
-                                                <i class="fas fa-download"></i>
+                                            <a href="{{ assessment.assessment_file.url }}" download class="btn btn-outline-primary btn-sm" title="Download File">
+                                                <i class="fas fa-download"></i> Download
                                             </a>
                                             {% endif %}
-                                            <button type="button" class="btn btn-outline-success btn-sm" data-bs-toggle="modal" data-bs-target="#approveModal{{ assessment.id }}" title="Approve">
-                                                <i class="fas fa-check"></i>
-                                            </button>
-                                            <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal" data-bs-target="#rejectModal{{ assessment.id }}" title="Reject">
-                                                <i class="fas fa-times"></i>
+                                            <button type="button" class="btn btn-outline-secondary btn-sm" onclick="exportAssessment({{ assessment.id }})" title="Export Assessment">
+                                                <i class="fas fa-file-export"></i> Export
                                             </button>
                                         </div>
                                     </div>
                                 </div>
+                            </div>
+                        </div>
 
-                                <!-- View Modal -->
-                                <div class="modal fade" id="viewModal{{ assessment.id }}" tabindex="-1">
-                                    <div class="modal-dialog modal-lg">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Risk Assessment Details</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        <!-- View Modal for Assessment Details -->
+                        <div class="modal fade" id="viewModal{{ assessment.id }}" tabindex="-1">
+                            <div class="modal-dialog modal-lg">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Risk Assessment Details</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="row">
+                                            <div class="col-md-6">
+                                                <h6>Assessment Information</h6>
+                                                <dl class="row">
+                                                    <dt class="col-sm-4">Title:</dt>
+                                                    <dd class="col-sm-8">{{ assessment.risk_assessment.title }}</dd>
+                                                    <dt class="col-sm-4">Resource:</dt>
+                                                    <dd class="col-sm-8">{{ assessment.risk_assessment.resource.name|default:"-" }}</dd>
+                                                    <dt class="col-sm-4">Type:</dt>
+                                                    <dd class="col-sm-8">{{ assessment.risk_assessment.get_assessment_type_display }}</dd>
+                                                    <dt class="col-sm-4">Risk Level:</dt>
+                                                    <dd class="col-sm-8">
+                                                        <span class="badge
+                                                            {% if assessment.risk_assessment.risk_level == 'critical' %}bg-danger
+                                                            {% elif assessment.risk_assessment.risk_level == 'high' %}bg-warning text-dark
+                                                            {% elif assessment.risk_assessment.risk_level == 'medium' %}bg-info
+                                                            {% else %}bg-success{% endif %}">
+                                                            {{ assessment.risk_assessment.get_risk_level_display }}
+                                                        </span>
+                                                    </dd>
+                                                </dl>
                                             </div>
-                                            <div class="modal-body">
-                                                <div class="row">
-                                                    <div class="col-md-6">
-                                                        <strong>User:</strong> {{ assessment.user.get_full_name }}<br>
-                                                        <strong>Email:</strong> {{ assessment.user.email }}<br>
-                                                        <strong>Assessment:</strong> {{ assessment.risk_assessment.title }}<br>
-                                                        <strong>Submitted:</strong> {{ assessment.submitted_at|date:"M j, Y g:i A" }}
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <strong>Status:</strong> <span class="badge bg-warning">{{ assessment.get_status_display }}</span><br>
-                                                        {% if assessment.started_at %}
-                                                        <strong>Started:</strong> {{ assessment.started_at|date:"M j, Y g:i A" }}<br>
-                                                        {% endif %}
-                                                    </div>
-                                                </div>
-                                                {% if assessment.user_declaration %}
-                                                <hr>
-                                                <strong>User Declaration:</strong>
-                                                <div class="border rounded p-2 mt-2 bg-light">
-                                                    {{ assessment.user_declaration }}
-                                                </div>
-                                                {% endif %}
-                                                {% if assessment.assessment_file %}
-                                                <hr>
-                                                <strong>Supporting Documents:</strong>
-                                                <div class="border rounded p-2 mt-2 bg-light">
-                                                    <i class="fas fa-file me-2"></i>
-                                                    <span class="me-2">{{ assessment.assessment_file.name }}</span>
-                                                    <div class="btn-group btn-group-sm mt-2" role="group">
-                                                        {% if assessment.assessment_file.name|lower|slice:"-4:" == ".pdf" %}
-                                                            <button type="button" class="btn btn-outline-primary" onclick="viewPdfInModal('{{ assessment.assessment_file.url }}', '{{ assessment.assessment_file.name }}')">
-                                                                <i class="fas fa-eye me-1"></i>View PDF
-                                                            </button>
-                                                        {% elif assessment.assessment_file.name|lower|slice:"-5:" == ".xlsx" or assessment.assessment_file.name|lower|slice:"-4:" == ".xls" %}
-                                                            <button type="button" class="btn btn-outline-primary" onclick="viewExcelInModal('{{ assessment.assessment_file.url }}', '{{ assessment.assessment_file.name }}')">
-                                                                <i class="fas fa-eye me-1"></i>View Excel
-                                                            </button>
-                                                        {% elif assessment.assessment_file.name|lower|slice:"-5:" == ".docx" or assessment.assessment_file.name|lower|slice:"-4:" == ".doc" %}
-                                                            <button type="button" class="btn btn-outline-primary" onclick="viewWordInModal('{{ assessment.assessment_file.url }}', '{{ assessment.assessment_file.name }}')">
-                                                                <i class="fas fa-eye me-1"></i>View Document
-                                                            </button>
-                                                        {% else %}
-                                                            <a href="{{ assessment.assessment_file.url }}" target="_blank" class="btn btn-outline-primary">
-                                                                <i class="fas fa-eye me-1"></i>View File
-                                                            </a>
-                                                        {% endif %}
-                                                        <a href="{{ assessment.assessment_file.url }}" download class="btn btn-outline-success">
-                                                            <i class="fas fa-download me-1"></i>Download
-                                                        </a>
-                                                    </div>
-                                                </div>
-                                                {% else %}
-                                                <hr>
-                                                <strong>Supporting Documents:</strong>
-                                                <div class="border rounded p-2 mt-2 bg-light text-muted">
-                                                    <i class="fas fa-info-circle me-1"></i>No supporting documents uploaded
-                                                </div>
-                                                {% endif %}
+                                            <div class="col-md-6">
+                                                <h6>User & Status</h6>
+                                                <dl class="row">
+                                                    <dt class="col-sm-4">User:</dt>
+                                                    <dd class="col-sm-8">{{ assessment.user.get_full_name }}</dd>
+                                                    <dt class="col-sm-4">Email:</dt>
+                                                    <dd class="col-sm-8">{{ assessment.user.email }}</dd>
+                                                    <dt class="col-sm-4">Status:</dt>
+                                                    <dd class="col-sm-8">
+                                                        <span class="badge
+                                                            {% if assessment.status == 'approved' %}bg-success
+                                                            {% elif assessment.status == 'submitted' %}bg-warning text-dark
+                                                            {% elif assessment.status == 'rejected' %}bg-danger
+                                                            {% elif assessment.status == 'expired' %}bg-secondary
+                                                            {% else %}bg-primary{% endif %}">
+                                                            {{ assessment.get_status_display }}
+                                                        </span>
+                                                    </dd>
+                                                    {% if assessment.submitted_at %}
+                                                    <dt class="col-sm-4">Submitted:</dt>
+                                                    <dd class="col-sm-8">{{ assessment.submitted_at|date:"M j, Y g:i A" }}</dd>
+                                                    {% endif %}
+                                                    {% if assessment.completed_at %}
+                                                    <dt class="col-sm-4">Completed:</dt>
+                                                    <dd class="col-sm-8">{{ assessment.completed_at|date:"M j, Y g:i A" }}</dd>
+                                                    {% endif %}
+                                                </dl>
                                             </div>
                                         </div>
-                                    </div>
-                                </div>
 
-                                <!-- Approve Modal -->
-                                <div class="modal fade" id="approveModal{{ assessment.id }}" tabindex="-1">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Approve Risk Assessment</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                            </div>
-                                            <div class="modal-body">
-                                                <p>Are you sure you want to approve the risk assessment for <strong>{{ assessment.user.get_full_name }}</strong>?</p>
-                                                <p class="text-muted small">Assessment: {{ assessment.risk_assessment.title }}</p>
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                <form method="post" style="display: inline;">
-                                                    {% csrf_token %}
-                                                    <input type="hidden" name="action" value="approve_assessment">
-                                                    <input type="hidden" name="assessment_id" value="{{ assessment.id }}">
-                                                    <button type="submit" class="btn btn-success">Approve</button>
-                                                </form>
-                                            </div>
+                                        {% if assessment.risk_assessment.description %}
+                                        <hr>
+                                        <h6>Description</h6>
+                                        <div class="bg-light p-3 rounded">
+                                            {{ assessment.risk_assessment.description|linebreaks }}
                                         </div>
-                                    </div>
-                                </div>
+                                        {% endif %}
 
-                                <!-- Reject Modal -->
-                                <div class="modal fade" id="rejectModal{{ assessment.id }}" tabindex="-1">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Reject Risk Assessment</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                            </div>
-                                            <form method="post">
-                                                {% csrf_token %}
-                                                <div class="modal-body">
-                                                    <p>Are you sure you want to reject the risk assessment for <strong>{{ assessment.user.get_full_name }}</strong>?</p>
-                                                    <p class="text-muted small">Assessment: {{ assessment.risk_assessment.title }}</p>
-                                                    
-                                                    <div class="mb-3">
-                                                        <label for="rejection_reason{{ assessment.id }}" class="form-label">Reason for rejection:</label>
-                                                        <textarea class="form-control" id="rejection_reason{{ assessment.id }}" name="rejection_reason" rows="3" placeholder="Please provide a reason for rejection..."></textarea>
-                                                    </div>
-                                                </div>
-                                                <div class="modal-footer">
-                                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                                                    <input type="hidden" name="action" value="reject_assessment">
-                                                    <input type="hidden" name="assessment_id" value="{{ assessment.id }}">
-                                                    <button type="submit" class="btn btn-danger">Reject</button>
-                                                </div>
-                                            </form>
+                                        {% if assessment.user_declaration %}
+                                        <hr>
+                                        <h6>User Declaration</h6>
+                                        <div class="bg-light p-3 rounded">
+                                            {{ assessment.user_declaration|linebreaks }}
                                         </div>
+                                        {% endif %}
+
+                                        {% if assessment.assessment_file %}
+                                        <hr>
+                                        <h6>Supporting Documents</h6>
+                                        <div class="d-flex align-items-center p-3 bg-light rounded">
+                                            <i class="fas fa-file me-3 fa-2x text-primary"></i>
+                                            <div class="flex-grow-1">
+                                                <p class="mb-1"><strong>{{ assessment.assessment_file.name }}</strong></p>
+                                                <small class="text-muted">Click to download the assessment file</small>
+                                            </div>
+                                            <a href="{{ assessment.assessment_file.url }}" download class="btn btn-primary">
+                                                <i class="fas fa-download me-1"></i>Download
+                                            </a>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                                        {% if assessment.assessment_file %}
+                                        <a href="{{ assessment.assessment_file.url }}" download class="btn btn-primary">
+                                            <i class="fas fa-download me-1"></i>Download File
+                                        </a>
+                                        {% endif %}
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <!-- Pagination -->
+                        {% if assessments.has_other_pages %}
+                        <nav aria-label="Risk assessments pagination" class="mt-4">
+                            <ul class="pagination justify-content-center">
+                                {% if assessments.has_previous %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if resource_filter %}resource={{ resource_filter }}&{% endif %}{% if type_filter %}type={{ type_filter }}&{% endif %}{% if risk_level_filter %}risk_level={{ risk_level_filter }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}page={{ assessments.previous_page_number }}">
+                                        <i class="fas fa-chevron-left"></i> Previous
+                                    </a>
+                                </li>
+                                {% endif %}
+
+                                {% for num in assessments.paginator.page_range %}
+                                {% if assessments.number == num %}
+                                <li class="page-item active">
+                                    <span class="page-link">{{ num }}</span>
+                                </li>
+                                {% elif num > assessments.number|add:'-3' and num < assessments.number|add:'3' %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if resource_filter %}resource={{ resource_filter }}&{% endif %}{% if type_filter %}type={{ type_filter }}&{% endif %}{% if risk_level_filter %}risk_level={{ risk_level_filter }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}page={{ num }}">{{ num }}</a>
+                                </li>
+                                {% endif %}
                                 {% endfor %}
+
+                                {% if assessments.has_next %}
+                                <li class="page-item">
+                                    <a class="page-link" href="?{% if search_query %}search={{ search_query }}&{% endif %}{% if resource_filter %}resource={{ resource_filter }}&{% endif %}{% if type_filter %}type={{ type_filter }}&{% endif %}{% if risk_level_filter %}risk_level={{ risk_level_filter }}&{% endif %}{% if status_filter %}status={{ status_filter }}&{% endif %}page={{ assessments.next_page_number }}">
+                                        Next <i class="fas fa-chevron-right"></i>
+                                    </a>
+                                </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                        {% endif %}
+
+                    {% else %}
+                        <div class="text-center py-5">
+                            <i class="fas fa-search fa-3x text-muted mb-3"></i>
+                            <h5 class="text-muted">No Risk Assessments Found</h5>
+                            {% if search_query or resource_filter or type_filter or risk_level_filter or status_filter %}
+                            <p class="text-muted">Try adjusting your search criteria or <a href="{% url 'booking:lab_admin_risk_assessments' %}">clearing filters</a>.</p>
                             {% else %}
-                                <div class="text-center text-muted py-4">
-                                    <i class="fas fa-clipboard-check fa-3x mb-3"></i>
-                                    <p>No risk assessments pending review.</p>
-                                </div>
+                            <p class="text-muted">No risk assessments have been created yet.</p>
                             {% endif %}
                         </div>
-                    </div>
+                    {% endif %}
                 </div>
             </div>
 
-            <!-- Recent Approved and Rejected Assessments -->
-            <div class="row">
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">
-                                <i class="fas fa-check-circle me-2 text-success"></i>Recently Approved
-                                <span class="badge bg-success ms-2">{{ approved_assessments.count }}</span>
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            {% if approved_assessments %}
-                                {% for assessment in approved_assessments %}
-                                <div class="border rounded p-2 mb-2">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <strong>{{ assessment.user.get_full_name }}</strong><br>
-                                            <small class="text-muted">{{ assessment.risk_assessment.title }}</small><br>
-                                            <small class="text-success">
-                                                <i class="fas fa-check"></i> Approved {{ assessment.completed_at|date:"M j" }}
-                                            </small>
-                                        </div>
-                                        <span class="badge bg-success">Approved</span>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            {% else %}
-                                <div class="text-center text-muted py-3">
-                                    <p class="small">No recently approved assessments.</p>
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6">
-                    <div class="card">
-                        <div class="card-header">
-                            <h5 class="mb-0">
-                                <i class="fas fa-times-circle me-2 text-danger"></i>Recently Rejected
-                                <span class="badge bg-danger ms-2">{{ rejected_assessments.count }}</span>
-                            </h5>
-                        </div>
-                        <div class="card-body">
-                            {% if rejected_assessments %}
-                                {% for assessment in rejected_assessments %}
-                                <div class="border rounded p-2 mb-2">
-                                    <div class="d-flex justify-content-between align-items-center">
-                                        <div>
-                                            <strong>{{ assessment.user.get_full_name }}</strong><br>
-                                            <small class="text-muted">{{ assessment.risk_assessment.title }}</small><br>
-                                            <small class="text-danger">
-                                                <i class="fas fa-times"></i> Rejected {{ assessment.submitted_at|date:"M j" }}
-                                            </small>
-                                            {% if assessment.rejection_reason %}
-                                            <br><small class="text-muted">{{ assessment.rejection_reason|truncatechars:50 }}</small>
-                                            {% endif %}
-                                        </div>
-                                        <span class="badge bg-danger">Rejected</span>
-                                    </div>
-                                </div>
-                                {% endfor %}
-                            {% else %}
-                                <div class="text-center text-muted py-3">
-                                    <p class="small">No recently rejected assessments.</p>
-                                </div>
-                            {% endif %}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- File Viewer Modal -->
-<div class="modal fade" id="fileViewerModal" tabindex="-1" aria-labelledby="fileViewerModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="fileViewerModalLabel">
-                    <i class="fas fa-file me-2"></i>File Viewer
-                </h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body p-0">
-                <div id="fileViewerContent" style="height: 80vh; overflow: auto;">
-                    <div class="d-flex justify-content-center align-items-center h-100">
-                        <div class="spinner-border" role="status">
-                            <span class="visually-hidden">Loading...</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                <a id="downloadFileLink" href="#" class="btn btn-primary" download>
-                    <i class="fas fa-download me-1"></i>Download File
-                </a>
-            </div>
         </div>
     </div>
 </div>
 
 <script>
-function viewPdfInModal(fileUrl, fileName) {
-    const modal = new bootstrap.Modal(document.getElementById('fileViewerModal'));
-    const modalTitle = document.getElementById('fileViewerModalLabel');
-    const content = document.getElementById('fileViewerContent');
-    const downloadLink = document.getElementById('downloadFileLink');
-    
-    modalTitle.innerHTML = `<i class="fas fa-file-pdf me-2 text-danger"></i>${fileName}`;
-    downloadLink.href = fileUrl;
-    downloadLink.setAttribute('download', fileName);
-    
-    // Embed PDF using iframe
-    content.innerHTML = `<iframe src="${fileUrl}" width="100%" height="100%" style="border: none;"></iframe>`;
-    
-    modal.show();
+function exportAssessment(assessmentId) {
+    // Placeholder function for individual assessment export
+    // This could be implemented to generate PDF reports or CSV exports
+    alert('Export functionality would be implemented here for assessment ID: ' + assessmentId);
 }
 
-function viewExcelInModal(fileUrl, fileName) {
-    const modal = new bootstrap.Modal(document.getElementById('fileViewerModal'));
-    const modalTitle = document.getElementById('fileViewerModalLabel');
-    const content = document.getElementById('fileViewerContent');
-    const downloadLink = document.getElementById('downloadFileLink');
-    
-    modalTitle.innerHTML = `<i class="fas fa-file-excel me-2 text-success"></i>${fileName}`;
-    downloadLink.href = fileUrl;
-    downloadLink.setAttribute('download', fileName);
-    
-    content.innerHTML = `
-        <div class="p-3">
-            <div class="text-center py-5">
-                <div class="mb-4">
-                    <i class="fas fa-file-excel fa-4x text-success mb-3"></i>
-                    <h5>Excel File: ${fileName}</h5>
-                </div>
-                <div class="alert alert-info mb-4">
-                    <i class="fas fa-info-circle me-2"></i>
-                    <strong>Excel File Preview</strong><br>
-                    Excel files cannot be previewed directly in the browser. Please download the file to view its contents.
-                </div>
-                <div class="d-grid gap-2 d-md-block">
-                    <a href="${fileUrl}" download="${fileName}" class="btn btn-success btn-lg">
-                        <i class="fas fa-download me-2"></i>Download Excel File
-                    </a>
-                    <button type="button" class="btn btn-outline-secondary btn-lg" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>Close
-                    </button>
-                </div>
-                <div class="mt-4">
-                    <small class="text-muted">
-                        <i class="fas fa-lightbulb me-1"></i>
-                        Tip: The file will open in Microsoft Excel, Google Sheets, or your default spreadsheet application.
-                    </small>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    modal.show();
-}
-
-function showExcelError(fileUrl, fileName) {
-    const content = document.getElementById('fileViewerContent');
-    content.innerHTML = `
-        <div class="p-3">
-            <div class="alert alert-warning">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                <strong>Unable to preview Excel file</strong><br>
-                The file cannot be previewed in the browser. This may be due to file permissions or format compatibility.
-                <br><br>
-                <a href="${fileUrl}" class="btn btn-primary btn-sm" download="${fileName}">
-                    <i class="fas fa-download me-1"></i>Download ${fileName}
-                </a>
-            </div>
-        </div>
-    `;
-}
-
-function viewWordInModal(fileUrl, fileName) {
-    const modal = new bootstrap.Modal(document.getElementById('fileViewerModal'));
-    const modalTitle = document.getElementById('fileViewerModalLabel');
-    const content = document.getElementById('fileViewerContent');
-    const downloadLink = document.getElementById('downloadFileLink');
-    
-    modalTitle.innerHTML = `<i class="fas fa-file-word me-2 text-primary"></i>${fileName}`;
-    downloadLink.href = fileUrl;
-    downloadLink.setAttribute('download', fileName);
-    
-    content.innerHTML = `
-        <div class="p-3">
-            <div class="text-center py-5">
-                <div class="mb-4">
-                    <i class="fas fa-file-word fa-4x text-primary mb-3"></i>
-                    <h5>Word Document: ${fileName}</h5>
-                </div>
-                <div class="alert alert-info mb-4">
-                    <i class="fas fa-info-circle me-2"></i>
-                    <strong>Word Document Preview</strong><br>
-                    Word documents cannot be previewed directly in the browser. Please download the file to view its contents.
-                </div>
-                <div class="d-grid gap-2 d-md-block">
-                    <a href="${fileUrl}" download="${fileName}" class="btn btn-primary btn-lg">
-                        <i class="fas fa-download me-2"></i>Download Word Document
-                    </a>
-                    <button type="button" class="btn btn-outline-secondary btn-lg" data-bs-dismiss="modal">
-                        <i class="fas fa-times me-2"></i>Close
-                    </button>
-                </div>
-                <div class="mt-4">
-                    <small class="text-muted">
-                        <i class="fas fa-lightbulb me-1"></i>
-                        Tip: The file will open in Microsoft Word, Google Docs, or your default word processor.
-                    </small>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    modal.show();
-}
+// Auto-submit form when filter dropdowns change
+document.addEventListener('DOMContentLoaded', function() {
+    const filterSelects = document.querySelectorAll('select[name="resource"], select[name="type"], select[name="risk_level"], select[name="status"]');
+    filterSelects.forEach(function(select) {
+        select.addEventListener('change', function() {
+            this.form.submit();
+        });
+    });
+});
 </script>
 {% endblock %}

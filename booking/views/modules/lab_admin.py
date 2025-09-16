@@ -609,58 +609,82 @@ def lab_admin_training_view(request):
 @login_required
 @user_passes_test(is_lab_admin)
 def lab_admin_risk_assessments_view(request):
-    """Manage user risk assessments."""
-    from booking.models import UserRiskAssessment, RiskAssessment
+    """Browse and search risk assessments for review and management."""
+    from booking.models import UserRiskAssessment, RiskAssessment, Resource
+    from django.core.paginator import Paginator
 
-    # Handle risk assessment actions
-    if request.method == 'POST':
-        action = request.POST.get('action')
+    # Get filter parameters
+    resource_filter = request.GET.get('resource', '')
+    type_filter = request.GET.get('type', '')
+    risk_level_filter = request.GET.get('risk_level', '')
+    status_filter = request.GET.get('status', '')
+    search_query = request.GET.get('search', '').strip()
 
-        if action == 'approve_assessment':
-            assessment_id = request.POST.get('assessment_id')
-            user_assessment = get_object_or_404(UserRiskAssessment, id=assessment_id)
+    # Base queryset - all user risk assessments
+    assessments = UserRiskAssessment.objects.select_related(
+        'user', 'risk_assessment', 'risk_assessment__resource'
+    ).order_by('-submitted_at', '-created_at')
 
-            user_assessment.status = 'approved'
-            user_assessment.completed_at = timezone.now()
-            user_assessment.save()
+    # Apply filters
+    if resource_filter:
+        assessments = assessments.filter(risk_assessment__resource_id=resource_filter)
 
-            messages.success(request, f'Risk assessment approved for {user_assessment.user.get_full_name()}')
+    if type_filter:
+        assessments = assessments.filter(risk_assessment__assessment_type=type_filter)
 
-        elif action == 'reject_assessment':
-            assessment_id = request.POST.get('assessment_id')
-            user_assessment = get_object_or_404(UserRiskAssessment, id=assessment_id)
-            rejection_reason = request.POST.get('rejection_reason', '')
+    if risk_level_filter:
+        assessments = assessments.filter(risk_assessment__risk_level=risk_level_filter)
 
-            user_assessment.status = 'rejected'
-            user_assessment.rejection_reason = rejection_reason
-            user_assessment.save()
+    if status_filter:
+        assessments = assessments.filter(status=status_filter)
 
-            messages.success(request, f'Risk assessment rejected for {user_assessment.user.get_full_name()}')
+    if search_query:
+        assessments = assessments.filter(
+            Q(risk_assessment__title__icontains=search_query) |
+            Q(risk_assessment__description__icontains=search_query) |
+            Q(user__first_name__icontains=search_query) |
+            Q(user__last_name__icontains=search_query) |
+            Q(user__username__icontains=search_query)
+        )
 
-        elif action == 'view_details':
-            assessment_id = request.POST.get('assessment_id')
-            # This could redirect to a detailed view of the assessment
-            return redirect('booking:lab_admin_risk_assessments')
+    # Calculate statistics
+    total_count = UserRiskAssessment.objects.count()
+    active_count = UserRiskAssessment.objects.filter(status='approved').count()
+    expired_count = UserRiskAssessment.objects.filter(status='expired').count()
+    pending_count = UserRiskAssessment.objects.filter(status='submitted').count()
+    high_risk_count = UserRiskAssessment.objects.filter(
+        risk_assessment__risk_level__in=['high', 'critical']
+    ).count()
 
-        return redirect('booking:lab_admin_risk_assessments')
+    # Pagination
+    paginator = Paginator(assessments, 20)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
 
-    # Get risk assessment data
-    submitted_assessments = UserRiskAssessment.objects.filter(
-        status='submitted'
-    ).select_related('user', 'risk_assessment').order_by('-submitted_at')
-
-    approved_assessments = UserRiskAssessment.objects.filter(
-        status='approved'
-    ).select_related('user', 'risk_assessment').order_by('-completed_at')[:20]  # Show recent 20
-
-    rejected_assessments = UserRiskAssessment.objects.filter(
-        status='rejected'
-    ).select_related('user', 'risk_assessment').order_by('-submitted_at')[:20]  # Show recent 20
+    # Get filter options
+    resources = Resource.objects.filter(is_active=True).order_by('name')
+    assessment_types = RiskAssessment.ASSESSMENT_TYPES
+    risk_levels = RiskAssessment.RISK_LEVELS
+    status_choices = UserRiskAssessment.STATUS_CHOICES
 
     context = {
-        'submitted_assessments': submitted_assessments,
-        'approved_assessments': approved_assessments,
-        'rejected_assessments': rejected_assessments,
+        'assessments': page_obj,
+        'resources': resources,
+        'assessment_types': assessment_types,
+        'risk_levels': risk_levels,
+        'status_choices': status_choices,
+        'resource_filter': resource_filter,
+        'type_filter': type_filter,
+        'risk_level_filter': risk_level_filter,
+        'status_filter': status_filter,
+        'search_query': search_query,
+        'stats': {
+            'total_count': total_count,
+            'active_count': active_count,
+            'expired_count': expired_count,
+            'pending_count': pending_count,
+            'high_risk_count': high_risk_count,
+        },
     }
 
     return render(request, 'booking/lab_admin_risk_assessments.html', context)
