@@ -17,7 +17,7 @@ class AboutPageEditForm(forms.ModelForm):
     class Meta:
         model = AboutPage
         fields = [
-            'title', 'facility_name', 'content', 'contact_email', 
+            'title', 'facility_name', 'content', 'image', 'contact_email',
             'contact_phone', 'address', 'emergency_contact',
             'operating_hours', 'policies_url', 'safety_information',
             'is_active'
@@ -26,6 +26,7 @@ class AboutPageEditForm(forms.ModelForm):
             'title': forms.TextInput(attrs={'class': 'form-control'}),
             'facility_name': forms.TextInput(attrs={'class': 'form-control'}),
             'content': forms.Textarea(attrs={'class': 'form-control', 'rows': 10}),
+            'image': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
             'contact_email': forms.EmailInput(attrs={'class': 'form-control'}),
             'contact_phone': forms.TextInput(attrs={'class': 'form-control'}),
             'address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),

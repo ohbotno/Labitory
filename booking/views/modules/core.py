@@ -216,15 +216,18 @@ def about_page_edit_view(request):
         about_page = AboutPage()
     
     if request.method == 'POST':
-        form = AboutPageEditForm(request.POST, instance=about_page)
+        form = AboutPageEditForm(request.POST, request.FILES, instance=about_page)
         if form.is_valid():
             form.save()
             messages.success(request, 'About page updated successfully.')
             return redirect('booking:about')
     else:
         form = AboutPageEditForm(instance=about_page)
-    
-    return render(request, 'booking/about_edit.html', {'form': form})
+
+    return render(request, 'booking/about_edit.html', {
+        'form': form,
+        'about_page': about_page
+    })
 
 
 # AJAX views for dynamic form loading
