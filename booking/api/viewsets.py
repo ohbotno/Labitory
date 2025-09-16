@@ -426,33 +426,38 @@ class MaintenanceViewSet(APIRateLimitMixin, viewsets.ModelViewSet):
     def calendar(self, request):
         """Get maintenance events in calendar format."""
         queryset = self.get_queryset()
-        
+
         # Apply any filtering from query parameters
         resource_filter = request.query_params.get('resource')
         if resource_filter:
             queryset = queryset.filter(resource_id=resource_filter)
-        
+
         # Convert to FullCalendar event format
         events = []
         for maintenance in queryset:
-            color = '#dc3545' if maintenance.is_emergency else '#fd7e14'  # Red for emergency, orange for regular
-            
+            # Check if it's emergency priority
+            is_emergency = maintenance.priority == 'emergency'
+            color = '#dc3545' if is_emergency else '#fd7e14'  # Red for emergency, orange for regular
+
             events.append({
                 'id': f'maintenance-{maintenance.id}',
-                'title': f'Maintenance: {maintenance.resource.name}',
-                'start': maintenance.scheduled_date.isoformat(),
-                'end': (maintenance.scheduled_date + maintenance.estimated_duration).isoformat() if maintenance.estimated_duration else maintenance.scheduled_date.isoformat(),
+                'title': f'🔧 {maintenance.title}',
+                'start': maintenance.start_time.isoformat(),
+                'end': maintenance.end_time.isoformat(),
                 'backgroundColor': color,
                 'borderColor': color,
                 'extendedProps': {
                     'resource': maintenance.resource.name,
                     'type': 'maintenance',
-                    'is_emergency': maintenance.is_emergency,
-                    'blocks_booking': True,
-                    'description': maintenance.description
+                    'is_emergency': is_emergency,
+                    'blocks_booking': maintenance.blocks_booking,
+                    'description': maintenance.description,
+                    'priority': maintenance.priority,
+                    'maintenance_type': maintenance.maintenance_type,
+                    'status': maintenance.status
                 }
             })
-        
+
         return Response(events)
 
 
