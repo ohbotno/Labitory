@@ -128,6 +128,8 @@ urlpatterns = [
     # Approval Rules URLs
     path('lab-admin/approval-rules/', approvals.approval_rules_view, name='approval_rules'),
     path('lab-admin/approval-rules/<int:rule_id>/toggle/', approvals.approval_rule_toggle_view, name='approval_rule_toggle'),
+    path('lab-admin/approval-rules/<int:rule_id>/edit/', approvals.approval_rule_edit_view, name='approval_rule_edit'),
+    path('lab-admin/approval-rules/<int:rule_id>/update/', approvals.approval_rule_update_view, name='approval_rule_update'),
     
     # Lab Admin URLs
     path('lab-admin/', lab_admin.lab_admin_dashboard_view, name='lab_admin_dashboard'),

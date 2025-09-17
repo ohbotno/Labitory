@@ -888,27 +888,121 @@ def approval_rule_toggle_view(request, rule_id):
     """Toggle approval rule active/inactive status."""
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'POST required'})
-    
+
     # Only allow technicians and sysadmins
     if not request.user.userprofile.role in ['technician', 'sysadmin']:
         return JsonResponse({'success': False, 'error': 'Permission denied'})
-    
+
     try:
         import json
-        
+
         rule = get_object_or_404(ApprovalRule, id=rule_id)
-        
+
         data = json.loads(request.body)
         new_status = data.get('active', False)
-        
+
         rule.is_active = new_status
         rule.save()
-        
+
         return JsonResponse({
-            'success': True, 
+            'success': True,
             'message': f"Rule {'enabled' if new_status else 'disabled'} successfully"
         })
-        
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+def approval_rule_edit_view(request, rule_id):
+    """Get approval rule data for editing."""
+    if request.method != 'GET':
+        return JsonResponse({'success': False, 'error': 'GET required'})
+
+    # Only allow technicians and sysadmins
+    if not request.user.userprofile.role in ['technician', 'sysadmin']:
+        return JsonResponse({'success': False, 'error': 'Permission denied'})
+
+    try:
+        rule = get_object_or_404(ApprovalRule, id=rule_id)
+
+        # Serialize rule data
+        rule_data = {
+            'id': rule.id,
+            'name': rule.name,
+            'approval_type': rule.approval_type,
+            'description': rule.description,
+            'resource_id': rule.resource.id if rule.resource else None,
+            'user_role': rule.user_roles[0] if rule.user_roles else None,
+            'priority': rule.priority,
+            'is_active': rule.is_active,
+            'condition_type': rule.condition_type,
+            'conditional_logic': rule.conditional_logic,
+            'fallback_rule_id': rule.fallback_rule.id if rule.fallback_rule else None,
+        }
+
+        return JsonResponse({
+            'success': True,
+            'rule': rule_data
+        })
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@login_required
+def approval_rule_update_view(request, rule_id):
+    """Update approval rule."""
+    if request.method != 'POST':
+        return JsonResponse({'success': False, 'error': 'POST required'})
+
+    # Only allow technicians and sysadmins
+    if not request.user.userprofile.role in ['technician', 'sysadmin']:
+        return JsonResponse({'success': False, 'error': 'Permission denied'})
+
+    try:
+        rule = get_object_or_404(ApprovalRule, id=rule_id)
+
+        # Get form data
+        name = request.POST.get('name')
+        approval_type = request.POST.get('approval_type')
+        description = request.POST.get('description', '')
+        resource_id = request.POST.get('resource')
+        user_role = request.POST.get('user_role')
+        priority = int(request.POST.get('priority', 100))
+        is_active = request.POST.get('is_active') == 'true'
+
+        # Validate required fields
+        if not name or not name.strip():
+            return JsonResponse({'success': False, 'error': 'Please provide a name for the approval rule.'})
+
+        if not approval_type or not approval_type.strip():
+            return JsonResponse({'success': False, 'error': 'Please select an approval type.'})
+
+        # Get related objects
+        resource = None
+        if resource_id and resource_id.strip():
+            try:
+                from ...models import Resource
+                resource = Resource.objects.get(id=resource_id)
+            except Resource.DoesNotExist:
+                return JsonResponse({'success': False, 'error': 'Selected resource not found.'})
+
+        # Update the rule
+        rule.name = name
+        rule.approval_type = approval_type
+        rule.description = description
+        rule.resource = resource
+        rule.user_roles = [user_role] if user_role else []
+        rule.priority = priority
+        rule.is_active = is_active
+        rule.save()
+
+        return JsonResponse({
+            'success': True,
+            'message': f"Approval rule '{name}' updated successfully."
+        })
+
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
 

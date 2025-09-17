@@ -5,26 +5,145 @@
 
 {% block extra_css %}
 <style>
-.rule-card {
+.rules-list {
     background: var(--color-bg-primary);
     border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    margin-bottom: 1rem;
-    border-left: 4px solid var(--color-primary);
+    border: 1px solid var(--color-border-light);
+    overflow: hidden;
 }
+
+.rule-item {
+    border-bottom: 1px solid var(--color-border-light);
+    padding: 0.75rem 1rem;
+    transition: background-color 0.2s ease;
+    border-left: 3px solid var(--color-primary);
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-height: 3.5rem;
+}
+.rule-item:last-child {
+    border-bottom: none;
+}
+.rule-item:hover {
+    background-color: var(--color-bg-secondary);
+}
+
 .rule-auto { border-left-color: var(--color-success); }
 .rule-single { border-left-color: var(--color-warning); }
 .rule-tiered { border-left-color: var(--color-danger); }
 .rule-quota { border-left-color: var(--color-info); }
 .rule-conditional { border-left-color: var(--color-warning-hover); }
 
-.condition-badge {
+.rule-main-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-width: 0;
+}
+
+.rule-title {
+    font-weight: 600;
+    font-size: 1rem;
+    margin: 0;
+    min-width: 180px;
+    flex-shrink: 0;
+}
+
+.rule-badges {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+    min-width: 200px;
+}
+
+.rule-badges .badge {
     font-size: 0.75rem;
+    padding: 0.15rem 0.4rem;
+    white-space: nowrap;
+}
+
+.rule-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex: 1;
+    font-size: 0.9rem;
+    min-width: 0;
+}
+
+.rule-description {
+    color: var(--color-text-secondary);
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 200px;
+}
+
+.rule-applies-to {
+    display: flex;
+    gap: 0.25rem;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.rule-applies-to strong {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    margin-right: 0.25rem;
+}
+
+.rule-conditions {
+    display: flex;
+    gap: 0.2rem;
+    align-items: center;
+    flex-shrink: 0;
+}
+
+.rule-meta {
+    display: flex;
+    gap: 0.75rem;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+    align-items: center;
+    flex-shrink: 0;
+    min-width: 220px;
+}
+
+.rule-meta span {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    white-space: nowrap;
+}
+
+.rule-actions {
+    display: flex;
+    gap: 0.2rem;
+    flex-shrink: 0;
+}
+
+.rule-actions .btn {
     padding: 0.25rem 0.5rem;
-    border-radius: 12px;
-    margin-right: 0.5rem;
-    margin-bottom: 0.25rem;
-    display: inline-block;
+    font-size: 0.8rem;
+    border-radius: 4px;
+    min-width: auto;
+}
+
+
+.condition-badge {
+    font-size: 0.7rem;
+    padding: 0.15rem 0.35rem;
+    border-radius: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.2rem;
+    font-weight: 500;
+}
+.condition-badge i {
+    font-size: 0.65rem;
 }
 .condition-time { background-color: var(--color-info-lighter); color: var(--color-info-text); }
 .condition-usage { background-color: var(--color-primary-lighter); color: var(--color-primary-active); }
@@ -32,17 +151,36 @@
 .condition-role { background-color: var(--color-warning-lighter); color: var(--color-warning-text); }
 .condition-resource { background-color: var(--color-danger-lighter); color: var(--color-danger-text); }
 
+
+.compact-stats {
+    margin-bottom: 2rem;
+}
+.compact-stats .card {
+    border-radius: 10px;
+    border: none;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.compact-stats .card-body {
+    padding: 1rem;
+}
+.compact-stats h3 {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
 .rule-builder {
     background-color: var(--color-bg-secondary);
     border: 2px dashed var(--color-border-light);
     border-radius: 8px;
     padding: 2rem;
     text-align: center;
-    margin-bottom: 1rem;
+    margin-bottom: 1.25rem;
+    transition: all 0.2s ease;
 }
 .rule-builder:hover {
     border-color: var(--color-primary);
     background-color: var(--color-primary-lighter);
+    cursor: pointer;
 }
 
 .condition-builder {
@@ -51,6 +189,19 @@
     border-radius: 8px;
     padding: 1rem;
     margin-bottom: 1rem;
+}
+
+.filter-section {
+    background: var(--color-bg-primary);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    margin-bottom: 2rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 3rem 2rem;
+    color: var(--color-text-secondary);
 }
 </style>
 {% endblock %}
@@ -81,15 +232,15 @@
             </div>
 
             <!-- Quick Stats -->
-            <div class="row mb-4">
+            <div class="row compact-stats">
                 <div class="col-md-3">
                     <div class="card bg-success text-white">
                         <div class="card-body">
                             <div class="d-flex align-items-center">
-                                <i class="fas fa-check-double fa-2x me-3"></i>
+                                <i class="fas fa-check-double fa-lg me-3"></i>
                                 <div>
                                     <h3 class="mb-0">{{ stats.auto_rules }}</h3>
-                                    <small>Auto-Approval Rules</small>
+                                    <small>Auto-Approval</small>
                                 </div>
                             </div>
                         </div>
@@ -99,10 +250,10 @@
                     <div class="card bg-warning">
                         <div class="card-body">
                             <div class="d-flex align-items-center">
-                                <i class="fas fa-user-check fa-2x me-3"></i>
+                                <i class="fas fa-user-check fa-lg me-3"></i>
                                 <div>
                                     <h3 class="mb-0">{{ stats.manual_rules }}</h3>
-                                    <small>Manual Approval Rules</small>
+                                    <small>Manual Approval</small>
                                 </div>
                             </div>
                         </div>
@@ -112,10 +263,10 @@
                     <div class="card bg-info text-white">
                         <div class="card-body">
                             <div class="d-flex align-items-center">
-                                <i class="fas fa-sitemap fa-2x me-3"></i>
+                                <i class="fas fa-sitemap fa-lg me-3"></i>
                                 <div>
                                     <h3 class="mb-0">{{ stats.conditional_rules }}</h3>
-                                    <small>Conditional Rules</small>
+                                    <small>Conditional</small>
                                 </div>
                             </div>
                         </div>
@@ -125,7 +276,7 @@
                     <div class="card bg-secondary text-white">
                         <div class="card-body">
                             <div class="d-flex align-items-center">
-                                <i class="fas fa-toggle-on fa-2x me-3"></i>
+                                <i class="fas fa-toggle-on fa-lg me-3"></i>
                                 <div>
                                     <h3 class="mb-0">{{ stats.active_rules }}</h3>
                                     <small>Active Rules</small>
@@ -137,7 +288,7 @@
             </div>
 
             <!-- Filter and Search -->
-            <div class="card mb-4">
+            <div class="card filter-section">
                 <div class="card-body">
                     <form method="get" class="row g-3">
                         <div class="col-md-3">
@@ -179,103 +330,105 @@
             </div>
 
             <!-- Rules List -->
-            {% for rule in rules %}
-            <div class="rule-card rule-{{ rule.approval_type }}">
-                <div class="card-body">
-                    <div class="row align-items-center">
-                        <div class="col-md-8">
-                            <div class="d-flex align-items-center mb-2">
-                                <h5 class="mb-0 me-3">{{ rule.name }}</h5>
-                                {% if rule.is_active %}
-                                <span class="badge bg-success">Active</span>
-                                {% else %}
-                                <span class="badge bg-secondary">Inactive</span>
-                                {% endif %}
-                                <span class="badge bg-primary ms-2">{{ rule.get_approval_type_display }}</span>
-                                {% if rule.approval_type == 'conditional' %}
-                                <span class="badge bg-warning ms-2">{{ rule.get_condition_type_display }}</span>
-                                {% endif %}
-                            </div>
-                            
-                            {% if rule.description %}
-                            <p class="text-muted mb-2">{{ rule.description }}</p>
+            {% if rules %}
+            <div class="rules-list">
+                {% for rule in rules %}
+                <div class="rule-item rule-{{ rule.approval_type }}">
+                    <div class="rule-main-content">
+                        <div class="rule-title">{{ rule.name }}</div>
+
+                        <div class="rule-badges">
+                            {% if rule.is_active %}
+                            <span class="badge bg-success">Active</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inactive</span>
                             {% endif %}
-                            
-                            <div class="mb-2">
+                            <span class="badge bg-primary">{{ rule.get_approval_type_display }}</span>
+                            {% if rule.approval_type == 'conditional' %}
+                            <span class="badge bg-warning">{{ rule.get_condition_type_display }}</span>
+                            {% endif %}
+                        </div>
+
+                        <div class="rule-info">
+                            {% if rule.description %}
+                            <div class="rule-description" title="{{ rule.description }}">{{ rule.description }}</div>
+                            {% endif %}
+
+                            <div class="rule-applies-to">
                                 <strong>Applies to:</strong>
                                 {% if rule.resource %}
                                 <span class="badge bg-light text-dark">{{ rule.resource.name }}</span>
                                 {% else %}
                                 <span class="badge bg-primary text-white">All Resources</span>
                                 {% endif %}
-
                                 {% if rule.user_roles %}
                                 {% for role in rule.user_roles %}
                                 <span class="badge bg-info">{{ role|title }}</span>
                                 {% endfor %}
                                 {% endif %}
                             </div>
-                            
+
                             {% if rule.approval_type == 'conditional' and rule.conditional_logic %}
-                            <div class="mb-2">
-                                <strong>Conditions:</strong>
+                            <div class="rule-conditions">
                                 {% for condition_type, condition_data in rule.conditional_logic.items %}
                                 {% if condition_data %}
                                 <span class="condition-badge condition-{{ condition_type }}">
                                     {% if condition_type == 'time_based' %}
-                                    <i class="fas fa-clock"></i> Time: {{ condition_data.description|default:"Custom time conditions" }}
+                                    <i class="fas fa-clock"></i> Time
                                     {% elif condition_type == 'usage_based' %}
-                                    <i class="fas fa-chart-line"></i> Usage: {{ condition_data.description|default:"Usage limits" }}
+                                    <i class="fas fa-chart-line"></i> Usage
                                     {% elif condition_type == 'training_based' %}
-                                    <i class="fas fa-graduation-cap"></i> Training: {{ condition_data.description|default:"Training requirements" }}
+                                    <i class="fas fa-graduation-cap"></i> Training
                                     {% elif condition_type == 'role_based' %}
-                                    <i class="fas fa-user-tag"></i> Role: {{ condition_data.description|default:"Role restrictions" }}
+                                    <i class="fas fa-user-tag"></i> Role
                                     {% elif condition_type == 'resource_based' %}
-                                    <i class="fas fa-cog"></i> Resource: {{ condition_data.description|default:"Resource conditions" }}
+                                    <i class="fas fa-cog"></i> Resource
                                     {% endif %}
                                 </span>
                                 {% endif %}
                                 {% endfor %}
                             </div>
                             {% endif %}
-                            
-                            <small class="text-muted">
-                                Priority: {{ rule.priority }} | 
-                                Created: {{ rule.created_at|date:"M j, Y" }}
-                                {% if rule.fallback_rule %}
-                                | Fallback: {{ rule.fallback_rule.name }}
-                                {% endif %}
-                            </small>
                         </div>
-                        <div class="col-md-4 text-end">
-                            <div class="btn-group" role="group">
-                                <button class="btn btn-sm btn-outline-primary" onclick="editRule({{ rule.id }})">
-                                    <i class="fas fa-edit"></i> Edit
-                                </button>
-                                <button class="btn btn-sm btn-outline-info" onclick="testRule({{ rule.id }})">
-                                    <i class="fas fa-play"></i> Test
-                                </button>
-                                {% if rule.is_active %}
-                                <button class="btn btn-sm btn-outline-secondary" onclick="toggleRule({{ rule.id }}, false)">
-                                    <i class="fas fa-pause"></i> Disable
-                                </button>
-                                {% else %}
-                                <button class="btn btn-sm btn-outline-success" onclick="toggleRule({{ rule.id }}, true)">
-                                    <i class="fas fa-play"></i> Enable
-                                </button>
-                                {% endif %}
-                            </div>
+
+                        <div class="rule-meta">
+                            <span><i class="fas fa-sort-numeric-down"></i>{{ rule.priority }}</span>
+                            <span><i class="fas fa-calendar-plus"></i>{{ rule.created_at|date:"M j" }}</span>
+                            {% if rule.fallback_rule %}
+                            <span><i class="fas fa-arrow-right"></i>{{ rule.fallback_rule.name|truncatechars:15 }}</span>
+                            {% endif %}
                         </div>
                     </div>
+
+                    <div class="rule-actions">
+                        <button class="btn btn-sm btn-outline-primary" onclick="editRule({{ rule.id }})" title="Edit Rule">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-sm btn-outline-info" onclick="testRule({{ rule.id }})" title="Test Rule">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        {% if rule.is_active %}
+                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleRule({{ rule.id }}, false)" title="Disable Rule">
+                            <i class="fas fa-pause"></i>
+                        </button>
+                        {% else %}
+                        <button class="btn btn-sm btn-outline-success" onclick="toggleRule({{ rule.id }}, true)" title="Enable Rule">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="empty-state">
+                <div class="rule-builder" onclick="document.querySelector('[data-bs-target=&quot;#createRuleModal&quot;]').click()">
+                    <i class="fas fa-plus-circle fa-3x text-muted mb-3"></i>
+                    <h4>No Approval Rules Found</h4>
+                    <p class="text-muted">Click here to create your first approval rule</p>
                 </div>
             </div>
-            {% empty %}
-            <div class="rule-builder" onclick="document.querySelector('[data-bs-target=&quot;#createRuleModal&quot;]').click()">
-                <i class="fas fa-plus-circle fa-3x text-muted mb-3"></i>
-                <h4>No Approval Rules Found</h4>
-                <p class="text-muted">Click here to create your first approval rule</p>
-            </div>
-            {% endfor %}
+            {% endif %}
 
             <!-- Pagination -->
             {% if rules.has_other_pages %}
@@ -516,6 +669,97 @@
         </div>
     </div>
 </div>
+<!-- Edit Rule Modal -->
+<div class="modal fade" id="editRuleModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Approval Rule</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="editRuleForm" method="post">
+                {% csrf_token %}
+                <input type="hidden" name="rule_id" id="editRuleId">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Rule Name *</label>
+                                <input type="text" name="name" id="editRuleName" class="form-control" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Rule Type *</label>
+                                <select name="approval_type" id="editRuleType" class="form-select" required onchange="toggleEditRuleOptions(this.value)">
+                                    <option value="auto">Auto-Approval</option>
+                                    <option value="single">Single Level Approval</option>
+                                    <option value="tiered">Tiered Approval</option>
+                                    <option value="quota">Quota-Based Approval</option>
+                                    <option value="conditional">Conditional Approval</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Description</label>
+                        <textarea name="description" id="editRuleDescription" class="form-control" rows="2"></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Resource</label>
+                                <select name="resource" id="editRuleResource" class="form-select">
+                                    <option value="">All Resources</option>
+                                    {% for resource in resources %}
+                                    <option value="{{ resource.id }}">{{ resource.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">User Role</label>
+                                <select name="user_role" id="editRuleUserRole" class="form-select">
+                                    <option value="">All Roles</option>
+                                    <option value="student">Student</option>
+                                    <option value="researcher">Researcher</option>
+                                    <option value="academic">Academic</option>
+                                    <option value="technician">Technician</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Priority</label>
+                                <input type="number" name="priority" id="editRulePriority" class="form-control" min="1" max="999">
+                                <div class="form-text">Lower numbers = higher priority</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Active</label>
+                                <select name="is_active" id="editRuleActive" class="form-select">
+                                    <option value="true">Active</option>
+                                    <option value="false">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Update Rule</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -546,7 +790,44 @@ function showConditionBuilder(conditionType) {
 }
 
 function editRule(ruleId) {
-    alert('Edit functionality would open a modal with pre-filled form for rule ' + ruleId);
+    // Fetch rule data from the server
+    fetch(`/lab-admin/approval-rules/${ruleId}/edit/`, {
+        method: 'GET',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            const rule = data.rule;
+
+            // Populate the edit form
+            document.getElementById('editRuleId').value = rule.id;
+            document.getElementById('editRuleName').value = rule.name || '';
+            document.getElementById('editRuleType').value = rule.approval_type || '';
+            document.getElementById('editRuleDescription').value = rule.description || '';
+            document.getElementById('editRuleResource').value = rule.resource_id || '';
+            document.getElementById('editRuleUserRole').value = rule.user_role || '';
+            document.getElementById('editRulePriority').value = rule.priority || 100;
+            document.getElementById('editRuleActive').value = rule.is_active ? 'true' : 'false';
+
+            // Show the modal
+            const editModal = new bootstrap.Modal(document.getElementById('editRuleModal'));
+            editModal.show();
+        } else {
+            alert('Error loading rule data: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error loading rule data');
+    });
+}
+
+function toggleEditRuleOptions(ruleType) {
+    // Similar to create form, but for edit form
+    // Implementation would be added if conditional rules need special handling in edit
 }
 
 function testRule(ruleId) {
@@ -618,6 +899,39 @@ document.getElementById('createRuleForm').addEventListener('submit', function(e)
         hiddenField.value = JSON.stringify(conditionalLogic);
         this.appendChild(hiddenField);
     }
+});
+
+// Edit form submission
+document.getElementById('editRuleForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+
+    const formData = new FormData(this);
+    const ruleId = formData.get('rule_id');
+
+    fetch(`/lab-admin/approval-rules/${ruleId}/update/`, {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Close the modal
+            const editModal = bootstrap.Modal.getInstance(document.getElementById('editRuleModal'));
+            editModal.hide();
+
+            // Reload the page to show updated data
+            location.reload();
+        } else {
+            alert('Error updating rule: ' + (data.error || 'Unknown error'));
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error updating rule');
+    });
 });
 </script>
 {% endblock %}
