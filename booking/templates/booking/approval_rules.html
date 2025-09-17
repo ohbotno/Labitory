@@ -660,6 +660,204 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Quota Rule Options -->
+                    <div id="quotaOptions" style="display: none;">
+                        <hr>
+                        <h6><i class="fas fa-chart-pie me-2"></i>Quota Configuration</h6>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Quota Type *</label>
+                                    <select name="quota_type" class="form-select">
+                                        <option value="time_based">Time-Based (hours)</option>
+                                        <option value="booking_count">Booking Count</option>
+                                        <option value="cost_based">Cost-Based</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Quota Amount *</label>
+                                    <input type="number" name="quota_amount" class="form-control" step="0.5" min="0" placeholder="e.g., 40 (hours/count/cost)">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Period Type *</label>
+                                    <select name="quota_period" class="form-select">
+                                        <option value="monthly">Monthly</option>
+                                        <option value="weekly">Weekly</option>
+                                        <option value="daily">Daily</option>
+                                        <option value="academic_year">Academic Year</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Max Overdraft</label>
+                                    <input type="number" name="max_overdraft" class="form-control" step="0.5" min="0" value="0" placeholder="Additional amount allowed">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="auto_approve_within_quota" id="autoApproveWithinQuota" checked>
+                                    <label class="form-check-label" for="autoApproveWithinQuota">
+                                        Auto-approve within quota
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="require_approval_over_quota" id="requireApprovalOverQuota" checked>
+                                    <label class="form-check-label" for="requireApprovalOverQuota">
+                                        Require approval when over quota
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="allow_overdraft" id="allowOverdraft">
+                                    <label class="form-check-label" for="allowOverdraft">
+                                        Allow overdraft usage
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="rollover_unused" id="rolloverUnused">
+                                    <label class="form-check-label" for="rolloverUnused">
+                                        Rollover unused quota
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Scope</label>
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="quota_scope" value="all_users" id="quotaScopeAll" checked>
+                                        <label class="form-check-label" for="quotaScopeAll">All Users</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="quota_scope" value="role_based" id="quotaScopeRole">
+                                        <label class="form-check-label" for="quotaScopeRole">By User Role</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="radio" name="quota_scope" value="specific_users" id="quotaScopeUsers">
+                                        <label class="form-check-label" for="quotaScopeUsers">Specific Users</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tiered Approval Options -->
+                    <div id="tieredOptions" style="display: none;">
+                        <hr>
+                        <h6><i class="fas fa-sitemap me-2"></i>Tiered Approval Configuration</h6>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Tier Mode *</label>
+                                    <select name="tier_mode" class="form-select">
+                                        <option value="sequential">Sequential (one after another)</option>
+                                        <option value="parallel">Parallel (all at same time)</option>
+                                        <option value="escalating">Escalating (timeout based)</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Default Timeout (hours)</label>
+                                    <input type="number" name="tier_timeout_hours" class="form-control" value="48" min="1" max="168">
+                                    <div class="form-text">Time before escalating to next tier</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="tier_escalation_enabled" id="tierEscalationEnabled">
+                            <label class="form-check-label" for="tierEscalationEnabled">
+                                Enable automatic escalation on timeout
+                            </label>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Primary Approvers</label>
+                            <select name="primary_approvers" class="form-select" multiple size="4">
+                                {% for user in lab_admins %}
+                                <option value="{{ user.id }}">{{ user.get_full_name|default:user.username }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Hold Ctrl/Cmd to select multiple approvers</div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-2"></i>
+                            <strong>Note:</strong> Additional tiers and specific approver assignments can be configured after creating the rule.
+                        </div>
+                    </div>
+
+                    <!-- Single Approval Options -->
+                    <div id="singleOptions" style="display: none;">
+                        <hr>
+                        <h6><i class="fas fa-user-check me-2"></i>Single Approval Configuration</h6>
+
+                        <div class="mb-3">
+                            <label class="form-label">Approvers *</label>
+                            <select name="single_approvers" class="form-select" multiple size="5" required>
+                                {% for user in lab_admins %}
+                                <option value="{{ user.id }}">{{ user.get_full_name|default:user.username }}</option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">Select one or more users who can approve requests. Hold Ctrl/Cmd to select multiple.</div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="allow_delegation" id="allowDelegation" checked>
+                                    <label class="form-check-label" for="allowDelegation">
+                                        Allow approval delegation
+                                    </label>
+                                </div>
+                                <div class="form-check mb-2">
+                                    <input class="form-check-input" type="checkbox" name="require_comments" id="requireComments">
+                                    <label class="form-check-label" for="requireComments">
+                                        Require approval comments
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Approval Timeout (hours)</label>
+                                    <input type="number" name="single_timeout_hours" class="form-control" value="72" min="1" max="168">
+                                    <div class="form-text">Time before request expires</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Assignment Method</label>
+                            <select name="assignment_method" class="form-select">
+                                <option value="any">Any selected approver can approve</option>
+                                <option value="round_robin">Round-robin assignment</option>
+                                <option value="load_balanced">Load-balanced assignment</option>
+                                <option value="all_required">All selected approvers required</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -751,6 +949,118 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Conditional Rule Options for Edit -->
+                    <div id="editConditionalOptions" style="display: none;">
+                        <hr>
+                        <h6><i class="fas fa-cogs me-2"></i>Conditional Logic</h6>
+
+                        <div class="mb-3">
+                            <label class="form-label">Condition Type *</label>
+                            <select name="condition_type" id="editConditionType" class="form-select" onchange="showEditConditionBuilder(this.value)">
+                                <option value="">Select condition type...</option>
+                                <option value="time_based">Time-Based Conditions</option>
+                                <option value="usage_based">Usage-Based Conditions</option>
+                                <option value="training_based">Training-Based Conditions</option>
+                                <option value="role_based">Role-Based Conditions</option>
+                                <option value="resource_based">Resource-Based Conditions</option>
+                                <option value="custom">Custom Logic</option>
+                            </select>
+                        </div>
+
+                        <!-- Time-Based Conditions for Edit -->
+                        <div id="editTimeConditions" class="condition-builder" style="display: none;">
+                            <h6>Time-Based Conditions</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="time_business_hours" id="editTimeBusinessHours">
+                                        <label class="form-check-label" for="editTimeBusinessHours">
+                                            Only during business hours
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="time_advance_booking" id="editTimeAdvanceBooking">
+                                        <label class="form-check-label" for="editTimeAdvanceBooking">
+                                            Require advance booking
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <label class="form-label">Minimum advance (hours)</label>
+                                        <input type="number" name="time_min_advance" id="editTimeMinAdvance" class="form-control" value="24">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Maximum duration (hours)</label>
+                                        <input type="number" name="time_max_duration" id="editTimeMaxDuration" class="form-control" value="8">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Usage-Based Conditions for Edit -->
+                        <div id="editUsageConditions" class="condition-builder" style="display: none;">
+                            <h6>Usage-Based Conditions</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <label class="form-label">Max bookings per user per month</label>
+                                        <input type="number" name="usage_max_monthly" id="editUsageMaxMonthly" class="form-control" value="10">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Max hours per user per week</label>
+                                        <input type="number" name="usage_max_weekly_hours" id="editUsageMaxWeeklyHours" class="form-control" value="20">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="usage_prevent_consecutive" id="editUsagePreventConsecutive">
+                                        <label class="form-check-label" for="editUsagePreventConsecutive">
+                                            Prevent consecutive bookings
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="usage_priority_returning" id="editUsagePriorityReturning">
+                                        <label class="form-check-label" for="editUsagePriorityReturning">
+                                            Priority for returning users
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Training-Based Conditions for Edit -->
+                        <div id="editTrainingConditions" class="condition-builder" style="display: none;">
+                            <h6>Training-Based Conditions</h6>
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="training_require_certification" id="editTrainingRequireCertification">
+                                        <label class="form-check-label" for="editTrainingRequireCertification">
+                                            Require valid certification
+                                        </label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="training_require_recent" id="editTrainingRequireRecent">
+                                        <label class="form-check-label" for="editTrainingRequireRecent">
+                                            Require recent training (within 12 months)
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-2">
+                                        <label class="form-label">Minimum training level</label>
+                                        <select name="training_min_level" id="editTrainingMinLevel" class="form-select">
+                                            <option value="basic">Basic</option>
+                                            <option value="intermediate">Intermediate</option>
+                                            <option value="advanced">Advanced</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -765,11 +1075,33 @@
 {% block extra_js %}
 <script>
 function toggleRuleOptions(ruleType) {
+    // Get all option sections
     const conditionalOptions = document.getElementById('conditionalOptions');
-    if (ruleType === 'conditional') {
-        conditionalOptions.style.display = 'block';
-    } else {
-        conditionalOptions.style.display = 'none';
+    const quotaOptions = document.getElementById('quotaOptions');
+    const tieredOptions = document.getElementById('tieredOptions');
+    const singleOptions = document.getElementById('singleOptions');
+
+    // Hide all sections first
+    conditionalOptions.style.display = 'none';
+    quotaOptions.style.display = 'none';
+    tieredOptions.style.display = 'none';
+    singleOptions.style.display = 'none';
+
+    // Show the relevant section based on rule type
+    switch(ruleType) {
+        case 'conditional':
+            conditionalOptions.style.display = 'block';
+            break;
+        case 'quota':
+            quotaOptions.style.display = 'block';
+            break;
+        case 'tiered':
+            tieredOptions.style.display = 'block';
+            break;
+        case 'single':
+            singleOptions.style.display = 'block';
+            break;
+        // 'auto' doesn't need additional configuration
     }
 }
 
@@ -812,6 +1144,34 @@ function editRule(ruleId) {
             document.getElementById('editRulePriority').value = rule.priority || 100;
             document.getElementById('editRuleActive').value = rule.is_active ? 'true' : 'false';
 
+            // Handle conditional logic
+            toggleEditRuleOptions(rule.approval_type);
+            if (rule.approval_type === 'conditional' && rule.conditional_logic) {
+                document.getElementById('editConditionType').value = rule.condition_type || '';
+                showEditConditionBuilder(rule.condition_type);
+
+                // Populate conditional logic fields based on type
+                const logic = rule.conditional_logic;
+                if (rule.condition_type === 'time_based' && logic.time_based) {
+                    const timeLogic = logic.time_based;
+                    document.getElementById('editTimeBusinessHours').checked = timeLogic.business_hours_only || false;
+                    document.getElementById('editTimeAdvanceBooking').checked = timeLogic.require_advance_booking || false;
+                    document.getElementById('editTimeMinAdvance').value = timeLogic.min_advance_hours || 24;
+                    document.getElementById('editTimeMaxDuration').value = timeLogic.max_duration_hours || 8;
+                } else if (rule.condition_type === 'usage_based' && logic.usage_based) {
+                    const usageLogic = logic.usage_based;
+                    document.getElementById('editUsageMaxMonthly').value = usageLogic.max_monthly_bookings || 10;
+                    document.getElementById('editUsageMaxWeeklyHours').value = usageLogic.max_weekly_hours || 20;
+                    document.getElementById('editUsagePreventConsecutive').checked = usageLogic.prevent_consecutive || false;
+                    document.getElementById('editUsagePriorityReturning').checked = usageLogic.priority_returning_users || false;
+                } else if (rule.condition_type === 'training_based' && logic.training_based) {
+                    const trainingLogic = logic.training_based;
+                    document.getElementById('editTrainingRequireCertification').checked = trainingLogic.require_certification || false;
+                    document.getElementById('editTrainingRequireRecent').checked = trainingLogic.require_recent_training || false;
+                    document.getElementById('editTrainingMinLevel').value = trainingLogic.min_training_level || 'basic';
+                }
+            }
+
             // Show the modal
             const editModal = new bootstrap.Modal(document.getElementById('editRuleModal'));
             editModal.show();
@@ -826,8 +1186,50 @@ function editRule(ruleId) {
 }
 
 function toggleEditRuleOptions(ruleType) {
-    // Similar to create form, but for edit form
-    // Implementation would be added if conditional rules need special handling in edit
+    // Get all edit option sections
+    const conditionalOptions = document.getElementById('editConditionalOptions');
+    const quotaOptions = document.getElementById('editQuotaOptions');
+    const tieredOptions = document.getElementById('editTieredOptions');
+    const singleOptions = document.getElementById('editSingleOptions');
+
+    // Hide all sections first
+    if (conditionalOptions) conditionalOptions.style.display = 'none';
+    if (quotaOptions) quotaOptions.style.display = 'none';
+    if (tieredOptions) tieredOptions.style.display = 'none';
+    if (singleOptions) singleOptions.style.display = 'none';
+
+    // Show the relevant section based on rule type
+    switch(ruleType) {
+        case 'conditional':
+            if (conditionalOptions) conditionalOptions.style.display = 'block';
+            break;
+        case 'quota':
+            if (quotaOptions) quotaOptions.style.display = 'block';
+            break;
+        case 'tiered':
+            if (tieredOptions) tieredOptions.style.display = 'block';
+            break;
+        case 'single':
+            if (singleOptions) singleOptions.style.display = 'block';
+            break;
+        // 'auto' doesn't need additional configuration
+    }
+}
+
+function showEditConditionBuilder(conditionType) {
+    // Hide all condition builders
+    document.getElementById('editTimeConditions').style.display = 'none';
+    document.getElementById('editUsageConditions').style.display = 'none';
+    document.getElementById('editTrainingConditions').style.display = 'none';
+
+    // Show the selected condition builder
+    if (conditionType === 'time_based') {
+        document.getElementById('editTimeConditions').style.display = 'block';
+    } else if (conditionType === 'usage_based') {
+        document.getElementById('editUsageConditions').style.display = 'block';
+    } else if (conditionType === 'training_based') {
+        document.getElementById('editTrainingConditions').style.display = 'block';
+    }
 }
 
 function testRule(ruleId) {
@@ -904,6 +1306,43 @@ document.getElementById('createRuleForm').addEventListener('submit', function(e)
 // Edit form submission
 document.getElementById('editRuleForm').addEventListener('submit', function(e) {
     e.preventDefault();
+
+    // Collect conditional logic data for edit form
+    const approvalType = this.approval_type?.value;
+    const conditionType = this.condition_type?.value;
+
+    if (approvalType === 'conditional' && conditionType) {
+        let conditionalLogic = {};
+
+        if (conditionType === 'time_based') {
+            conditionalLogic.time_based = {
+                business_hours_only: this.time_business_hours?.checked || false,
+                require_advance_booking: this.time_advance_booking?.checked || false,
+                min_advance_hours: parseInt(this.time_min_advance?.value) || 24,
+                max_duration_hours: parseInt(this.time_max_duration?.value) || 8,
+            };
+        } else if (conditionType === 'usage_based') {
+            conditionalLogic.usage_based = {
+                max_monthly_bookings: parseInt(this.usage_max_monthly?.value) || 10,
+                max_weekly_hours: parseInt(this.usage_max_weekly_hours?.value) || 20,
+                prevent_consecutive: this.usage_prevent_consecutive?.checked || false,
+                priority_returning_users: this.usage_priority_returning?.checked || false,
+            };
+        } else if (conditionType === 'training_based') {
+            conditionalLogic.training_based = {
+                require_certification: this.training_require_certification?.checked || false,
+                require_recent_training: this.training_require_recent?.checked || false,
+                min_training_level: this.training_min_level?.value || 'basic',
+            };
+        }
+
+        // Add hidden field with conditional logic JSON
+        const hiddenField = document.createElement('input');
+        hiddenField.type = 'hidden';
+        hiddenField.name = 'conditional_logic';
+        hiddenField.value = JSON.stringify(conditionalLogic);
+        this.appendChild(hiddenField);
+    }
 
     const formData = new FormData(this);
     const ruleId = formData.get('rule_id');
