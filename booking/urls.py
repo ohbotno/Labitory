@@ -130,7 +130,26 @@ urlpatterns = [
     path('lab-admin/approval-rules/<int:rule_id>/toggle/', approvals.approval_rule_toggle_view, name='approval_rule_toggle'),
     path('lab-admin/approval-rules/<int:rule_id>/edit/', approvals.approval_rule_edit_view, name='approval_rule_edit'),
     path('lab-admin/approval-rules/<int:rule_id>/update/', approvals.approval_rule_update_view, name='approval_rule_update'),
-    
+
+    # Tiered Approval URLs
+    path('approvals/<int:approval_id>/action/', approvals.tiered_approval_action_view, name='tiered_approval_action'),
+    path('my-pending-approvals/', approvals.my_pending_approvals_view, name='my_pending_approvals'),
+    path('booking/<int:booking_id>/approval-details/', approvals.booking_approval_details_view, name='booking_approval_details'),
+
+    # Quota Management URLs
+    path('lab-admin/quota-allocations/', approvals.quota_allocations_view, name='quota_allocations'),
+    path('lab-admin/quota-allocations/create/', approvals.quota_allocations_view, name='quota_allocations_create'),
+    path('lab-admin/quota-allocations/<int:quota_id>/edit/', approvals.quota_allocation_edit_view, name='quota_allocation_edit'),
+    path('lab-admin/quota-allocations/<int:quota_id>/delete/', approvals.quota_allocation_delete_view, name='quota_allocation_delete'),
+    path('lab-admin/quota-allocations/<int:quota_id>/usage/', approvals.quota_usage_view, name='quota_usage'),
+    path('lab-admin/user-quota-status/', approvals.user_quota_status_view, name='user_quota_status'),
+
+    # Enhanced Single-Level Approval URLs
+    path('lab-admin/approval-delegations/', approvals.approval_delegations_view, name='approval_delegations'),
+    path('lab-admin/approval-escalations/', approvals.approval_escalations_view, name='approval_escalations'),
+    path('lab-admin/approval-notification-templates/', approvals.approval_notification_templates_view, name='approval_notification_templates'),
+    path('single-approval-requests/', approvals.single_approval_requests_view, name='single_approval_requests'),
+
     # Lab Admin URLs
     path('lab-admin/', lab_admin.lab_admin_dashboard_view, name='lab_admin_dashboard'),
     path('lab-admin/access-requests/', approvals.lab_admin_access_requests_view, name='lab_admin_access_requests'),

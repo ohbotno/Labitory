@@ -16,6 +16,7 @@ https://aperture-booking.org/commercial
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.auth.models import User
 from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
 from django.contrib import messages
@@ -27,7 +28,9 @@ import json
 
 from ...models import (
     Resource, AccessRequest, RiskAssessment, UserRiskAssessment,
-    ApprovalRule, UserTraining, ApprovalStatistics, Booking
+    ApprovalRule, UserTraining, ApprovalStatistics, Booking,
+    BookingApproval, ApprovalTier, QuotaAllocation, UserQuota, QuotaUsageLog,
+    ApprovalDelegate, ApprovalEscalation, SingleApprovalRequest, ApprovalNotificationTemplate
 )
 from ...forms import (
     AccessRequestReviewForm, RiskAssessmentForm, UserRiskAssessmentForm
@@ -811,7 +814,18 @@ def approval_rules_view(request):
     
     # Get all rules for fallback options
     all_rules = ApprovalRule.objects.all().order_by('name')
-    
+
+    # Get lab admins and technicians who can be approvers
+    from django.contrib.auth.models import Group
+    from django.db.models import Q
+
+    # Get users who can be approvers (technicians, sysadmins, and Lab Admin group members)
+    lab_admins = User.objects.filter(
+        Q(userprofile__role__in=['technician', 'sysadmin']) |
+        Q(groups__name='Lab Admin'),
+        is_active=True
+    ).select_related('userprofile').distinct().order_by('first_name', 'last_name', 'username')
+
     # Handle POST request for creating rule
     if request.method == 'POST':
         try:
@@ -878,6 +892,7 @@ def approval_rules_view(request):
         'stats': stats,
         'resources': resources,
         'all_rules': all_rules,
+        'lab_admins': lab_admins,
     }
     
     return render(request, 'booking/approval_rules.html', context)
@@ -971,6 +986,8 @@ def approval_rule_update_view(request, rule_id):
         user_role = request.POST.get('user_role')
         priority = int(request.POST.get('priority', 100))
         is_active = request.POST.get('is_active') == 'true'
+        condition_type = request.POST.get('condition_type')
+        conditional_logic_json = request.POST.get('conditional_logic')
 
         # Validate required fields
         if not name or not name.strip():
@@ -988,6 +1005,15 @@ def approval_rule_update_view(request, rule_id):
             except Resource.DoesNotExist:
                 return JsonResponse({'success': False, 'error': 'Selected resource not found.'})
 
+        # Parse conditional logic
+        conditional_logic = {}
+        if approval_type == 'conditional' and conditional_logic_json:
+            try:
+                import json
+                conditional_logic = json.loads(conditional_logic_json)
+            except json.JSONDecodeError:
+                conditional_logic = {}
+
         # Update the rule
         rule.name = name
         rule.approval_type = approval_type
@@ -996,6 +1022,8 @@ def approval_rule_update_view(request, rule_id):
         rule.user_roles = [user_role] if user_role else []
         rule.priority = priority
         rule.is_active = is_active
+        rule.condition_type = condition_type if approval_type == 'conditional' else 'role_based'
+        rule.conditional_logic = conditional_logic
         rule.save()
 
         return JsonResponse({
@@ -1543,3 +1571,903 @@ def download_risk_assessment_view(request, request_id, assessment_id):
     response['Content-Length'] = os.path.getsize(file_path)
 
     return response
+
+# =============================================================================
+# TIERED APPROVAL BACKEND FUNCTIONS
+# =============================================================================
+
+def create_tiered_approval_workflow(booking, approval_rule):
+    """Initialize tiered approval workflow for a booking."""
+    if approval_rule.approval_type != 'tiered':
+        return False
+
+    # Create approval steps for all tiers
+    approval_steps = approval_rule.create_tiered_approval_steps(booking)
+
+    # Save all approval steps
+    BookingApproval.objects.bulk_create(approval_steps)
+
+    # Update booking status to pending
+    booking.status = 'pending'
+    booking.save()
+
+    return True
+
+
+def process_tier_approval(booking_approval_id, approver, action, comments='', conditions=''):
+    """Process an individual tier approval/rejection."""
+    try:
+        approval = BookingApproval.objects.get(id=booking_approval_id)
+
+        # Verify approver has permission
+        if approval.approver != approver:
+            return {'success': False, 'message': 'Not authorized to approve this request'}
+
+        # Update approval
+        approval.status = 'approved' if action == 'approve' else 'rejected'
+        approval.approved_at = timezone.now()
+        approval.comments = comments
+        approval.conditions = conditions
+        approval.save()
+
+        booking = approval.booking
+        approval_rule = approval.approval_rule
+
+        if action == 'approve':
+            # Check if this tier is now complete
+            if approval_rule.is_tier_complete(booking, approval.tier_level):
+                # Check if all tiers are complete
+                if approval_rule.is_tiered_approval_complete(booking):
+                    # All tiers approved - approve the booking
+                    booking.status = 'approved'
+                    booking.approved_by = approver
+                    booking.approved_at = timezone.now()
+                    booking.save()
+
+                    return {
+                        'success': True,
+                        'message': 'All tiers approved - booking confirmed',
+                        'booking_status': 'approved'
+                    }
+                else:
+                    # Move to next tier
+                    next_tier = approval_rule.get_next_approval_tier(booking)
+                    if next_tier:
+                        return {
+                            'success': True,
+                            'message': f'Tier {approval.tier_level} approved - moved to {next_tier.name}',
+                            'booking_status': 'pending',
+                            'next_tier': next_tier.tier_level
+                        }
+        else:
+            # Rejection - reject the entire booking
+            booking.status = 'rejected'
+            booking.save()
+
+            # Mark all other pending approvals as withdrawn
+            BookingApproval.objects.filter(
+                booking=booking,
+                status='pending'
+            ).update(status='withdrawn')
+
+            return {
+                'success': True,
+                'message': f'Booking rejected at tier {approval.tier_level}',
+                'booking_status': 'rejected'
+            }
+
+        return {
+            'success': True,
+            'message': f'Tier {approval.tier_level} processed successfully',
+            'booking_status': booking.status
+        }
+
+    except BookingApproval.DoesNotExist:
+        return {'success': False, 'message': 'Approval not found'}
+    except Exception as e:
+        return {'success': False, 'message': f'Error processing approval: {str(e)}'}
+
+
+
+# =============================================================================
+# QUOTA-BASED APPROVAL BACKEND FUNCTIONS
+# =============================================================================
+
+def process_quota_based_booking(booking, approval_rule):
+    """Process a booking with quota-based approval."""
+    if approval_rule.approval_type != 'quota':
+        return {'success': False, 'message': 'Not a quota-based approval rule'}
+
+    # Build booking request object
+    booking_request = {
+        'title': booking.title,
+        'start_time': booking.start_time,
+        'end_time': booking.end_time,
+        'duration_hours': (booking.end_time - booking.start_time).total_seconds() / 3600,
+        'resource': booking.resource
+    }
+
+    # Evaluate quota-based approval
+    quota_result = approval_rule.evaluate_quota_based_approval(
+        booking_request, booking.user.userprofile
+    )
+
+    if quota_result['approved']:
+        # Auto-approve the booking
+        booking.status = 'approved'
+        booking.approved_by = booking.user  # Self-approved within quota
+        booking.approved_at = timezone.now()
+        booking.save()
+
+        return {
+            'success': True,
+            'approved': True,
+            'message': quota_result['reason'],
+            'quota_info': quota_result.get('quota_info', {})
+        }
+    else:
+        # Requires manual approval
+        booking.status = 'pending'
+        booking.save()
+
+        return {
+            'success': True,
+            'approved': False,
+            'message': quota_result['reason'],
+            'quota_info': quota_result.get('quota_info', {})
+        }
+
+
+def confirm_booking_quota_usage(booking):
+    """Confirm quota usage when a booking is completed."""
+    # Find quota allocations that apply to this booking
+    applicable_allocations = QuotaAllocation.objects.filter(
+        is_active=True
+    ).order_by('-priority')
+
+    for allocation in applicable_allocations:
+        if (allocation.applies_to_user(booking.user.userprofile) and 
+            allocation.applies_to_resource(booking.resource)):
+
+            # Get current period
+            rule = ApprovalRule()
+            current_period = rule._get_current_quota_period(allocation)
+
+            try:
+                user_quota = UserQuota.objects.get(
+                    user=booking.user,
+                    allocation=allocation,
+                    period_start=current_period['start']
+                )
+
+                # Calculate actual usage
+                duration_hours = (booking.end_time - booking.start_time).total_seconds() / 3600
+
+                # Release any reservation and record actual usage
+                user_quota.release_reservation(duration_hours)
+                user_quota.allocate_usage(duration_hours, is_reservation=False)
+
+                # Log the usage
+                QuotaUsageLog.objects.create(
+                    user_quota=user_quota,
+                    booking=booking,
+                    amount_used=duration_hours,
+                    usage_type='booking',
+                    description=f'Completed booking: {booking.title}'
+                )
+
+                break
+
+            except UserQuota.DoesNotExist:
+                continue
+
+
+@login_required
+def quota_allocations_view(request):
+    """Manage quota allocations."""
+    # Only allow technicians and sysadmins
+    if not request.user.userprofile.role in ['technician', 'sysadmin']:
+        messages.error(request, "You don't have permission to manage quota allocations.")
+        return redirect('booking:dashboard')
+
+    allocations = QuotaAllocation.objects.all().select_related('resource', 'created_by').order_by('-priority', 'name')
+
+    # Apply filters
+    type_filter = request.GET.get('type')
+    period_filter = request.GET.get('period')
+    active_filter = request.GET.get('active')
+
+    if type_filter:
+        allocations = allocations.filter(quota_type=type_filter)
+    if period_filter:
+        allocations = allocations.filter(period_type=period_filter)
+    if active_filter == 'true':
+        allocations = allocations.filter(is_active=True)
+    elif active_filter == 'false':
+        allocations = allocations.filter(is_active=False)
+
+    # Handle allocation creation
+    if request.method == 'POST':
+        try:
+            name = request.POST.get('name')
+            description = request.POST.get('description', '')
+            quota_type = request.POST.get('quota_type')
+            quota_amount = float(request.POST.get('quota_amount'))
+            period_type = request.POST.get('period_type')
+            resource_id = request.POST.get('resource')
+            user_roles = request.POST.getlist('user_roles')
+
+            allocation = QuotaAllocation.objects.create(
+                name=name,
+                description=description,
+                quota_type=quota_type,
+                quota_amount=quota_amount,
+                period_type=period_type,
+                resource_id=resource_id if resource_id else None,
+                user_roles=user_roles,
+                created_by=request.user
+            )
+
+            messages.success(request, f'Quota allocation "{allocation.name}" created successfully.')
+            return redirect('booking:quota_allocations')
+
+        except Exception as e:
+            messages.error(request, f'Error creating quota allocation: {str(e)}')
+
+    # Get resources and users for the form
+    resources = Resource.objects.filter(is_active=True).order_by('name')
+    users = User.objects.filter(is_active=True).select_related('userprofile').order_by('first_name', 'last_name', 'username')
+
+    # Get user quota status overview
+    user_quota_status = []
+    active_users = User.objects.filter(is_active=True)[:10]  # Limit to first 10 for overview
+    for user in active_users:
+        user_quotas = UserQuota.objects.filter(user=user).select_related('allocation')
+        quota_data = []
+        for quota in user_quotas:
+            usage_percentage = (quota.used_amount / quota.allocation.quota_amount * 100) if quota.allocation.quota_amount > 0 else 0
+            quota_data.append({
+                'allocation': quota.allocation,
+                'used_amount': quota.used_amount,
+                'allocated_amount': quota.allocation.quota_amount,
+                'usage_percentage': usage_percentage,
+            })
+
+        if quota_data:  # Only include users with quotas
+            user_quota_status.append({
+                'user': user,
+                'quotas': quota_data,
+            })
+
+    context = {
+        'quota_allocations': allocations,
+        'resources': resources,
+        'users': users,
+        'user_quota_status': user_quota_status,
+        'quota_types': QuotaAllocation.QUOTA_TYPES,
+        'period_types': QuotaAllocation.PERIOD_TYPES,
+    }
+
+    return render(request, 'booking/quota_allocations.html', context)
+
+
+@login_required
+def user_quota_status_view(request, user_id=None):
+    """View quota status for a user."""
+    if user_id:
+        # Admin viewing another user's quota
+        if not request.user.userprofile.role in ['technician', 'sysadmin']:
+            messages.error(request, "You don't have permission to view other users' quotas.")
+            return redirect('booking:dashboard')
+        target_user = get_object_or_404(User, id=user_id)
+    else:
+        # User viewing their own quota
+        target_user = request.user
+
+    # Get quota status
+    quota_status = ApprovalRule.get_user_quota_status(target_user)
+
+    context = {
+        'target_user': target_user,
+        'quota_status': quota_status,
+    }
+
+    return render(request, 'booking/user_quota_status.html', context)
+
+
+@login_required
+@user_passes_test(is_lab_admin)
+def quota_allocation_edit_view(request, quota_id):
+    """Edit a specific quota allocation."""
+    quota = get_object_or_404(QuotaAllocation, id=quota_id)
+
+    if request.method == 'GET':
+        # Return quota data as JSON for AJAX form population
+        data = {
+            'success': True,
+            'quota': {
+                'id': quota.id,
+                'name': quota.name,
+                'description': quota.description,
+                'quota_type': quota.quota_type,
+                'quota_amount': float(quota.quota_amount),
+                'period_type': quota.period_type,
+                'resource': quota.resource.id if quota.resource else None,
+                'user': quota.user.id if quota.user else None,
+                'role': quota.role,
+                'allow_overdraft': quota.allow_overdraft,
+                'is_active': quota.is_active,
+            }
+        }
+        return JsonResponse(data)
+
+    elif request.method == 'POST':
+        try:
+            # Update quota allocation
+            quota.name = request.POST.get('name')
+            quota.description = request.POST.get('description', '')
+            quota.quota_type = request.POST.get('quota_type')
+            quota.quota_amount = request.POST.get('quota_amount')
+            quota.period_type = request.POST.get('period_type')
+
+            resource_id = request.POST.get('resource')
+            quota.resource = Resource.objects.get(id=resource_id) if resource_id else None
+
+            target_type = request.POST.get('target_type')
+            if target_type == 'user':
+                user_id = request.POST.get('user')
+                quota.user = User.objects.get(id=user_id) if user_id else None
+                quota.role = None
+            elif target_type == 'role':
+                quota.role = request.POST.get('role')
+                quota.user = None
+            else:  # global
+                quota.user = None
+                quota.role = None
+
+            quota.allow_overdraft = 'allow_overdraft' in request.POST
+            quota.is_active = 'is_active' in request.POST
+            quota.save()
+
+            return JsonResponse({'success': True, 'message': 'Quota allocation updated successfully'})
+
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)})
+
+    return JsonResponse({'success': False, 'message': 'Invalid request method'})
+
+
+@login_required
+@user_passes_test(is_lab_admin)
+def quota_allocation_delete_view(request, quota_id):
+    """Delete a quota allocation."""
+    if request.method == 'POST':
+        try:
+            quota = get_object_or_404(QuotaAllocation, id=quota_id)
+            quota_name = quota.name
+            quota.delete()
+            return JsonResponse({'success': True, 'message': f'Quota allocation "{quota_name}" deleted successfully'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'message': str(e)})
+
+    return JsonResponse({'success': False, 'message': 'Invalid request method'})
+
+
+@login_required
+@user_passes_test(is_lab_admin)
+def quota_usage_view(request, quota_id):
+    """View detailed usage information for a quota allocation."""
+    quota = get_object_or_404(QuotaAllocation, id=quota_id)
+
+    # Get current period usage
+    current_usage = None
+    if quota.user:
+        # Single user quota
+        try:
+            user_quota = UserQuota.objects.get(allocation=quota, user=quota.user)
+            current_usage = {
+                'used_amount': user_quota.used_amount,
+                'allocated_amount': quota.quota_amount,
+                'usage_percentage': (user_quota.used_amount / quota.quota_amount * 100) if quota.quota_amount > 0 else 0,
+                'remaining_amount': quota.quota_amount - user_quota.used_amount,
+                'overdraft_amount': max(0, user_quota.used_amount - quota.quota_amount),
+                'period_start': user_quota.period_start,
+                'period_end': user_quota.period_end,
+            }
+        except UserQuota.DoesNotExist:
+            pass
+
+    # Get recent usage logs
+    usage_logs = QuotaUsageLog.objects.filter(
+        allocation=quota
+    ).select_related('user', 'booking').order_by('-created_at')[:50]
+
+    # Get period summaries (last 6 periods)
+    period_summaries = []
+    if quota.user:
+        user_quotas = UserQuota.objects.filter(
+            allocation=quota,
+            user=quota.user
+        ).order_by('-period_start')[:6]
+
+        for user_quota in user_quotas:
+            usage_percentage = (user_quota.used_amount / quota.quota_amount * 100) if quota.quota_amount > 0 else 0
+            period_summaries.append({
+                'period_start': user_quota.period_start,
+                'allocated_amount': quota.quota_amount,
+                'used_amount': user_quota.used_amount,
+                'usage_percentage': usage_percentage,
+            })
+
+    context = {
+        'quota': quota,
+        'current_usage': current_usage,
+        'usage_logs': usage_logs,
+        'period_summaries': period_summaries,
+    }
+
+    return render(request, 'booking/quota_usage_details.html', context)
+
+
+# Enhanced Single-Level Approval Views
+
+@login_required
+@user_passes_test(is_lab_admin)
+def approval_delegations_view(request):
+    """Manage approval delegations."""
+    delegations = ApprovalDelegate.objects.select_related(
+        'delegator', 'delegate', 'approval_rule', 'resource', 'created_by'
+    ).order_by('-created_at')
+
+    # Apply filters
+    status_filter = request.GET.get('status')
+    delegator_filter = request.GET.get('delegator')
+    delegate_filter = request.GET.get('delegate')
+
+    if status_filter:
+        delegations = delegations.filter(status=status_filter)
+    if delegator_filter:
+        delegations = delegations.filter(delegator_id=delegator_filter)
+    if delegate_filter:
+        delegations = delegations.filter(delegate_id=delegate_filter)
+
+    # Handle delegation creation
+    if request.method == 'POST':
+        try:
+            delegator_id = request.POST.get('delegator')
+            delegate_id = request.POST.get('delegate')
+            approval_rule_id = request.POST.get('approval_rule')
+            resource_id = request.POST.get('resource')
+            delegation_type = request.POST.get('delegation_type')
+            start_date = request.POST.get('start_date')
+            end_date = request.POST.get('end_date')
+            reason = request.POST.get('reason')
+
+            delegation = ApprovalDelegate.objects.create(
+                delegator_id=delegator_id,
+                delegate_id=delegate_id,
+                approval_rule_id=approval_rule_id if approval_rule_id else None,
+                resource_id=resource_id if resource_id else None,
+                delegation_type=delegation_type,
+                start_date=start_date,
+                end_date=end_date if end_date else None,
+                reason=reason,
+                created_by=request.user
+            )
+
+            messages.success(request, f'Delegation created successfully: {delegation}')
+            return redirect('booking:approval_delegations')
+
+        except Exception as e:
+            messages.error(request, f'Error creating delegation: {str(e)}')
+
+    # Get data for the form
+    users = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
+    approval_rules = ApprovalRule.objects.filter(is_active=True).order_by('name')
+    resources = Resource.objects.filter(is_active=True).order_by('name')
+
+    context = {
+        'delegations': delegations,
+        'users': users,
+        'approval_rules': approval_rules,
+        'resources': resources,
+        'delegation_types': ApprovalDelegate.DELEGATION_TYPES,
+        'delegation_status': ApprovalDelegate.DELEGATION_STATUS,
+    }
+
+    return render(request, 'booking/approval_delegations.html', context)
+
+
+@login_required
+@user_passes_test(is_lab_admin)
+def approval_escalations_view(request):
+    """Manage approval escalation rules."""
+    escalations = ApprovalEscalation.objects.select_related(
+        'approval_rule', 'substitute_approver', 'created_by'
+    ).order_by('approval_rule__name', 'priority')
+
+    # Handle escalation creation
+    if request.method == 'POST':
+        try:
+            approval_rule_id = request.POST.get('approval_rule')
+            timeout_hours = int(request.POST.get('timeout_hours'))
+            action = request.POST.get('action')
+            substitute_approver_id = request.POST.get('substitute_approver')
+            business_hours_only = 'business_hours_only' in request.POST
+            priority = int(request.POST.get('priority', 1))
+
+            escalation = ApprovalEscalation.objects.create(
+                approval_rule_id=approval_rule_id,
+                timeout_hours=timeout_hours,
+                action=action,
+                substitute_approver_id=substitute_approver_id if substitute_approver_id else None,
+                business_hours_only=business_hours_only,
+                priority=priority,
+                created_by=request.user
+            )
+
+            messages.success(request, f'Escalation rule created: {escalation}')
+            return redirect('booking:approval_escalations')
+
+        except Exception as e:
+            messages.error(request, f'Error creating escalation rule: {str(e)}')
+
+    # Get data for the form
+    approval_rules = ApprovalRule.objects.filter(is_active=True).order_by('name')
+    users = User.objects.filter(is_active=True).order_by('first_name', 'last_name')
+
+    context = {
+        'escalations': escalations,
+        'approval_rules': approval_rules,
+        'users': users,
+        'escalation_actions': ApprovalEscalation.ESCALATION_ACTIONS,
+    }
+
+    return render(request, 'booking/approval_escalations.html', context)
+
+
+@login_required
+def single_approval_requests_view(request):
+    """View and manage single-level approval requests."""
+    # Get approval requests for current user
+    if request.user.userprofile.role in ['technician', 'sysadmin']:
+        # Admin can see all requests
+        approval_requests = SingleApprovalRequest.objects.select_related(
+            'booking', 'approval_rule', 'requester', 'assigned_approver', 'current_approver'
+        ).order_by('-requested_at')
+    else:
+        # Regular users see only their assigned or delegated requests
+        approval_requests = SingleApprovalRequest.objects.filter(
+            Q(current_approver=request.user) | Q(assigned_approver=request.user)
+        ).select_related(
+            'booking', 'approval_rule', 'requester', 'assigned_approver', 'current_approver'
+        ).order_by('-requested_at')
+
+    # Apply filters
+    status_filter = request.GET.get('status')
+    priority_filter = request.GET.get('priority')
+    overdue_filter = request.GET.get('overdue')
+
+    if status_filter:
+        approval_requests = approval_requests.filter(status=status_filter)
+    if priority_filter:
+        approval_requests = approval_requests.filter(priority=priority_filter)
+    if overdue_filter == 'true':
+        approval_requests = [req for req in approval_requests if req.is_overdue()]
+
+    # Handle approval actions
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        request_id = request.POST.get('request_id')
+        comments = request.POST.get('comments', '')
+
+        try:
+            approval_request = get_object_or_404(SingleApprovalRequest, id=request_id)
+
+            if action == 'approve':
+                approval_request.status = 'approved'
+                approval_request.approved_at = timezone.now()
+                approval_request.approved_by = request.user
+                approval_request.response_comments = comments
+                approval_request.save()
+
+                # Update booking status
+                approval_request.booking.status = 'approved'
+                approval_request.booking.save()
+
+                messages.success(request, f'Approval granted for {approval_request.booking}')
+
+            elif action == 'reject':
+                approval_request.status = 'rejected'
+                approval_request.approved_at = timezone.now()
+                approval_request.approved_by = request.user
+                approval_request.response_comments = comments
+                approval_request.save()
+
+                # Update booking status
+                approval_request.booking.status = 'rejected'
+                approval_request.booking.save()
+
+                messages.success(request, f'Approval rejected for {approval_request.booking}')
+
+            elif action == 'delegate':
+                delegate_id = request.POST.get('delegate_user')
+                if delegate_id:
+                    delegate_user = User.objects.get(id=delegate_id)
+
+                    # Check if there's a valid delegation
+                    delegation = ApprovalDelegate.objects.filter(
+                        delegator=request.user,
+                        delegate=delegate_user,
+                        status='active'
+                    ).first()
+
+                    if delegation and delegation.can_approve(
+                        booking=approval_request.booking,
+                        approval_rule=approval_request.approval_rule,
+                        resource=approval_request.booking.resource
+                    ):
+                        approval_request.delegate_to(delegate_user, delegation)
+                        messages.success(request, f'Approval delegated to {delegate_user.get_full_name()}')
+                    else:
+                        messages.error(request, 'Invalid delegation or delegate not authorized')
+
+            return redirect('booking:single_approval_requests')
+
+        except Exception as e:
+            messages.error(request, f'Error processing approval: {str(e)}')
+
+    context = {
+        'approval_requests': approval_requests,
+        'approval_status': SingleApprovalRequest.APPROVAL_STATUS,
+        'priority_levels': SingleApprovalRequest.PRIORITY_LEVELS,
+    }
+
+    return render(request, 'booking/single_approval_requests.html', context)
+
+
+@login_required
+@user_passes_test(is_lab_admin)
+def approval_notification_templates_view(request):
+    """Manage approval notification templates."""
+    templates = ApprovalNotificationTemplate.objects.select_related(
+        'approval_rule', 'created_by'
+    ).order_by('template_type', 'name')
+
+    # Handle template creation
+    if request.method == 'POST':
+        try:
+            name = request.POST.get('name')
+            template_type = request.POST.get('template_type')
+            approval_rule_id = request.POST.get('approval_rule')
+            subject_template = request.POST.get('subject_template')
+            body_template = request.POST.get('body_template')
+            delivery_method = request.POST.get('delivery_method')
+
+            template = ApprovalNotificationTemplate.objects.create(
+                name=name,
+                template_type=template_type,
+                approval_rule_id=approval_rule_id if approval_rule_id else None,
+                subject_template=subject_template,
+                body_template=body_template,
+                delivery_method=delivery_method,
+                created_by=request.user
+            )
+
+            messages.success(request, f'Notification template created: {template}')
+            return redirect('booking:approval_notification_templates')
+
+        except Exception as e:
+            messages.error(request, f'Error creating template: {str(e)}')
+
+    # Get data for the form
+    approval_rules = ApprovalRule.objects.filter(is_active=True).order_by('name')
+
+    context = {
+        'templates': templates,
+        'approval_rules': approval_rules,
+        'template_types': ApprovalNotificationTemplate.TEMPLATE_TYPES,
+        'delivery_methods': ApprovalNotificationTemplate.DELIVERY_METHODS,
+    }
+
+    return render(request, 'booking/approval_notification_templates.html', context)
+
+
+def process_single_level_approval(booking, approval_rule):
+    """Process a single-level approval request."""
+    try:
+        # Determine the approver
+        approvers = list(approval_rule.approvers.all())
+        if not approvers:
+            # No specific approvers, use default logic
+            if approval_rule.user_roles:
+                # Find users with required roles
+                from django.contrib.auth.models import Group
+                approver_groups = Group.objects.filter(name__in=approval_rule.user_roles)
+                potential_approvers = User.objects.filter(groups__in=approver_groups, is_active=True).distinct()
+                if potential_approvers.exists():
+                    approvers = [potential_approvers.first()]
+
+        if not approvers:
+            # Fallback to lab admins
+            from django.contrib.auth.models import Group
+            lab_admin_group = Group.objects.filter(name='Lab Admin').first()
+            if lab_admin_group:
+                approvers = list(lab_admin_group.user_set.filter(is_active=True))
+
+        if not approvers:
+            raise ValueError("No valid approvers found for this approval rule")
+
+        # Select primary approver (could be round-robin, least busy, etc.)
+        primary_approver = approvers[0]
+
+        # Calculate due date
+        due_date = None
+        if hasattr(approval_rule, 'tier_timeout_hours') and approval_rule.tier_timeout_hours:
+            due_date = timezone.now() + timedelta(hours=approval_rule.tier_timeout_hours)
+
+        # Create the approval request
+        approval_request = SingleApprovalRequest.objects.create(
+            booking=booking,
+            approval_rule=approval_rule,
+            requester=booking.user,
+            assigned_approver=primary_approver,
+            current_approver=primary_approver,
+            due_date=due_date,
+            priority='normal'  # Could be determined by booking urgency
+        )
+
+        # Update booking status
+        booking.status = 'pending_approval'
+        booking.save()
+
+        return approval_request
+
+    except Exception as e:
+        raise Exception(f"Failed to process single-level approval: {str(e)}")
+
+
+def check_approval_escalations():
+    """Check for overdue approvals and trigger escalations."""
+    overdue_requests = SingleApprovalRequest.objects.filter(
+        status__in=['pending', 'delegated'],
+        due_date__lt=timezone.now()
+    ).select_related('approval_rule')
+
+    for request in overdue_requests:
+        escalations = ApprovalEscalation.objects.filter(
+            approval_rule=request.approval_rule,
+            is_active=True
+        ).order_by('priority', 'timeout_hours')
+
+        for escalation in escalations:
+            # Check if enough time has passed for this escalation
+            time_since_request = timezone.now() - request.requested_at
+            hours_since_request = time_since_request.total_seconds() / 3600
+
+            if hours_since_request >= escalation.timeout_hours:
+                # Trigger escalation
+                if escalation.action == 'notify':
+                    # Send notification reminder
+                    request.reminders_sent += 1
+                    request.last_reminder_sent = timezone.now()
+                    request.save()
+
+                elif escalation.action == 'delegate' and escalation.substitute_approver:
+                    # Auto-delegate to substitute
+                    request.escalate_to(escalation.substitute_approver, f"Auto-escalated after {escalation.timeout_hours} hours")
+
+                elif escalation.action == 'auto_approve':
+                    # Auto-approve with conditions
+                    request.status = 'approved'
+                    request.approved_at = timezone.now()
+                    request.response_comments = f"Auto-approved due to escalation after {escalation.timeout_hours} hours"
+                    request.save()
+
+                    request.booking.status = 'approved'
+                    request.booking.save()
+
+                elif escalation.action in ['escalate_manager', 'escalate_admin']:
+                    # Escalate to higher authority
+                    if escalation.substitute_approver:
+                        request.escalate_to(escalation.substitute_approver, f"Escalated to {escalation.get_action_display()}")
+
+                break  # Only apply the first matching escalation
+
+
+@login_required
+@user_passes_test(is_lab_admin)
+def tiered_approval_action_view(request, approval_id):
+    """Handle tiered approval actions (approve, reject, delegate)."""
+    try:
+        booking_approval = get_object_or_404(BookingApproval, id=approval_id)
+
+        if request.method == 'POST':
+            action = request.POST.get('action')
+            comments = request.POST.get('comments', '')
+
+            if action in ['approve', 'reject', 'delegate']:
+                result = process_tier_approval(approval_id, request.user, action, comments)
+                if result:
+                    messages.success(request, f"Approval {action}d successfully.")
+                else:
+                    messages.error(request, f"Failed to {action} approval.")
+            else:
+                messages.error(request, "Invalid action.")
+
+            return redirect('booking:booking_approval_details', booking_id=booking_approval.booking.id)
+
+        context = {
+            'approval': booking_approval,
+            'booking': booking_approval.booking,
+        }
+        return render(request, 'booking/tiered_approval_action.html', context)
+
+    except Exception as e:
+        messages.error(request, f"Error processing approval action: {str(e)}")
+        return redirect('booking:approval_dashboard')
+
+
+@login_required
+def my_pending_approvals_view(request):
+    """Display pending approvals for the current user."""
+    try:
+        # Get tiered approvals where user is current approver
+        tiered_approvals = BookingApproval.objects.filter(
+            current_tier__tier_approvers=request.user,
+            status='pending'
+        ).select_related('booking', 'approval_rule').order_by('-requested_at')
+
+        # Get single approval requests assigned to user
+        single_approvals = SingleApprovalRequest.objects.filter(
+            current_approver=request.user,
+            status__in=['pending', 'delegated']
+        ).select_related('booking', 'approval_rule').order_by('-requested_at')
+
+        context = {
+            'tiered_approvals': tiered_approvals,
+            'single_approvals': single_approvals,
+            'total_pending': tiered_approvals.count() + single_approvals.count(),
+        }
+        return render(request, 'booking/my_pending_approvals.html', context)
+
+    except Exception as e:
+        messages.error(request, f"Error loading pending approvals: {str(e)}")
+        return render(request, 'booking/my_pending_approvals.html', {'error': str(e)})
+
+
+@login_required
+def booking_approval_details_view(request, booking_id):
+    """Display detailed approval information for a booking."""
+    try:
+        booking = get_object_or_404(Booking, id=booking_id)
+
+        # Check if user has permission to view this booking's approval details
+        if not (request.user == booking.user or is_lab_admin(request.user)):
+            messages.error(request, "You don't have permission to view this booking's approval details.")
+            return redirect('booking:dashboard')
+
+        # Get tiered approval details
+        booking_approval = BookingApproval.objects.filter(booking=booking).first()
+        approval_tiers = []
+        if booking_approval:
+            approval_tiers = ApprovalTier.objects.filter(
+                booking_approval=booking_approval
+            ).order_by('tier_level')
+
+        # Get single approval requests
+        single_approval = SingleApprovalRequest.objects.filter(booking=booking).first()
+
+        context = {
+            'booking': booking,
+            'booking_approval': booking_approval,
+            'approval_tiers': approval_tiers,
+            'single_approval': single_approval,
+            'can_edit': is_lab_admin(request.user),
+        }
+        return render(request, 'booking/booking_approval_details.html', context)
+
+    except Exception as e:
+        messages.error(request, f"Error loading approval details: {str(e)}")
+        return redirect('booking:dashboard')
+

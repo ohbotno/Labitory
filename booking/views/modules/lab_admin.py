@@ -780,7 +780,6 @@ def lab_admin_user_detail_view(request, user_id):
                 'staff_number': user.userprofile.staff_number,
                 'student_level': user.userprofile.student_level,
                 'group': user.userprofile.group,
-                'training_level': user.userprofile.training_level,
                 'email_verified': user.userprofile.email_verified,
                 'is_inducted': user.userprofile.is_inducted,
                 'first_login': user.userprofile.first_login,
@@ -1178,23 +1177,26 @@ def lab_admin_user_add_view(request):
         user.is_active = request.POST.get('is_active') == 'on'
         user.save()
 
-        # Create user profile
-        role = request.POST.get('role')
-        profile_data = {
-            'user': user,
-            'role': role,
-            'phone': request.POST.get('phone', ''),
-        }
-        
+        # Get or update user profile (created automatically by signal)
+        try:
+            profile = user.userprofile
+        except UserProfile.DoesNotExist:
+            # If signal didn't create it for some reason, create it now
+            profile = UserProfile.objects.create(user=user)
+
+        # Update profile with form data
+        profile.role = request.POST.get('role')
+        profile.phone = request.POST.get('phone', '')
+
         # Add role-specific fields
-        if role == 'student':
-            profile_data['student_id'] = request.POST.get('student_id', '')
-            profile_data['student_level'] = request.POST.get('student_level', '')
-        elif role in ['researcher', 'academic', 'technician', 'sysadmin']:
-            profile_data['staff_number'] = request.POST.get('staff_number', '')
-            profile_data['group'] = request.POST.get('group', '')
-        
-        UserProfile.objects.create(**profile_data)
+        if profile.role == 'student':
+            profile.student_id = request.POST.get('student_id', '')
+            profile.student_level = request.POST.get('student_level', '')
+        elif profile.role in ['researcher', 'academic', 'technician', 'sysadmin']:
+            profile.staff_number = request.POST.get('staff_number', '')
+            profile.group = request.POST.get('group', '')
+
+        profile.save()
 
         messages.success(request, f'User {user.username} created successfully.')
         return JsonResponse({'success': True})

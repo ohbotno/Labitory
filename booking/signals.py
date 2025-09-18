@@ -18,9 +18,11 @@ from .notifications import booking_notifications, maintenance_notifications
 def create_user_profile(sender, instance, created, **kwargs):
     """Create UserProfile when User is created."""
     if created:
-        UserProfile.objects.create(user=instance)
-        # Create default notification preferences
-        create_default_notification_preferences(instance)
+        # Use get_or_create to prevent duplicate UserProfile creation
+        profile, profile_created = UserProfile.objects.get_or_create(user=instance)
+        # Create default notification preferences only if the profile was just created
+        if profile_created:
+            create_default_notification_preferences(instance)
 
 
 @receiver(post_save, sender=User)

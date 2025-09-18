@@ -126,9 +126,21 @@ class UserRegistrationForm(EnhancedUserCreationForm):
     def clean_email(self):
         email = self.cleaned_data.get('email')
         if User.objects.filter(email=email).exists():
-            raise forms.ValidationError("A user with this email already exists.")
+            raise forms.ValidationError(
+                "⚠️ This email is already registered! "
+                "A user account with this email already exists in the system. "
+                "If this is your email, please log in instead. "
+                "If you need to change your role (e.g., to technician), "
+                "please contact an administrator to update your existing account."
+            )
         if User.objects.filter(username=email).exists():
-            raise forms.ValidationError("A user with this email already exists.")
+            raise forms.ValidationError(
+                "⚠️ This email is already registered! "
+                "A user account with this email already exists in the system. "
+                "If this is your email, please log in instead. "
+                "If you need to change your role (e.g., to technician), "
+                "please contact an administrator to update your existing account."
+            )
         return email
 
     def clean(self):

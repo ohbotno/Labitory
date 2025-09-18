@@ -63,6 +63,15 @@ from .approvals import (
     ApprovalRule,
     ApprovalStatistics,
     AccessRequest,
+    BookingApproval,
+    ApprovalTier,
+    QuotaAllocation,
+    UserQuota,
+    QuotaUsageLog,
+    ApprovalDelegate,
+    ApprovalEscalation,
+    SingleApprovalRequest,
+    ApprovalNotificationTemplate,
 )
 
 # Maintenance models
@@ -181,6 +190,15 @@ __all__ = [
     'ApprovalRule',
     'ApprovalStatistics',
     'AccessRequest',
+    'BookingApproval',
+    'ApprovalTier',
+    'QuotaAllocation',
+    'UserQuota',
+    'QuotaUsageLog',
+    'ApprovalDelegate',
+    'ApprovalEscalation',
+    'SingleApprovalRequest',
+    'ApprovalNotificationTemplate',
     # Maintenance
     'MaintenanceVendor',
     'Maintenance',
@@ -221,4 +239,9 @@ __all__ = [
     'ChecklistItem',
     'ResourceChecklistItem',
     'ChecklistResponse',
+    # Audit
+    'AuditLog',
+    'DataAccessLog',
+    'LoginAttempt',
+    'AdminAction',
 ]

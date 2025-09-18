@@ -22,6 +22,7 @@ from django.utils import timezone
 from django_ratelimit.decorators import ratelimit
 from django_ratelimit.exceptions import Ratelimited
 from django.conf import settings
+from django.db import IntegrityError
 
 from booking.forms import UserRegistrationForm, CustomPasswordResetForm
 from booking.forms.password import StrongSetPasswordForm
@@ -36,8 +37,29 @@ def register_view(request):
     if request.method == 'POST':
         form = UserRegistrationForm(request.POST)
         if form.is_valid():
-            user = form.save()
-            
+            try:
+                user = form.save()
+            except IntegrityError as e:
+                # Handle the rare case where UserProfile creation fails
+                if 'booking_userprofile' in str(e) and 'user_id' in str(e):
+                    messages.error(
+                        request,
+                        '<strong>Registration Error!</strong><br><br>'
+                        '<i class="bi bi-exclamation-triangle"></i> <strong>This account already exists!</strong><br><br>'
+                        'A user profile for this email address already exists in the system. '
+                        'This can happen if:<br>'
+                        '• You have already registered with this email<br>'
+                        '• An administrator has created an account for you<br><br>'
+                        '<strong>What to do:</strong><br>'
+                        '• Try logging in with your email and password<br>'
+                        '• If you forgot your password, use the password reset option<br>'
+                        '• If you need to change your role (e.g., to technician), contact an administrator'
+                    )
+                    return redirect('login')
+                else:
+                    # Re-raise other IntegrityErrors
+                    raise
+
             # Get the verification token for development mode
             from django.conf import settings
             token = EmailVerificationToken.objects.filter(user=user, is_used=False).first()

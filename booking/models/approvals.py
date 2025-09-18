@@ -98,7 +98,16 @@ class ApprovalRule(models.Model):
     condition_type = models.CharField(max_length=20, choices=CONDITION_TYPES, default='role_based')
     conditional_logic = models.JSONField(default=dict, help_text="Advanced conditional rules")
     fallback_rule = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, help_text="Rule to apply if conditions not met")
-    
+
+    # Tiered approval configuration
+    tier_mode = models.CharField(max_length=20, choices=[
+        ('sequential', 'Sequential - Each tier must approve in order'),
+        ('parallel', 'Parallel - All tiers can approve simultaneously'),
+        ('conditional', 'Conditional - Next tier depends on previous decisions')
+    ], default='sequential', help_text="How tiers are processed")
+    tier_escalation_enabled = models.BooleanField(default=True, help_text="Enable automatic escalation on timeout")
+    tier_timeout_hours = models.PositiveIntegerField(default=48, help_text="Default timeout for tier approval")
+
     # Rule metadata
     is_active = models.BooleanField(default=True)
     priority = models.PositiveIntegerField(default=1)
@@ -284,7 +293,7 @@ class ApprovalRule(models.Model):
         """Get the most appropriate rule based on conditions."""
         if not self.applies_to_user(user_profile):
             return None
-        
+
         if self.approval_type == 'conditional':
             evaluation = self.evaluate_conditions(booking_request, user_profile)
             if not evaluation['approved']:
@@ -292,8 +301,404 @@ class ApprovalRule(models.Model):
                 if self.fallback_rule:
                     return self.fallback_rule.get_applicable_rule(booking_request, user_profile)
                 return None
-        
+        elif self.approval_type == 'quota':
+            # For quota-based rules, always return the rule
+            # The actual quota evaluation happens during booking approval
+            return self
+
         return self
+
+    def create_tiered_approval_steps(self, booking):
+        """Create approval steps for tiered approval workflow."""
+        if self.approval_type != 'tiered':
+            return []
+
+        approval_steps = []
+        tiers = self.approval_tiers.all()
+
+        for tier in tiers:
+            eligible_approvers = tier.get_eligible_approvers(booking.user.userprofile)
+
+            if tier.requires_all_approvers:
+                # Create an approval step for each approver
+                for approver in eligible_approvers:
+                    approval_steps.append(
+                        BookingApproval(
+                            booking=booking,
+                            approval_rule=self,
+                            tier_level=tier.tier_level,
+                            approver=approver,
+                            deadline=timezone.now() + timedelta(hours=tier.approval_deadline_hours)
+                        )
+                    )
+            else:
+                # Create approval steps up to the threshold
+                threshold = min(tier.approval_threshold, len(eligible_approvers))
+                for approver in eligible_approvers[:threshold]:
+                    approval_steps.append(
+                        BookingApproval(
+                            booking=booking,
+                            approval_rule=self,
+                            tier_level=tier.tier_level,
+                            approver=approver,
+                            deadline=timezone.now() + timedelta(hours=tier.approval_deadline_hours)
+                        )
+                    )
+
+        return approval_steps
+
+    def get_next_approval_tier(self, booking):
+        """Get the next tier that needs approval for this booking."""
+        completed_tiers = set(
+            booking.approval_steps.filter(
+                approval_rule=self,
+                status='approved'
+            ).values_list('tier_level', flat=True)
+        )
+
+        all_tiers = list(self.approval_tiers.values_list('tier_level', flat=True).order_by('tier_level'))
+
+        for tier_level in all_tiers:
+            if tier_level not in completed_tiers:
+                return self.approval_tiers.get(tier_level=tier_level)
+
+        return None  # All tiers completed
+
+    def is_tier_complete(self, booking, tier_level):
+        """Check if a specific tier is complete for this booking."""
+        tier = self.approval_tiers.get(tier_level=tier_level)
+        approvals = booking.approval_steps.filter(
+            approval_rule=self,
+            tier_level=tier_level,
+            status='approved'
+        )
+
+        if tier.requires_all_approvers:
+            required_count = tier.approvers.count()
+            if tier.approver_roles:
+                from booking.models.core import UserProfile
+                role_approvers_count = User.objects.filter(
+                    userprofile__role__in=tier.approver_roles,
+                    is_active=True
+                ).exclude(id=booking.user.id).count()
+                required_count += role_approvers_count
+        else:
+            required_count = tier.approval_threshold
+
+        return approvals.count() >= required_count
+
+    def is_tiered_approval_complete(self, booking):
+        """Check if all tiers for this booking are complete."""
+        all_tiers = self.approval_tiers.values_list('tier_level', flat=True)
+        for tier_level in all_tiers:
+            if not self.is_tier_complete(booking, tier_level):
+                return False
+        return True
+
+    def evaluate_quota_based_approval(self, booking_request, user_profile):
+        """Evaluate quota-based approval for a booking request."""
+        if self.approval_type != 'quota':
+            return {'approved': True, 'reason': 'Not a quota-based rule'}
+
+        # Calculate booking duration in hours
+        duration_hours = booking_request.get('duration_hours', 0)
+        if not duration_hours:
+            start_time = booking_request.get('start_time')
+            end_time = booking_request.get('end_time')
+            if start_time and end_time:
+                duration_hours = (end_time - start_time).total_seconds() / 3600
+
+        # Find applicable quota allocations
+        applicable_allocations = QuotaAllocation.objects.filter(
+            is_active=True
+        ).order_by('-priority')
+
+        quota_result = None
+        for allocation in applicable_allocations:
+            if (allocation.applies_to_user(user_profile) and
+                allocation.applies_to_resource(self.resource)):
+
+                quota_result = self._check_quota_availability(
+                    allocation, user_profile.user, duration_hours, booking_request
+                )
+                break
+
+        if not quota_result:
+            # No applicable quota found - default to manual approval
+            return {
+                'approved': False,
+                'reason': 'No applicable quota allocation found - manual approval required'
+            }
+
+        return quota_result
+
+    def _check_quota_availability(self, allocation, user, requested_amount, booking_request):
+        """Check if user has sufficient quota for the requested amount."""
+        # Get or create current period quota for user
+        current_period = self._get_current_quota_period(allocation)
+        user_quota, created = UserQuota.objects.get_or_create(
+            user=user,
+            allocation=allocation,
+            period_start=current_period['start'],
+            defaults={
+                'period_end': current_period['end'],
+                'used_amount': 0,
+                'reserved_amount': 0,
+                'overdraft_used': 0,
+            }
+        )
+
+        # Check if quota can accommodate the request
+        if user_quota.can_allocate(requested_amount):
+            if allocation.auto_approve_within_quota:
+                # Reserve the quota for this booking
+                user_quota.allocate_usage(requested_amount, is_reservation=True)
+
+                # Log the reservation
+                QuotaUsageLog.objects.create(
+                    user_quota=user_quota,
+                    amount_used=requested_amount,
+                    usage_type='reservation',
+                    description=f'Reserved for booking: {booking_request.get("title", "Untitled booking")}'
+                )
+
+                return {
+                    'approved': True,
+                    'reason': f'Auto-approved within quota ({user_quota.available_amount:.1f}h remaining)',
+                    'quota_info': {
+                        'allocation_name': allocation.name,
+                        'available_amount': float(user_quota.available_amount),
+                        'usage_percentage': user_quota.usage_percentage
+                    }
+                }
+
+        # Quota exceeded - check if manual approval is required
+        if allocation.require_approval_over_quota:
+            return {
+                'approved': False,
+                'reason': f'Quota exceeded - manual approval required (requested: {requested_amount}h, available: {user_quota.available_amount:.1f}h)',
+                'quota_info': {
+                    'allocation_name': allocation.name,
+                    'available_amount': float(user_quota.available_amount),
+                    'usage_percentage': user_quota.usage_percentage,
+                    'quota_exceeded': True
+                }
+            }
+        else:
+            # Allow overdraft or auto-approve over quota
+            if allocation.allow_overdraft and user_quota.can_allocate(requested_amount):
+                user_quota.allocate_usage(requested_amount, is_reservation=True)
+
+                QuotaUsageLog.objects.create(
+                    user_quota=user_quota,
+                    amount_used=requested_amount,
+                    usage_type='reservation',
+                    description=f'Reserved for booking (overdraft): {booking_request.get("title", "Untitled booking")}'
+                )
+
+                return {
+                    'approved': True,
+                    'reason': f'Auto-approved with overdraft ({user_quota.overdraft_used:.1f}h overdraft used)',
+                    'quota_info': {
+                        'allocation_name': allocation.name,
+                        'available_amount': float(user_quota.available_amount),
+                        'usage_percentage': user_quota.usage_percentage,
+                        'overdraft_used': float(user_quota.overdraft_used)
+                    }
+                }
+            else:
+                return {
+                    'approved': False,
+                    'reason': f'Quota and overdraft limit exceeded',
+                    'quota_info': {
+                        'allocation_name': allocation.name,
+                        'available_amount': float(user_quota.available_amount),
+                        'usage_percentage': user_quota.usage_percentage,
+                        'quota_exceeded': True
+                    }
+                }
+
+    def _get_current_quota_period(self, allocation):
+        """Calculate the current quota period based on allocation settings."""
+        now = timezone.now()
+
+        if allocation.period_type == 'daily':
+            start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            end = start + timedelta(days=1)
+        elif allocation.period_type == 'weekly':
+            # Start of week (Monday)
+            start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            start = start - timedelta(days=start.weekday())
+            end = start + timedelta(weeks=1)
+        elif allocation.period_type == 'monthly':
+            start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            if start.month == 12:
+                end = start.replace(year=start.year + 1, month=1)
+            else:
+                end = start.replace(month=start.month + 1)
+        elif allocation.period_type == 'quarterly':
+            quarter = ((now.month - 1) // 3) + 1
+            start_month = (quarter - 1) * 3 + 1
+            start = now.replace(month=start_month, day=1, hour=0, minute=0, second=0, microsecond=0)
+
+            if quarter == 4:
+                end = start.replace(year=start.year + 1, month=1)
+            else:
+                end = start.replace(month=start_month + 3)
+        elif allocation.period_type == 'yearly':
+            start = now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+            end = start.replace(year=start.year + 1)
+        else:
+            # Default to monthly
+            start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+            if start.month == 12:
+                end = start.replace(year=start.year + 1, month=1)
+            else:
+                end = start.replace(month=start.month + 1)
+
+        return {'start': start, 'end': end}
+
+    @staticmethod
+    def get_user_quota_status(user, resource=None):
+        """Get quota status for a user across all applicable allocations."""
+        user_profile = user.userprofile
+        quota_status = []
+
+        # Find applicable quota allocations
+        allocations = QuotaAllocation.objects.filter(is_active=True).order_by('-priority')
+
+        for allocation in allocations:
+            if allocation.applies_to_user(user_profile):
+                if resource and not allocation.applies_to_resource(resource):
+                    continue
+
+                # Get current period
+                from booking.models.approvals import ApprovalRule
+                rule = ApprovalRule()
+                current_period = rule._get_current_quota_period(allocation)
+
+                # Get or calculate user quota
+                try:
+                    user_quota = UserQuota.objects.get(
+                        user=user,
+                        allocation=allocation,
+                        period_start=current_period['start']
+                    )
+                except UserQuota.DoesNotExist:
+                    user_quota = UserQuota(
+                        user=user,
+                        allocation=allocation,
+                        period_start=current_period['start'],
+                        period_end=current_period['end'],
+                        used_amount=0,
+                        reserved_amount=0,
+                        overdraft_used=0
+                    )
+
+                quota_status.append({
+                    'allocation': allocation,
+                    'quota': user_quota,
+                    'period_start': current_period['start'],
+                    'period_end': current_period['end']
+                })
+
+        return quota_status
+
+
+class BookingApproval(models.Model):
+    """Track multi-tier approval progress for bookings."""
+    APPROVAL_STATUS = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('escalated', 'Escalated'),
+        ('withdrawn', 'Withdrawn'),
+    ]
+
+    booking = models.ForeignKey('Booking', on_delete=models.CASCADE, related_name='approval_steps')
+    approval_rule = models.ForeignKey(ApprovalRule, on_delete=models.CASCADE, related_name='booking_approvals')
+    tier_level = models.PositiveIntegerField(help_text="Approval tier level (1, 2, 3, etc.)")
+    approver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='assigned_approvals')
+    status = models.CharField(max_length=20, choices=APPROVAL_STATUS, default='pending')
+
+    # Approval details
+    approved_at = models.DateTimeField(null=True, blank=True)
+    comments = models.TextField(blank=True, help_text="Approver comments")
+    conditions = models.TextField(blank=True, help_text="Special conditions for approval")
+
+    # Escalation tracking
+    escalated_from = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='escalated_to')
+    escalation_reason = models.TextField(blank=True)
+
+    # Timing
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    deadline = models.DateTimeField(null=True, blank=True, help_text="Approval deadline")
+
+    class Meta:
+        db_table = 'booking_bookingapproval'
+        ordering = ['tier_level', 'created_at']
+        unique_together = ['booking', 'tier_level', 'approver']
+
+    def __str__(self):
+        return f"{self.booking.title} - Tier {self.tier_level} - {self.approver.username}"
+
+    def is_overdue(self):
+        """Check if approval is overdue."""
+        if not self.deadline or self.status != 'pending':
+            return False
+        return timezone.now() > self.deadline
+
+    def can_escalate(self):
+        """Check if this approval can be escalated."""
+        return self.status == 'pending' and self.is_overdue()
+
+
+class ApprovalTier(models.Model):
+    """Define tiers for tiered approval rules."""
+    approval_rule = models.ForeignKey(ApprovalRule, on_delete=models.CASCADE, related_name='approval_tiers')
+    tier_level = models.PositiveIntegerField()
+    name = models.CharField(max_length=100, help_text="Tier name (e.g., 'Department Head', 'Lab Manager')")
+
+    # Approver selection
+    approvers = models.ManyToManyField(User, related_name='approval_tiers', blank=True)
+    approver_roles = models.JSONField(default=list, help_text="User roles that can approve at this tier")
+
+    # Tier configuration
+    requires_all_approvers = models.BooleanField(default=False, help_text="Require approval from all approvers")
+    approval_threshold = models.PositiveIntegerField(default=1, help_text="Number of approvals needed")
+    auto_approve_conditions = models.JSONField(default=dict, help_text="Conditions for automatic approval")
+
+    # Timing
+    approval_deadline_hours = models.PositiveIntegerField(default=48, help_text="Hours to approve before escalation")
+    escalation_tier = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='escalated_from_tier')
+
+    class Meta:
+        db_table = 'booking_approvaltier'
+        ordering = ['approval_rule', 'tier_level']
+        unique_together = ['approval_rule', 'tier_level']
+
+    def __str__(self):
+        return f"{self.approval_rule.name} - Tier {self.tier_level}: {self.name}"
+
+    def get_eligible_approvers(self, user_profile=None):
+        """Get list of users who can approve at this tier."""
+        approvers = set(self.approvers.all())
+
+        # Add role-based approvers
+        if self.approver_roles:
+            from booking.models.core import UserProfile
+            role_approvers = User.objects.filter(
+                userprofile__role__in=self.approver_roles,
+                is_active=True
+            )
+            approvers.update(role_approvers)
+
+        # Exclude the requesting user if provided
+        if user_profile and user_profile.user in approvers:
+            approvers.discard(user_profile.user)
+
+        return list(approvers)
 
 
 class ApprovalStatistics(models.Model):
@@ -1007,3 +1412,492 @@ class AccessRequest(models.Model):
 
         return compliance
 
+# =============================================================================
+# QUOTA-BASED APPROVAL MODELS
+# =============================================================================
+
+class QuotaAllocation(models.Model):
+    """Define quota allocations for users/roles/resources."""
+    QUOTA_TYPES = [
+        ('time_based', 'Time-Based (Hours)'),
+        ('booking_count', 'Booking Count'),
+        ('cost_based', 'Cost-Based'),
+    ]
+
+    PERIOD_TYPES = [
+        ('daily', 'Daily'),
+        ('weekly', 'Weekly'),
+        ('monthly', 'Monthly'),
+        ('quarterly', 'Quarterly'),
+        ('yearly', 'Yearly'),
+    ]
+
+    name = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+
+    # Scope definition
+    resource = models.ForeignKey('Resource', on_delete=models.CASCADE, null=True, blank=True, related_name='quota_allocations')
+    resource_type = models.CharField(max_length=50, blank=True, help_text='Apply to all resources of this type')
+    user_roles = models.JSONField(default=list, help_text='User roles this allocation applies to')
+    specific_users = models.ManyToManyField(User, blank=True, related_name='quota_allocations')
+
+    # Quota configuration
+    quota_type = models.CharField(max_length=20, choices=QUOTA_TYPES, default='time_based')
+    quota_amount = models.DecimalField(max_digits=10, decimal_places=2, help_text='Quota amount (hours, count, cost)')
+    period_type = models.CharField(max_length=20, choices=PERIOD_TYPES, default='monthly')
+
+    # Advanced settings
+    allow_overdraft = models.BooleanField(default=False, help_text='Allow usage to exceed quota')
+    overdraft_limit = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text='Maximum overdraft allowed')
+    auto_approve_within_quota = models.BooleanField(default=True)
+    require_approval_over_quota = models.BooleanField(default=True)
+
+    # Renewal settings
+    auto_renew = models.BooleanField(default=True)
+    grace_period_days = models.IntegerField(default=0, help_text='Days of grace period after quota expires')
+
+    # Metadata
+    is_active = models.BooleanField(default=True)
+    priority = models.IntegerField(default=100, help_text='Higher priority allocations override lower ones')
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='created_quota_allocations')
+
+    class Meta:
+        db_table = 'booking_quotaallocation'
+        ordering = ['-priority', 'created_at']
+
+    def __str__(self):
+        scope = f'{self.resource.name}' if self.resource else f'{self.resource_type or "All Resources"}'
+        return f'{self.name} - {scope} ({self.quota_amount} {self.get_quota_type_display()}/{self.get_period_type_display()})'
+
+    def applies_to_user(self, user_profile):
+        """Check if this allocation applies to a specific user."""
+        if not self.is_active:
+            return False
+
+        # Check specific users
+        if self.specific_users.filter(id=user_profile.user.id).exists():
+            return True
+
+        # Check user roles
+        if self.user_roles and user_profile.role in self.user_roles:
+            return True
+
+        return False
+
+    def applies_to_resource(self, resource):
+        """Check if this allocation applies to a specific resource."""
+        if self.resource and self.resource == resource:
+            return True
+
+        if self.resource_type and resource.resource_type == self.resource_type:
+            return True
+
+        # If no specific resource/type, applies to all
+        if not self.resource and not self.resource_type:
+            return True
+
+        return False
+
+
+class UserQuota(models.Model):
+    """Track individual user quota status and usage."""
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='quotas')
+    allocation = models.ForeignKey(QuotaAllocation, on_delete=models.CASCADE, related_name='user_quotas')
+
+    # Current period tracking
+    period_start = models.DateTimeField()
+    period_end = models.DateTimeField()
+
+    # Usage tracking
+    used_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    reserved_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text='Amount reserved by pending bookings')
+
+    # Overdraft tracking
+    overdraft_used = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+
+    # Status
+    is_active = models.BooleanField(default=True)
+    last_updated = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'booking_userquota'
+        unique_together = ['user', 'allocation', 'period_start']
+        ordering = ['-period_start']
+
+    def __str__(self):
+        return f'{self.user.username} - {self.allocation.name} ({self.period_start.date()} to {self.period_end.date()})'
+
+    @property
+    def available_amount(self):
+        """Calculate available quota amount."""
+        return max(0, self.allocation.quota_amount - self.used_amount - self.reserved_amount)
+
+    @property
+    def total_usage(self):
+        """Total usage including overdraft."""
+        return self.used_amount + self.overdraft_used
+
+    @property
+    def usage_percentage(self):
+        """Usage as percentage of quota."""
+        if self.allocation.quota_amount > 0:
+            return (self.total_usage / self.allocation.quota_amount) * 100
+        return 0
+
+    def can_allocate(self, amount):
+        """Check if the specified amount can be allocated."""
+        if self.available_amount >= amount:
+            return True
+
+        # Check overdraft allowance
+        if self.allocation.allow_overdraft:
+            overdraft_needed = amount - self.available_amount
+            return self.overdraft_used + overdraft_needed <= self.allocation.overdraft_limit
+
+        return False
+
+    def allocate_usage(self, amount, is_reservation=False):
+        """Allocate usage from the quota."""
+        if not self.can_allocate(amount):
+            raise ValueError('Insufficient quota available')
+
+        if is_reservation:
+            self.reserved_amount += amount
+        else:
+            if amount <= self.available_amount:
+                self.used_amount += amount
+            else:
+                # Use available quota first, then overdraft
+                overdraft_amount = amount - self.available_amount
+                self.used_amount = self.allocation.quota_amount
+                self.overdraft_used += overdraft_amount
+
+        self.save()
+
+    def release_reservation(self, amount):
+        """Release a previously reserved amount."""
+        self.reserved_amount = max(0, self.reserved_amount - amount)
+        self.save()
+
+    def is_expired(self):
+        """Check if this quota period has expired."""
+        return timezone.now() > self.period_end
+
+
+class QuotaUsageLog(models.Model):
+    """Log individual quota usage events for auditing."""
+    user_quota = models.ForeignKey(UserQuota, on_delete=models.CASCADE, related_name='usage_logs')
+    booking = models.ForeignKey('Booking', on_delete=models.CASCADE, null=True, blank=True, related_name='quota_usage_logs')
+
+    # Usage details
+    amount_used = models.DecimalField(max_digits=10, decimal_places=2)
+    usage_type = models.CharField(max_length=20, choices=[
+        ('booking', 'Booking Usage'),
+        ('reservation', 'Reservation'),
+        ('release', 'Reservation Release'),
+        ('refund', 'Usage Refund'),
+        ('adjustment', 'Manual Adjustment'),
+    ], default='booking')
+
+    description = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='quota_usage_logs')
+
+    class Meta:
+        db_table = 'booking_quotausagelog'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.user_quota.user.username} - {self.usage_type} - {self.amount_used} ({self.created_at.date()})'
+
+
+class ApprovalDelegate(models.Model):
+    """Approval delegation for single-level approvals."""
+    DELEGATION_TYPES = [
+        ('temporary', 'Temporary Delegation'),
+        ('permanent', 'Permanent Delegation'),
+        ('conditional', 'Conditional Delegation'),
+    ]
+
+    DELEGATION_STATUS = [
+        ('active', 'Active'),
+        ('inactive', 'Inactive'),
+        ('expired', 'Expired'),
+    ]
+
+    # Core delegation information
+    delegator = models.ForeignKey(User, on_delete=models.CASCADE, related_name='delegations_given', help_text="User delegating approval authority")
+    delegate = models.ForeignKey(User, on_delete=models.CASCADE, related_name='delegations_received', help_text="User receiving approval authority")
+
+    # Delegation scope
+    approval_rule = models.ForeignKey(ApprovalRule, on_delete=models.CASCADE, null=True, blank=True, help_text="Specific rule to delegate, or all if empty")
+    resource = models.ForeignKey('Resource', on_delete=models.CASCADE, null=True, blank=True, help_text="Specific resource to delegate, or all if empty")
+
+    # Delegation details
+    delegation_type = models.CharField(max_length=20, choices=DELEGATION_TYPES, default='temporary')
+    status = models.CharField(max_length=20, choices=DELEGATION_STATUS, default='active')
+
+    # Time constraints
+    start_date = models.DateTimeField(help_text="When delegation becomes active")
+    end_date = models.DateTimeField(null=True, blank=True, help_text="When delegation expires (null = permanent)")
+
+    # Conditional constraints
+    conditions = models.JSONField(default=dict, help_text="Conditions under which delegation is valid")
+    max_delegations = models.PositiveIntegerField(null=True, blank=True, help_text="Maximum number of approvals delegate can make")
+    used_delegations = models.PositiveIntegerField(default=0, help_text="Number of approvals delegate has made")
+
+    # Metadata
+    reason = models.TextField(help_text="Reason for delegation")
+    notify_delegator = models.BooleanField(default=True, help_text="Send notifications to delegator when delegate acts")
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='delegations_created')
+
+    class Meta:
+        db_table = 'booking_approvaldelegate'
+        unique_together = ['delegator', 'delegate', 'approval_rule', 'resource']
+        ordering = ['-created_at']
+
+    def __str__(self):
+        scope = ""
+        if self.approval_rule:
+            scope += f" for {self.approval_rule.name}"
+        if self.resource:
+            scope += f" on {self.resource.name}"
+        return f'{self.delegator.username} → {self.delegate.username}{scope}'
+
+    def is_valid(self):
+        """Check if delegation is currently valid."""
+        if self.status != 'active':
+            return False
+
+        now = timezone.now()
+        if now < self.start_date:
+            return False
+
+        if self.end_date and now > self.end_date:
+            self.status = 'expired'
+            self.save()
+            return False
+
+        if self.max_delegations and self.used_delegations >= self.max_delegations:
+            return False
+
+        return True
+
+    def can_approve(self, booking=None, approval_rule=None, resource=None):
+        """Check if delegate can approve a specific request."""
+        if not self.is_valid():
+            return False
+
+        # Check rule scope
+        if self.approval_rule and approval_rule and self.approval_rule != approval_rule:
+            return False
+
+        # Check resource scope
+        if self.resource and resource and self.resource != resource:
+            return False
+
+        # Check conditions
+        if self.conditions and booking:
+            # Add custom condition evaluation logic here
+            pass
+
+        return True
+
+
+class ApprovalEscalation(models.Model):
+    """Escalation rules for overdue approvals."""
+    ESCALATION_ACTIONS = [
+        ('notify', 'Send Notification'),
+        ('delegate', 'Auto-delegate to Substitute'),
+        ('auto_approve', 'Auto-approve with Conditions'),
+        ('escalate_manager', 'Escalate to Manager'),
+        ('escalate_admin', 'Escalate to Administrator'),
+    ]
+
+    # Core escalation configuration
+    approval_rule = models.ForeignKey(ApprovalRule, on_delete=models.CASCADE, related_name='escalations')
+
+    # Escalation triggers
+    timeout_hours = models.PositiveIntegerField(help_text="Hours before escalation triggers")
+    business_hours_only = models.BooleanField(default=True, help_text="Count only business hours for timeout")
+
+    # Escalation actions
+    action = models.CharField(max_length=20, choices=ESCALATION_ACTIONS)
+    substitute_approver = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='escalation_substitutes', help_text="User to escalate to")
+
+    # Conditions and metadata
+    conditions = models.JSONField(default=dict, help_text="Conditions for escalation")
+    notification_template = models.TextField(blank=True, help_text="Custom notification template")
+    priority = models.PositiveIntegerField(default=1, help_text="Escalation priority order")
+    is_active = models.BooleanField(default=True)
+
+    # Tracking
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='escalations_created')
+
+    class Meta:
+        db_table = 'booking_approvalescalation'
+        ordering = ['priority', 'timeout_hours']
+
+    def __str__(self):
+        return f'{self.approval_rule.name} - {self.get_action_display()} after {self.timeout_hours}h'
+
+
+class SingleApprovalRequest(models.Model):
+    """Enhanced tracking for single-level approval requests."""
+    APPROVAL_STATUS = [
+        ('pending', 'Pending Approval'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+        ('delegated', 'Delegated'),
+        ('escalated', 'Escalated'),
+        ('expired', 'Expired'),
+    ]
+
+    PRIORITY_LEVELS = [
+        ('low', 'Low Priority'),
+        ('normal', 'Normal Priority'),
+        ('high', 'High Priority'),
+        ('urgent', 'Urgent'),
+    ]
+
+    # Core request information
+    booking = models.OneToOneField('Booking', on_delete=models.CASCADE, related_name='single_approval')
+    approval_rule = models.ForeignKey(ApprovalRule, on_delete=models.CASCADE)
+    requester = models.ForeignKey(User, on_delete=models.CASCADE, related_name='approval_requests')
+
+    # Approval assignment
+    assigned_approver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='single_approval_assignments', help_text="Originally assigned approver")
+    current_approver = models.ForeignKey(User, on_delete=models.CASCADE, related_name='current_approvals', help_text="Current approver (may be delegate)")
+
+    # Request details
+    status = models.CharField(max_length=20, choices=APPROVAL_STATUS, default='pending')
+    priority = models.CharField(max_length=20, choices=PRIORITY_LEVELS, default='normal')
+    requested_at = models.DateTimeField(auto_now_add=True)
+    due_date = models.DateTimeField(null=True, blank=True, help_text="Expected approval deadline")
+
+    # Response details
+    approved_at = models.DateTimeField(null=True, blank=True)
+    approved_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='approvals_given')
+    response_comments = models.TextField(blank=True)
+
+    # Delegation tracking
+    delegation = models.ForeignKey(ApprovalDelegate, on_delete=models.SET_NULL, null=True, blank=True, help_text="Delegation used if applicable")
+
+    # Escalation tracking
+    escalated_at = models.DateTimeField(null=True, blank=True)
+    escalation_reason = models.TextField(blank=True)
+    escalated_to = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='escalated_approvals')
+
+    # Metadata
+    approval_data = models.JSONField(default=dict, help_text="Additional approval context data")
+    reminders_sent = models.PositiveIntegerField(default=0, help_text="Number of reminder notifications sent")
+    last_reminder_sent = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'booking_singleapprovalrequest'
+        ordering = ['-requested_at']
+
+    def __str__(self):
+        return f'{self.booking} - {self.status} ({self.current_approver.username})'
+
+    def is_overdue(self):
+        """Check if approval request is overdue."""
+        if not self.due_date or self.status not in ['pending', 'delegated']:
+            return False
+        return timezone.now() > self.due_date
+
+    def time_remaining(self):
+        """Calculate time remaining for approval."""
+        if not self.due_date:
+            return None
+        remaining = self.due_date - timezone.now()
+        return remaining if remaining.total_seconds() > 0 else timedelta(0)
+
+    def delegate_to(self, delegate_user, delegation):
+        """Delegate approval to another user."""
+        self.current_approver = delegate_user
+        self.delegation = delegation
+        self.status = 'delegated'
+        self.save()
+
+    def escalate_to(self, escalated_user, reason="Timeout escalation"):
+        """Escalate approval to another user."""
+        self.escalated_to = escalated_user
+        self.current_approver = escalated_user
+        self.escalated_at = timezone.now()
+        self.escalation_reason = reason
+        self.status = 'escalated'
+        self.save()
+
+
+class ApprovalNotificationTemplate(models.Model):
+    """Customizable notification templates for approval workflows."""
+    TEMPLATE_TYPES = [
+        ('approval_request', 'Approval Request'),
+        ('approval_reminder', 'Approval Reminder'),
+        ('approval_approved', 'Approval Granted'),
+        ('approval_rejected', 'Approval Rejected'),
+        ('approval_delegated', 'Approval Delegated'),
+        ('approval_escalated', 'Approval Escalated'),
+        ('approval_expired', 'Approval Expired'),
+    ]
+
+    DELIVERY_METHODS = [
+        ('email', 'Email'),
+        ('sms', 'SMS'),
+        ('in_app', 'In-App Notification'),
+        ('all', 'All Methods'),
+    ]
+
+    # Template identification
+    name = models.CharField(max_length=200)
+    template_type = models.CharField(max_length=30, choices=TEMPLATE_TYPES)
+    approval_rule = models.ForeignKey(ApprovalRule, on_delete=models.CASCADE, null=True, blank=True, help_text="Specific rule, or global if empty")
+
+    # Template content
+    subject_template = models.CharField(max_length=500, help_text="Email subject or notification title")
+    body_template = models.TextField(help_text="Message body with placeholder variables")
+
+    # Delivery configuration
+    delivery_method = models.CharField(max_length=20, choices=DELIVERY_METHODS, default='email')
+    send_to_requester = models.BooleanField(default=True)
+    send_to_approver = models.BooleanField(default=True)
+    send_to_delegator = models.BooleanField(default=False, help_text="Send to original delegator if delegated")
+
+    # Timing
+    send_immediately = models.BooleanField(default=True)
+    delay_minutes = models.PositiveIntegerField(default=0, help_text="Delay before sending")
+
+    # Template variables help
+    available_variables = models.JSONField(default=dict, help_text="Available template variables and descriptions")
+
+    # Metadata
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    created_by = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='notification_templates_created')
+
+    class Meta:
+        db_table = 'booking_approvalnotificationtemplate'
+        unique_together = ['template_type', 'approval_rule']
+        ordering = ['template_type', 'name']
+
+    def __str__(self):
+        scope = f" ({self.approval_rule.name})" if self.approval_rule else " (Global)"
+        return f'{self.get_template_type_display()}{scope}'
+
+    def render(self, context):
+        """Render template with provided context variables."""
+        from django.template import Template, Context
+
+        subject = Template(self.subject_template).render(Context(context))
+        body = Template(self.body_template).render(Context(context))
+
+        return {
+            'subject': subject,
+            'body': body,
+            'delivery_method': self.delivery_method
+        }
